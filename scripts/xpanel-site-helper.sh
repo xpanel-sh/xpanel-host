@@ -1023,15 +1023,22 @@ access_sync() {
     fail "Invalid staged SSH public key."
   fi
   if [[ -s "$source" ]]; then ssh-keygen -l -f "$source" >/dev/null || fail "SSH key validation failed."; fi
+  # sshd's pre-auth AuthorizedKeysFile lookup runs as its own unprivileged
+  # system user (Debian/Ubuntu: "sshd"), not as root and not as the site
+  # user — so every directory and file on this path must be world-traversable
+  # and world-readable, not just group-readable by the site's own group.
+  # These files only ever hold public keys, so there's nothing to keep
+  # confidential here; the risk is write access, not read access.
   local key_root="/var/lib/xpanel-host/ssh/$site_user"
-  install -d -o root -g "$site_user" -m 0750 /var/lib/xpanel-host/ssh "$key_root"
-  install -o root -g "$site_user" -m 0640 "$source" "$key_root/authorized_keys"
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host/ssh
+  install -d -o root -g root -m 0755 "$key_root"
+  install -o root -g root -m 0644 "$source" "$key_root/authorized_keys"
 
   local terminal_keys_file="$key_root/authorized_keys.terminal"
   if [[ "$web_terminal_enabled" == "1" ]]; then
     local service_key="/var/lib/xpanel-host/ssh/service_terminal.pub"
     [[ -f "$service_key" ]] || fail "Terminal service key not installed."
-    install -o root -g "$site_user" -m 0640 "$service_key" "$terminal_keys_file"
+    install -o root -g root -m 0644 "$service_key" "$terminal_keys_file"
   else
     rm -f "$terminal_keys_file"
   fi

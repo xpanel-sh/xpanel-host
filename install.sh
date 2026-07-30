@@ -680,7 +680,12 @@ configure_terminal_agent() {
   fi
   install -d -o "$agent_user" -g "$agent_user" -m 0750 /var/lib/xpanel-host/terminal-agent
 
-  install -d -o root -g "$agent_user" -m 0750 /var/lib/xpanel-host/ssh
+  # Shared with each site's own authorized_keys.terminal (see
+  # access_sync() in xpanel-site-helper.sh) — kept root:root 0755 so
+  # sshd's unprivileged pre-auth lookup can traverse it regardless of
+  # which site or which install step last touched it. Only the agent's
+  # own private half of the keypair needs to stay confidential.
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host/ssh
   if [[ ! -f /var/lib/xpanel-host/ssh/service_terminal ]]; then
     ssh-keygen -t ed25519 -N '' -C xpanel-host-terminal-agent -f /var/lib/xpanel-host/ssh/service_terminal >/dev/null
   fi
