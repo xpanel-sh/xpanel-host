@@ -1003,10 +1003,10 @@ EOF
 }
 
 access_sync() {
-  local site_user="$2" document_root="$3" sftp_enabled="$4" ftp_enabled="$5" ssh_enabled="$6"
+  local site_user="$2" document_root="$3" sftp_enabled="$4" ftp_enabled="$5" ssh_enabled="$6" web_terminal_enabled="${7:-0}"
   valid_site_identity "$site_user" || fail "Invalid access site user."
   valid_document_root "$document_root" || fail "Invalid access document root."
-  for flag in "$sftp_enabled" "$ftp_enabled" "$ssh_enabled"; do [[ "$flag" == "0" || "$flag" == "1" ]] || fail "Invalid access flag."; done
+  for flag in "$sftp_enabled" "$ftp_enabled" "$ssh_enabled" "$web_terminal_enabled"; do [[ "$flag" == "0" || "$flag" == "1" ]] || fail "Invalid access flag."; done
   ensure_site_identity "$site_user" "$document_root"
 
   local password=""
@@ -1025,6 +1025,15 @@ access_sync() {
   local key_root="/var/lib/xpanel-host/ssh/$site_user"
   install -d -o root -g "$site_user" -m 0750 /var/lib/xpanel-host/ssh "$key_root"
   install -o root -g "$site_user" -m 0640 "$source" "$key_root/authorized_keys"
+
+  local terminal_keys_file="$key_root/authorized_keys.terminal"
+  if [[ "$web_terminal_enabled" == "1" ]]; then
+    local service_key="/var/lib/xpanel-host/ssh/service_terminal.pub"
+    [[ -f "$service_key" ]] || fail "Terminal service key not installed."
+    install -o root -g "$site_user" -m 0640 "$service_key" "$terminal_keys_file"
+  else
+    rm -f "$terminal_keys_file"
+  fi
 
   local jail="/var/lib/xpanel-host/jails/$site_user" mountpoint_path="$jail/site"
   install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails "$jail"
@@ -1046,7 +1055,7 @@ ExecStop=/bin/umount $mountpoint_path
 WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
-  if [[ "$sftp_enabled" == "1" && "$ssh_enabled" == "0" ]]; then
+  if [[ "$sftp_enabled" == "1" && "$ssh_enabled" == "0" && "$web_terminal_enabled" == "0" ]]; then
     if mountpoint -q "$mountpoint_path" && [[ "$(findmnt -n -o SOURCE --target "$mountpoint_path")" != "$document_root" ]]; then umount "$mountpoint_path"; fi
     if ! mountpoint -q "$mountpoint_path"; then mount --bind "$document_root" "$mountpoint_path"; fi
     systemctl enable "$mount_unit" >/dev/null
@@ -1057,14 +1066,20 @@ EOF
 
   install -d -o root -g root -m 0755 /etc/ssh/sshd_config.d
   local ssh_config="/etc/ssh/sshd_config.d/90-xpanel-$site_user.conf"
-  if [[ "$ssh_enabled" == "1" ]]; then
+  if [[ "$ssh_enabled" == "1" || "$web_terminal_enabled" == "1" ]]; then
+    # sshd cannot tell which authorized key was used before ForceCommand
+    # applies, so a real shell for the terminal key means a real shell for
+    # the owner's own keys too — same precedence the ssh_enabled branch
+    # already had over sftp_enabled below. The panel UI must say this
+    # plainly before letting an owner turn on the terminal on a
+    # SFTP-only site.
     usermod -s /bin/bash -d "$document_root" "$site_user"
     cat > "$ssh_config" <<EOF
 Match User $site_user
     PubkeyAuthentication yes
     PasswordAuthentication no
     AuthenticationMethods publickey
-    AuthorizedKeysFile /var/lib/xpanel-host/ssh/%u/authorized_keys
+    AuthorizedKeysFile /var/lib/xpanel-host/ssh/%u/authorized_keys /var/lib/xpanel-host/ssh/%u/authorized_keys.terminal
     AllowTcpForwarding no
     X11Forwarding no
     PermitTunnel no

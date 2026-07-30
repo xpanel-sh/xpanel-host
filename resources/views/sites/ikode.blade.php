@@ -9,6 +9,8 @@
     $filesDomain = $site?->domain;
     $filesBaseUrl = $site ? route('sites.files.index', $site).'/api' : route('sites.ikode').'/api';
     $filesBackRoute = $site ? route('sites.files.index', $site) : route('sites.index');
+    $webTerminalEnabled = $site && config('xpanel.terminal_enabled') && (bool) $site->accessSettings?->web_terminal_enabled;
+    $terminalTokenUrl = $site ? route('sites.access.terminal.token', $site) : null;
     $filesSites = \App\Models\Site::orderBy('domain')->get()
         ->when($site, fn ($collection) => $collection->reject(fn ($item) => $item->is($site)))
         ->map(fn ($item) => [
@@ -348,6 +350,28 @@
             color: hsl(var(--foreground));
         }
         .xpanel-terminal-action:hover { background: hsl(var(--muted)); }
+        .xpanel-ssh-terminal-body {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+        }
+        .xpanel-ssh-terminal-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            height: 34px;
+            padding: 0 10px;
+            border-bottom: 1px solid hsl(var(--border));
+            font-size: 11px;
+        }
+        .xpanel-ssh-status { color: var(--muted-foreground); }
+        .xpanel-ssh-terminal-mount {
+            flex: 1;
+            min-height: 0;
+            padding: 4px;
+        }
         .xpanel-terminal-list {
             flex: 1;
             min-height: 0;
@@ -913,6 +937,7 @@
                             <button class="ikode_terminal_tab" type="button" data-console-tab="output">Output</button>
                             <button class="ikode_terminal_tab" type="button" data-console-tab="logs">Logs</button>
                             <button class="ikode_terminal_tab ikode_terminal_tab_active" type="button" data-console-tab="terminal">Terminal</button>
+                            <button class="ikode_terminal_tab" type="button" data-console-tab="ssh">Terminal real</button>
                             <button class="ikode_terminal_tab" type="button" data-console-tab="ports">Ports</button>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="problems">
@@ -951,6 +976,19 @@
                                     </form>
                                 </section>
                             </div>
+                        </div>
+                        <div class="ikode_terminal_body ikode_hidden xpanel-ssh-terminal-body" data-console-view="ssh">
+                            @if($webTerminalEnabled)
+                                <div class="xpanel-ssh-terminal-toolbar">
+                                    <span id="xpanel_ssh_status" class="xpanel-ssh-status">Desconectado</span>
+                                    <button class="xpanel-terminal-action" type="button" id="xpanel_ssh_reconnect" title="Reconectar">
+                                        <i class="ki-filled ki-arrows-circle"></i>
+                                    </button>
+                                </div>
+                                <div id="xpanel_ssh_terminal_mount" class="xpanel-ssh-terminal-mount"></div>
+                            @else
+                                <div class="xpanel-console-line"><span class="xpanel-console-time">info</span><span class="xpanel-console-text">Terminal real desactivada. Actívala en Avanzado &rarr; Acceso SSH.</span></div>
+                            @endif
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="ports">
                             <div class="xpanel-console-line"><span class="xpanel-console-time">80</span><span class="xpanel-console-text">HTTP del sitio</span></div>
@@ -1082,12 +1120,17 @@
 @push('scripts')
     <script src="{{ asset('assets/files/split.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
     <script>
         window.XPANEL_FILE_MANAGER_CONFIG = {
             baseUrl: @json($filesBaseUrl),
             domain: @json($filesDomain),
             rootLabel: @json($filesDomain ?: 'www/'),
             scope: @json('client'),
+            webTerminalEnabled: @json($webTerminalEnabled),
+            terminalTokenUrl: @json($terminalTokenUrl),
         };
     </script>
     <script>
@@ -2776,6 +2819,73 @@
                 persistUiState();
             };
 
+            const sshTerminal = { term: null, fitAddon: null, socket: null, connecting: false };
+
+            const sshSetStatus = (text) => {
+                const el = $('#xpanel_ssh_status');
+                if (el) el.textContent = text;
+            };
+
+            // Real per-site shell: the token is single-use and expires in ~20s
+            // (see TerminalTokenIssuer), so it's fetched fresh on every connect
+            // attempt rather than cached. The agent bridges this socket to a
+            // real SSH session as the site's own confined Unix user.
+            const openSshTerminal = async () => {
+                if (!config.webTerminalEnabled || !config.terminalTokenUrl) return;
+                const mount = $('#xpanel_ssh_terminal_mount');
+                if (!mount) return;
+                if (!sshTerminal.term) {
+                    sshTerminal.term = new Terminal({ convertEol: true, fontSize: 13, cursorBlink: true });
+                    sshTerminal.fitAddon = new FitAddon.FitAddon();
+                    sshTerminal.term.loadAddon(sshTerminal.fitAddon);
+                    sshTerminal.term.open(mount);
+                    sshTerminal.fitAddon.fit();
+                    sshTerminal.term.onData((data) => {
+                        if (sshTerminal.socket && sshTerminal.socket.readyState === WebSocket.OPEN) {
+                            sshTerminal.socket.send(JSON.stringify({ type: 'data', data }));
+                        }
+                    });
+                    sshTerminal.term.onResize(({ cols, rows }) => {
+                        if (sshTerminal.socket && sshTerminal.socket.readyState === WebSocket.OPEN) {
+                            sshTerminal.socket.send(JSON.stringify({ type: 'resize', cols, rows }));
+                        }
+                    });
+                    window.addEventListener('resize', () => sshTerminal.fitAddon && sshTerminal.fitAddon.fit());
+                }
+                if (sshTerminal.socket && (sshTerminal.socket.readyState === WebSocket.OPEN || sshTerminal.socket.readyState === WebSocket.CONNECTING)) {
+                    return;
+                }
+                if (sshTerminal.connecting) return;
+                sshTerminal.connecting = true;
+                sshSetStatus('Conectando...');
+                try {
+                    const response = await fetch(config.terminalTokenUrl, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+                    });
+                    if (!response.ok) throw new Error(await response.text() || `HTTP ${response.status}`);
+                    const { path, token } = await response.json();
+                    const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const socket = new WebSocket(`${scheme}//${location.host}${path}?token=${encodeURIComponent(token)}`);
+                    sshTerminal.socket = socket;
+                    socket.onopen = () => sshSetStatus('Conectado');
+                    socket.onmessage = (event) => {
+                        try {
+                            const message = JSON.parse(event.data);
+                            if (message.type === 'data') sshTerminal.term.write(message.data);
+                            if (message.type === 'error') sshTerminal.term.write(`\r\n\x1b[31m${message.data}\x1b[0m\r\n`);
+                        } catch { /* ignore malformed frame */ }
+                    };
+                    socket.onclose = () => { sshSetStatus('Desconectado'); sshTerminal.connecting = false; };
+                    socket.onerror = () => { sshSetStatus('Error de conexion'); };
+                } catch (error) {
+                    sshSetStatus('Error de conexion');
+                    if (sshTerminal.term) sshTerminal.term.write(`\r\n\x1b[31m${error.message}\x1b[0m\r\n`);
+                } finally {
+                    sshTerminal.connecting = false;
+                }
+            };
+
             const switchConsoleTab = (tab) => {
                 uiState.ui.consoleTab = tab;
                 $$('[data-console-tab]').forEach((button) => {
@@ -2786,6 +2896,7 @@
                 });
                 persistUiState();
                 if (tab === 'terminal') rebuildLayout();
+                if (tab === 'ssh') openSshTerminal();
             };
 
             const switchRightTab = (tab) => {
@@ -3030,6 +3141,7 @@
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
             $$('[data-outline-tab]').forEach((button) => button.addEventListener('click', () => switchOutlineTab(button.dataset.outlineTab)));
             $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab)));
+            $('#xpanel_ssh_reconnect')?.addEventListener('click', () => { sshTerminal.socket?.close(); openSshTerminal(); });
             $$('[data-right-tab]').forEach((button) => button.addEventListener('click', () => switchRightTab(button.dataset.rightTab)));
             $$('[data-terminal-action]').forEach((button) => button.addEventListener('click', () => terminalAction(button.dataset.terminalAction)));
             $$('[data-clone-action]').forEach((button) => button.addEventListener('click', () => cloneAction(button.dataset.cloneAction)));

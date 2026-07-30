@@ -52,6 +52,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Un fallo auxiliar de instalación de la CLI ya no impide mostrar la URL y el estado final del panel.
 - El helper privilegiado se versiona como ejecutable para que el instalador no ensucie el árbol Git ni bloquee `git pull`/`xpanel update`.
 - Primera instalación completamente no interactiva por `IP:80`, sin solicitar dominio/correo ni intentar certificados del panel o webmail.
+- Terminal real por sitio en iKode (`Avanzado → Acceso SSH → Terminal real desde el navegador`), opcional y apagada por defecto (`XPANEL_TERMINAL_ENABLED`). Un agente Go sin privilegios de root (`xpanel-terminal-agent`) hace de puente entre un WebSocket firmado de un solo uso y una sesión SSH real hacia el mismo sshd que ya aísla cada sitio por usuario Unix; el agente nunca toca la base de datos de Laravel ni `APP_KEY`.
 - Instalación obligatoria y comprobación de la CLI global durante el despliegue de Host.
 - Instalación inicial con sólo el dominio del panel; el correo ACME y el DNS de webmail quedan opcionales y no bloquean el proceso.
 - Inicio de OpenDKIM en Ubuntu y Debian mediante un PID y directorio de ejecución compatibles con su unidad systemd.

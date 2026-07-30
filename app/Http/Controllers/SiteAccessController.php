@@ -27,6 +27,7 @@ class SiteAccessController extends Controller
             'sftp_enabled' => ['nullable', 'boolean'],
             'ftp_enabled' => ['nullable', 'boolean'],
             'ssh_enabled' => ['nullable', 'boolean'],
+            'web_terminal_enabled' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:16', 'max:128', 'regex:/^[A-Za-z0-9!@#%^*_=+.,:\-]+$/'],
         ]);
         $settings = $site->accessSettings()->firstOrCreate();
@@ -38,11 +39,15 @@ class SiteAccessController extends Controller
         if ($request->boolean('ssh_enabled') && ! $site->sshKeys()->exists()) {
             return back()->withErrors(['ssh_enabled' => 'Añade al menos una llave antes de activar SSH.']);
         }
+        if ($request->boolean('web_terminal_enabled') && ! config('xpanel.terminal_enabled')) {
+            return back()->withErrors(['web_terminal_enabled' => 'La terminal real no está habilitada en este servidor.']);
+        }
         $original = $settings->getAttributes();
         $settings->fill([
             'sftp_enabled' => $request->boolean('sftp_enabled'),
             'ftp_enabled' => $request->boolean('ftp_enabled'),
             'ssh_enabled' => $request->boolean('ssh_enabled'),
+            'web_terminal_enabled' => $request->boolean('web_terminal_enabled'),
         ]);
         if (filled($data['password'] ?? null)) {
             $settings->password_rotated_at = now();

@@ -22,6 +22,7 @@ class SiteAccessProvisioner
             $settings->sftp_enabled ? '1' : '0',
             $settings->ftp_enabled ? '1' : '0',
             $settings->ssh_enabled ? '1' : '0',
+            $settings->web_terminal_enabled ? '1' : '0',
         ], $password === null ? null : $password."\n");
     }
 

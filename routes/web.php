@@ -38,6 +38,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SiteDiagnosticController;
 use App\Http\Controllers\SiteMigrationController;
 use App\Http\Controllers\SiteOperationController;
+use App\Http\Controllers\SiteTerminalController;
 use App\Http\Controllers\SubdomainController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WebServerEngineController;
@@ -192,6 +193,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::put('/sites/{site}/access', [SiteAccessController::class, 'update'])->name('sites.access.update');
             Route::post('/sites/{site}/access/ssh-keys', [SiteAccessController::class, 'storeKey'])->name('sites.access.keys.store');
             Route::delete('/sites/{site}/access/ssh-keys/{sshKey}', [SiteAccessController::class, 'destroyKey'])->name('sites.access.keys.destroy');
+            Route::post('/sites/{site}/access/terminal-token', [SiteTerminalController::class, 'token'])->middleware('throttle:10,1')->name('sites.access.terminal.token');
             Route::put('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'update'])->name('sites.php.configuration.update');
             Route::post('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'store'])->name('sites.cron.store');
             Route::put('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'update'])->name('sites.cron.update');
@@ -283,3 +285,7 @@ Route::get('/version', fn () => response()->json([
     'service' => 'xpanel-host',
     'version' => '0.1.0-dev',
 ]));
+
+// Called only by the loopback-only Go terminal agent, never by a browser
+// session — see SiteTerminalController::consume() and app/Services/TerminalTokenIssuer.php.
+Route::post('/internal/terminal/consume', [SiteTerminalController::class, 'consume']);

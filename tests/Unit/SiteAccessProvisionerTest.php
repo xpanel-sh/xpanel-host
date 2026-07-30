@@ -19,7 +19,7 @@ class SiteAccessProvisionerTest extends TestCase
         $runner = Mockery::mock(ServerCommandRunner::class);
         $runner->shouldReceive('run')->once()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'access-sync',
-            $site->systemUser(), $site->document_root, '1', '0', '0',
+            $site->systemUser(), $site->document_root, '1', '0', '0', '0',
         ], "Strong-Access_2026!\n");
         $provisioner = Mockery::mock(SiteAccessProvisioner::class, [$runner])->makePartial();
         $provisioner->shouldReceive('stageKeys')->once();

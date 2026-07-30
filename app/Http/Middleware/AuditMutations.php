@@ -92,6 +92,7 @@ class AuditMutations
             'sites.databases.destroy' => 'Eliminó una base de datos.',
             'sites.subdomains.store' => 'Creó un subdominio.',
             'sites.subdomains.destroy' => 'Eliminó un subdominio.',
+            'sites.access.terminal.token' => 'Abrió una terminal SSH real del sitio.',
         ][$routeName] ?? 'Ejecutó una acción administrativa: '.$routeName.'.';
     }
 }

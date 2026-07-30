@@ -65,6 +65,21 @@ class SiteAccessManagementTest extends TestCase
         $this->actingAs($this->owner())->delete(route('sites.access.keys.destroy', [$site, $key]))->assertNotFound();
     }
 
+    public function test_web_terminal_toggle_requires_the_server_wide_feature_flag(): void
+    {
+        $site = $this->site();
+        $actor = $this->actingAs($this->owner());
+
+        $actor->put(route('sites.access.update', $site), ['web_terminal_enabled' => '1'])
+            ->assertSessionHasErrors('web_terminal_enabled');
+        $this->assertFalse($site->accessSettings()->first()?->web_terminal_enabled ?? false);
+
+        config(['xpanel.terminal_enabled' => true]);
+        $actor->put(route('sites.access.update', $site), ['web_terminal_enabled' => '1'])
+            ->assertSessionHas('status');
+        $this->assertTrue($site->accessSettings->fresh()->web_terminal_enabled);
+    }
+
     public function test_access_pages_show_the_distinct_system_user(): void
     {
         $site = $this->site();

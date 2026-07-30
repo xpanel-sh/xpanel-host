@@ -45,4 +45,16 @@ return [
     'server_ipv4' => env('XPANEL_SERVER_IPV4'),
     'dkim_selector' => env('XPANEL_DKIM_SELECTOR', 'xpanel'),
     'php_versions' => array_values(array_filter(array_map('trim', explode(',', env('XPANEL_PHP_VERSIONS', '8.1,8.2,8.3,8.4'))))),
+
+    /*
+     * Real per-site terminal: a loopback-only Go agent bridges a browser
+     * WebSocket to a real SSH session (see agent/README.md). The signing key
+     * is deliberately separate from APP_KEY so the two trust domains never
+     * mix; the agent never talks to the Laravel database or holds APP_KEY.
+     */
+    'terminal_enabled' => env('XPANEL_TERMINAL_ENABLED', false),
+    'terminal_signing_key' => env('XPANEL_TERMINAL_SIGNING_KEY'),
+    'terminal_agent_host' => env('XPANEL_TERMINAL_AGENT_HOST', '127.0.0.1'),
+    'terminal_agent_port' => (int) env('XPANEL_TERMINAL_AGENT_PORT', 7092),
+    'terminal_service_user' => env('XPANEL_TERMINAL_SERVICE_USER', 'xpanel-terminal'),
 ];

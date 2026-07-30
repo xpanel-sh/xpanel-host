@@ -95,6 +95,74 @@ ensure_node_runtime() {
   rm -rf -- "$tempdir"
 }
 
+# Only needed to build xpanel-terminal-agent when XPANEL_TERMINAL_ENABLED=true.
+# Skipped entirely otherwise, and a no-op if a recent-enough Go is already on PATH.
+ensure_go_runtime() {
+  local go_minor=0
+  if command -v go >/dev/null 2>&1; then
+    go_minor="$(go env GOVERSION 2>/dev/null | sed -E 's/^go1\.([0-9]+).*/\1/')"
+  fi
+  if [[ "$go_minor" =~ ^[0-9]+$ ]] && (( go_minor >= 22 )); then
+    return
+  fi
+
+  local machine go_arch tempdir manifest filename sha256_expected
+  machine="$(uname -m)"
+  case "$machine" in
+    x86_64|amd64) go_arch="amd64" ;;
+    aarch64|arm64) go_arch="arm64" ;;
+    *) echo "Unsupported architecture for Go: $machine" >&2; exit 1 ;;
+  esac
+
+  echo "Installing the current Go toolchain (build-only dependency for xpanel-terminal-agent)..."
+  tempdir="$(mktemp -d)"
+  manifest="$tempdir/go-dl.json"
+  curl --fail --location --silent --show-error \
+    "https://go.dev/dl/?mode=json" -o "$manifest"
+  filename="$(php -r '
+    $releases = json_decode(file_get_contents($argv[1]), true);
+    foreach ($releases as $release) {
+      if (empty($release["stable"])) { continue; }
+      foreach ($release["files"] as $file) {
+        if ($file["os"] === "linux" && $file["arch"] === $argv[2] && $file["kind"] === "archive") {
+          echo $file["filename"];
+          exit;
+        }
+      }
+    }
+  ' "$manifest" "$go_arch")"
+  [[ "$filename" =~ ^go[0-9]+\.[0-9]+(\.[0-9]+)?\.linux-(amd64|arm64)\.tar\.gz$ ]] || {
+    echo "Could not resolve the official Go archive." >&2
+    exit 1
+  }
+  sha256_expected="$(php -r '
+    $releases = json_decode(file_get_contents($argv[1]), true);
+    foreach ($releases as $release) {
+      foreach ($release["files"] as $file) {
+        if ($file["filename"] === $argv[2]) {
+          echo $file["sha256"];
+          exit;
+        }
+      }
+    }
+  ' "$manifest" "$filename")"
+  [[ "$sha256_expected" =~ ^[0-9a-f]{64}$ ]] || {
+    echo "Could not resolve the Go archive checksum." >&2
+    exit 1
+  }
+
+  curl --fail --location --silent --show-error \
+    "https://go.dev/dl/$filename" -o "$tempdir/$filename"
+  echo "$sha256_expected  $tempdir/$filename" | sha256sum -c -
+
+  rm -rf /usr/local/go-xpanel
+  tar -xzf "$tempdir/$filename" -C "$tempdir"
+  mv "$tempdir/go" /usr/local/go-xpanel
+  ln -sfn /usr/local/go-xpanel/bin/go /usr/local/bin/go
+  ln -sfn /usr/local/go-xpanel/bin/gofmt /usr/local/bin/gofmt
+  rm -rf -- "$tempdir"
+}
+
 write_marker() {
   cat > "$ROOT/xpanel" <<EOF
 SYSTEM="$SYSTEM"
@@ -528,7 +596,7 @@ EOF
 }
 
 configure_panel_vhost() {
-  local php_version panel_host panel_listen
+  local php_version panel_host panel_listen terminal_nginx_block=""
   php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
   if [[ "${XPANEL_PANEL_ACCESS_MODE:-ip}" == "domain" && -n "${XPANEL_PANEL_DOMAIN:-}" ]]; then
     panel_host="$XPANEL_PANEL_DOMAIN"
@@ -540,6 +608,32 @@ configure_panel_vhost() {
   set_env_var XPANEL_PHP_VERSIONS "$php_version"
   a2dissite xpanel-host-panel.conf >/dev/null 2>&1 || true
   rm -f /etc/apache2/sites-available/xpanel-host-panel.conf
+
+  if [[ "${XPANEL_TERMINAL_ENABLED:-false}" == "true" ]]; then
+    local terminal_host="${XPANEL_TERMINAL_AGENT_HOST:-127.0.0.1}" terminal_port="${XPANEL_TERMINAL_AGENT_PORT:-7092}"
+    # /terminal-ws is gated by the signed, single-use token itself (see
+    # SiteTerminalController); /internal/terminal/consume is additionally
+    # restricted to loopback here as defense in depth.
+    terminal_nginx_block="$(cat <<NGINX
+
+    location /terminal-ws {
+        proxy_pass http://$terminal_host:$terminal_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_read_timeout 3600s;
+    }
+
+    location = /internal/terminal/consume {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+        try_files \$uri /index.php?\$query_string;
+    }
+NGINX
+)"
+  fi
 
   cat > /etc/nginx/sites-available/xpanel-host-panel.conf <<EOF
 server {
@@ -559,7 +653,7 @@ server {
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_read_timeout 1250s;
     }
-
+$terminal_nginx_block
     location ~ /\. {
         deny all;
     }
@@ -568,6 +662,78 @@ EOF
   ln -sfn /etc/nginx/sites-available/xpanel-host-panel.conf /etc/nginx/sites-enabled/xpanel-host-panel.conf
   nginx -t
   systemctl reload nginx
+}
+
+# Opt-in real per-site terminal (see agent/README.md). Off by default; set
+# XPANEL_TERMINAL_ENABLED=true when invoking install.sh to turn it on. Skips
+# entirely otherwise so a default install never gains this attack surface.
+configure_terminal_agent() {
+  if [[ "${XPANEL_TERMINAL_ENABLED:-false}" != "true" ]]; then
+    return
+  fi
+
+  ensure_go_runtime
+
+  local agent_user="${XPANEL_TERMINAL_SERVICE_USER:-xpanel-terminal}"
+  if ! id "$agent_user" >/dev/null 2>&1; then
+    useradd --system --home-dir /var/lib/xpanel-host/terminal-agent --shell /usr/sbin/nologin "$agent_user"
+  fi
+  install -d -o "$agent_user" -g "$agent_user" -m 0750 /var/lib/xpanel-host/terminal-agent
+
+  install -d -o root -g "$agent_user" -m 0750 /var/lib/xpanel-host/ssh
+  if [[ ! -f /var/lib/xpanel-host/ssh/service_terminal ]]; then
+    ssh-keygen -t ed25519 -N '' -C xpanel-host-terminal-agent -f /var/lib/xpanel-host/ssh/service_terminal >/dev/null
+  fi
+  chown "$agent_user":"$agent_user" /var/lib/xpanel-host/ssh/service_terminal
+  chmod 0600 /var/lib/xpanel-host/ssh/service_terminal
+  chmod 0644 /var/lib/xpanel-host/ssh/service_terminal.pub
+
+  if ! grep -Eq '^XPANEL_TERMINAL_SIGNING_KEY=.+$' "$ROOT/.env" 2>/dev/null; then
+    set_env_var XPANEL_TERMINAL_SIGNING_KEY "$(openssl rand -hex 32)"
+  fi
+  set_env_var XPANEL_TERMINAL_ENABLED true
+
+  go build -o /usr/local/bin/xpanel-terminal-agent "$ROOT/agent"
+  chmod 0755 /usr/local/bin/xpanel-terminal-agent
+
+  local signing_key panel_port
+  signing_key="$(grep '^XPANEL_TERMINAL_SIGNING_KEY=' "$ROOT/.env" | tail -n1 | cut -d= -f2-)"
+  panel_port="${XPANEL_PANEL_PORT:-80}"
+
+  install -d -o root -g root -m 0755 /etc/xpanel-host
+  cat > /etc/xpanel-host/terminal-agent.env <<EOF
+XPANEL_TERMINAL_SIGNING_KEY=$signing_key
+XPANEL_TERMINAL_CONSUME_URL=http://127.0.0.1:$panel_port/internal/terminal/consume
+XPANEL_TERMINAL_LISTEN=${XPANEL_TERMINAL_AGENT_HOST:-127.0.0.1}:${XPANEL_TERMINAL_AGENT_PORT:-7092}
+XPANEL_TERMINAL_SSH_KEY_PATH=/var/lib/xpanel-host/ssh/service_terminal
+XPANEL_TERMINAL_SSH_HOST=127.0.0.1:22
+EOF
+  chmod 0640 /etc/xpanel-host/terminal-agent.env
+  chown root:"$agent_user" /etc/xpanel-host/terminal-agent.env
+
+  cat > /etc/systemd/system/xpanel-terminal-agent.service <<EOF
+[Unit]
+Description=XPanel Host terminal agent
+After=network.target ssh.service
+
+[Service]
+Type=simple
+User=$agent_user
+Group=$agent_user
+EnvironmentFile=/etc/xpanel-host/terminal-agent.env
+ExecStart=/usr/local/bin/xpanel-terminal-agent
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now xpanel-terminal-agent.service
 }
 
 configure_web_server() {
@@ -652,6 +818,7 @@ configure_mail_server
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:mail-sync
 configure_certbot_renewal
 configure_panel_vhost
+configure_terminal_agent
 bash "$ROOT/scripts/configure-panel-uploads.sh"
 
 if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
