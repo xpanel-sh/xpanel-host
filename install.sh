@@ -19,6 +19,13 @@ if [[ "$(id -u)" != "0" ]]; then
   exit 1
 fi
 
+validate_install_inputs() {
+  if [[ -n "${XPANEL_ACME_EMAIL:-}" && ! "${XPANEL_ACME_EMAIL}" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
+    echo "XPANEL_ACME_EMAIL must be a real email address (for example, admin@example.com)." >&2
+    exit 1
+  fi
+}
+
 install_base_dependencies() {
   if ! command -v apt-get >/dev/null 2>&1; then
     return
@@ -440,11 +447,16 @@ Mode                    sv
 OversignHeaders         From
 Socket                  inet:8891@127.0.0.1
 UserID                  opendkim
+PidFile                 /run/opendkim/opendkim.pid
 KeyTable                refile:/etc/xpanel-host/dkim/key.table
 SigningTable            refile:/etc/xpanel-host/dkim/signing.table
 ExternalIgnoreList      refile:/etc/xpanel-host/dkim/trusted.hosts
 InternalHosts           refile:/etc/xpanel-host/dkim/trusted.hosts
 EOF
+  cat > /etc/tmpfiles.d/xpanel-host-opendkim.conf <<'EOF'
+d /run/opendkim 0750 opendkim opendkim - -
+EOF
+  systemd-tmpfiles --create /etc/tmpfiles.d/xpanel-host-opendkim.conf
   if [[ -f /etc/default/opendkim ]]; then
     if grep -q '^SOCKET=' /etc/default/opendkim; then
       sed -i 's|^SOCKET=.*|SOCKET="inet:8891@127.0.0.1"|' /etc/default/opendkim
@@ -459,8 +471,12 @@ EOF
 
   doveconf -n >/dev/null
   postfix check
-  systemctl enable --now dovecot postfix opendkim
-  systemctl restart dovecot postfix opendkim
+  opendkim -n -x /etc/opendkim.conf
+  systemctl enable dovecot postfix opendkim
+  systemctl restart dovecot
+  systemctl restart postfix
+  systemctl restart opendkim
+  systemctl is-active --quiet dovecot postfix opendkim
 
   set_env_var XPANEL_MAIL_HOSTNAME "$mail_hostname"
   webmail_hostname="${XPANEL_WEBMAIL_HOSTNAME:-$mail_hostname}"
@@ -538,6 +554,7 @@ configure_web_server() {
 }
 
 echo "Installing $SYSTEM in $INSTALL_DIR"
+validate_install_inputs
 write_marker
 
 install_base_dependencies
