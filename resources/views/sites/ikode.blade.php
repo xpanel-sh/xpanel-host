@@ -1119,10 +1119,14 @@
 
 @push('scripts')
     <script src="{{ asset('assets/files/split.min.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+    {{-- xterm.js's UMD build must load before Monaco's AMD loader below: once
+    a `define.amd` loader is on the page, xterm registers as an anonymous AMD
+    module instead of setting `window.Terminal`, and script tags run in
+    document order, so this ordering is what actually prevents that clash. --}}
     <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script>
         window.XPANEL_FILE_MANAGER_CONFIG = {
             baseUrl: @json($filesBaseUrl),
