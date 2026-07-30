@@ -60,6 +60,21 @@ grant_panel_file_access() {
   find -P "$document_root" -xdev -type d -exec setfacl -m d:u:www-data:rwx {} +
 }
 
+subdomain_root_migrate() {
+  local legacy_root="$2" canonical_root="$3" site_user="$4"
+  valid_document_root "$legacy_root" || fail "Invalid legacy subdomain root."
+  valid_document_root "$canonical_root" || fail "Invalid canonical subdomain root."
+  valid_site_identity "$site_user" || fail "Invalid subdomain site identity."
+  [[ "$legacy_root" != "$canonical_root" ]] || fail "Subdomain roots are identical."
+  [[ -d "$legacy_root" && ! -L "$legacy_root" ]] || fail "Legacy subdomain root is unavailable."
+  [[ ! -e "$canonical_root" && ! -L "$canonical_root" ]] || fail "Canonical subdomain root already exists."
+  install -d -o root -g root -m 0755 "$(dirname "$canonical_root")"
+  mv -- "$legacy_root" "$canonical_root"
+  chown -R --no-dereference "$site_user:$site_user" "$canonical_root"
+  grant_panel_file_access "$canonical_root"
+  rmdir -- "$(dirname "$legacy_root")" 2>/dev/null || true
+}
+
 panel_access_apply() {
   local mode="$2" value="$3" port="${4:-80}"
   local panel_host panel_listen panel_url php_version
@@ -1295,6 +1310,7 @@ case "$ACTION" in
   panel-access-apply) panel_access_apply "$@" ;;
   panel-ssl-enable) panel_ssl_enable ;;
   apply|remove) site_action "$@" ;;
+  subdomain-root-migrate) subdomain_root_migrate "$@" ;;
   site-restart) site_restart "$@" ;;
   cron-sync) cron_sync "$@" ;;
   error-pages-sync) error_pages_sync "$@" ;;

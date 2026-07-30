@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Domain;
 use App\Models\Site;
 use App\Services\SiteProvisioner;
+use App\Services\SubdomainRootMigrator;
 use Illuminate\Console\Command;
 
 class SyncSiteConfigurations extends Command
@@ -13,9 +14,12 @@ class SyncSiteConfigurations extends Command
 
     protected $description = 'Rebuild and apply gateway and backend configuration for every site';
 
-    public function handle(SiteProvisioner $provisioner): int
+    public function handle(SiteProvisioner $provisioner, SubdomainRootMigrator $subdomainRoots): int
     {
-        Site::query()->orderBy('id')->each(function (Site $site) use ($provisioner): void {
+        Site::query()->orderBy('id')->each(function (Site $site) use ($provisioner, $subdomainRoots): void {
+            if ($subdomainRoots->migrateLegacyRoot($site)) {
+                $this->line("Moved {$site->domain} to its independent document root.");
+            }
             $provisioner->provision($site);
             Domain::updateOrCreate(['domain' => $site->domain], [
                 'site_id' => $site->id,

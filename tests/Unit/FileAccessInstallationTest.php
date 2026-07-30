@@ -36,4 +36,13 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('d:u:www-data:rwx', $helper);
         $this->assertStringContainsString('grant_panel_file_access "$document_root"', $helper);
     }
+
+    public function test_legacy_subdomain_roots_are_moved_without_overwriting_a_target(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('subdomain_root_migrate()', $helper);
+        $this->assertStringContainsString('Canonical subdomain root already exists.', $helper);
+        $this->assertStringContainsString('mv -- "$legacy_root" "$canonical_root"', $helper);
+    }
 }

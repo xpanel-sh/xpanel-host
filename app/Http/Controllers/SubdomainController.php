@@ -49,11 +49,12 @@ class SubdomainController extends Controller
         Validator::make(['domain' => $domain], [
             'domain' => ['unique:sites,domain', 'unique:domains,domain'],
         ])->validate();
+        $documentRootBase = str_starts_with($site->document_root, '/srv/www/') ? '/srv/www' : '/var/www';
 
         $subdomain = Site::create([
             'parent_site_id' => $site->id,
             'domain' => $domain,
-            'document_root' => ($data['document_root'] ?? null) ?: $site->document_root.'/subdomains/'.$data['label'],
+            'document_root' => ($data['document_root'] ?? null) ?: $documentRootBase.'/'.$domain,
             'php_version' => $site->php_version,
             'type' => $site->type,
             'web_server' => $site->web_server,

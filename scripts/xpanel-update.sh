@@ -124,6 +124,7 @@ npm --prefix "$ROOT" run build
 chown -R "$site_user:$site_group" "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
 sudo -u "$site_user" php "$ROOT/artisan" migrate --force
 configure_backup_runtime
+bash "$ROOT/scripts/configure-nginx-catchall.sh"
 sudo -u "$site_user" php "$ROOT/artisan" optimize:clear
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:sites-sync
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:access-sync

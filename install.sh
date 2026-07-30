@@ -616,6 +616,7 @@ set_env_var APP_ENV production
 set_env_var APP_DEBUG false
 configure_management_context
 configure_web_server
+bash "$ROOT/scripts/configure-nginx-catchall.sh"
 
 server_ipv4="${XPANEL_SERVER_IPV4:-$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')}"
 if [[ -n "$server_ipv4" ]] && php -r 'exit(filter_var($argv[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? 0 : 1);' "$server_ipv4"; then

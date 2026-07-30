@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
 use App\Services\ServerCommandRunner;
+use App\Services\SubdomainRootMigrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -41,7 +42,7 @@ class SubdomainManagementTest extends TestCase
 
         $child = Site::where('domain', 'blog.example.com')->firstOrFail();
         $this->assertSame($parent->id, $child->parent_site_id);
-        $this->assertSame('/var/www/example.com/subdomains/blog', $child->document_root);
+        $this->assertSame('/var/www/blog.example.com', $child->document_root);
         $this->assertSame('nginx', $child->web_server);
         $this->assertDatabaseHas('domains', ['domain' => 'blog.example.com', 'site_id' => $child->id]);
         $this->assertFileExists(storage_path('app/vhosts/blog.example.com.conf'));
@@ -141,5 +142,49 @@ class SubdomainManagementTest extends TestCase
         $this->actingAs($viewer)->get('/sites')->assertOk()->assertSee('example.com')->assertDontSee('blog.example.com');
         $this->actingAs($viewer)->get("/sites/{$parent->domain}/domains/subdomains")->assertOk()->assertSee('blog.example.com');
         $this->actingAs($viewer)->post("/sites/{$parent->domain}/domains/subdomains", ['label' => 'shop'])->assertForbidden();
+    }
+
+    public function test_site_sync_flattens_the_previous_nested_subdomain_root(): void
+    {
+        $parent = $this->parentSite();
+        $child = Site::create([
+            'parent_site_id' => $parent->id,
+            'domain' => 'legacy.example.com',
+            'document_root' => '/var/www/example.com/subdomains/legacy',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $this->artisan('xpanel:sites-sync')
+            ->expectsOutput('Moved legacy.example.com to its independent document root.')
+            ->assertSuccessful();
+
+        $this->assertSame('/var/www/legacy.example.com', $child->fresh()->document_root);
+        $this->assertDatabaseHas('domains', ['domain' => 'legacy.example.com', 'site_id' => $child->id]);
+    }
+
+    public function test_real_root_migration_uses_the_privileged_helper_with_exact_paths(): void
+    {
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $parent = $this->parentSite();
+        $child = Site::create([
+            'parent_site_id' => $parent->id,
+            'domain' => 'legacy.example.com',
+            'document_root' => '/var/www/example.com/subdomains/legacy',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+        $commands = \Mockery::mock(ServerCommandRunner::class);
+        $commands->shouldReceive('run')->once()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'subdomain-root-migrate',
+            '/var/www/example.com/subdomains/legacy', '/var/www/legacy.example.com', $child->systemUser(),
+        ])->andReturn('');
+
+        $this->assertTrue((new SubdomainRootMigrator($commands))->migrateLegacyRoot($child));
+        $this->assertSame('/var/www/legacy.example.com', $child->fresh()->document_root);
     }
 }

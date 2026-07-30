@@ -67,4 +67,17 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('defer_service_reload "php$php_version-fpm"', $helper);
         $this->assertStringNotContainsString('systemctl reload "php$php_version-fpm"', $helper);
     }
+
+    public function test_installer_and_updater_reject_unmatched_tls_hosts(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $updater = file_get_contents(base_path('scripts/xpanel-update.sh'));
+        $catchall = file_get_contents(base_path('scripts/configure-nginx-catchall.sh'));
+
+        $this->assertStringContainsString('configure-nginx-catchall.sh', $installer);
+        $this->assertStringContainsString('configure-nginx-catchall.sh', $updater);
+        $this->assertStringContainsString('listen 443 ssl default_server;', $catchall);
+        $this->assertStringContainsString('ssl_reject_handshake on;', $catchall);
+        $this->assertStringContainsString('nginx -t', $catchall);
+    }
 }
