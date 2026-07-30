@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\Site;
 use App\Services\CertificateProvisioner;
 use App\Services\ServerContext;
+use App\Services\SiteAccessProvisioner;
 use App\Services\SiteProvisioner;
 use App\Support\SiteModules;
 use Illuminate\Http\RedirectResponse;
@@ -84,7 +85,7 @@ class SiteController extends Controller
         ]);
     }
 
-    public function update(Request $request, Site $site, SiteProvisioner $provisioner): RedirectResponse
+    public function update(Request $request, Site $site, SiteProvisioner $provisioner, SiteAccessProvisioner $access): RedirectResponse
     {
         $data = $this->validated($request, $site);
         $original = $site->getAttributes();
@@ -99,10 +100,16 @@ class SiteController extends Controller
         $site->update($data);
         try {
             $provisioner->provision($site, $previous);
+            if ($site->accessSettings()->exists()) {
+                $access->sync($site, $site->accessSettings()->firstOrFail());
+            }
         } catch (\Throwable $exception) {
             $site->forceFill($original)->save();
             try {
                 $provisioner->provision($site);
+                if ($site->accessSettings()->exists()) {
+                    $access->sync($site, $site->accessSettings()->firstOrFail());
+                }
             } catch (\Throwable) {
                 // The original database state is still restored. The admin can
                 // retry system synchronization after fixing the server error.
@@ -115,7 +122,7 @@ class SiteController extends Controller
         return redirect()->route('sites.index')->with('status', "Sitio {$site->domain} actualizado.");
     }
 
-    public function destroy(Site $site, SiteProvisioner $provisioner, CertificateProvisioner $certificates): RedirectResponse
+    public function destroy(Site $site, SiteProvisioner $provisioner, CertificateProvisioner $certificates, SiteAccessProvisioner $access): RedirectResponse
     {
         $domain = $site->domain;
         if ($site->parent_site_id !== null) {
@@ -144,6 +151,7 @@ class SiteController extends Controller
                 $certificates->disable($site);
             }
             $provisioner->remove($site);
+            $access->remove($site);
         } catch (\Throwable $exception) {
             return back()->withErrors(['server' => $exception->getMessage()]);
         }

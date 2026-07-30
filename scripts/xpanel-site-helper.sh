@@ -48,6 +48,12 @@ ensure_site_identity() {
   if id lsadm >/dev/null 2>&1; then usermod -a -G "$site_user" lsadm; fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   chown -R "$site_user:$site_user" "$document_root"
+  local ancestor
+  ancestor="$(dirname "$document_root")"
+  while [[ "$ancestor" == /var/www/* || "$ancestor" == /srv/www/* ]]; do
+    setfacl -m "u:$site_user:--x" "$ancestor"
+    ancestor="$(dirname "$ancestor")"
+  done
 }
 
 site_action() {
@@ -579,6 +585,132 @@ EOF
   mariadb-admin --protocol=socket ping >/dev/null
 }
 
+access_sync() {
+  local site_user="$2" document_root="$3" sftp_enabled="$4" ftp_enabled="$5" ssh_enabled="$6"
+  valid_site_identity "$site_user" || fail "Invalid access site user."
+  valid_document_root "$document_root" || fail "Invalid access document root."
+  for flag in "$sftp_enabled" "$ftp_enabled" "$ssh_enabled"; do [[ "$flag" == "0" || "$flag" == "1" ]] || fail "Invalid access flag."; done
+  ensure_site_identity "$site_user" "$document_root"
+
+  local password=""
+  IFS= read -r password || true
+  if [[ -n "$password" ]]; then
+    [[ "$password" =~ ^[A-Za-z0-9!@#%\^*_=+.,:-]{16,128}$ ]] || fail "Access password contains unsupported characters or is too short."
+    printf '%s:%s\n' "$site_user" "$password" | chpasswd
+  fi
+
+  local source="$ROOT/storage/app/access/$site_user/authorized_keys"
+  [[ -f "$source" && ! -L "$source" ]] || fail "Staged SSH keys not found."
+  if grep -Ev '^(ssh-ed25519|ssh-rsa) [A-Za-z0-9+/]+={0,3}( [^[:cntrl:]]{1,200})?$|^$' "$source" | grep -q .; then
+    fail "Invalid staged SSH public key."
+  fi
+  if [[ -s "$source" ]]; then ssh-keygen -l -f "$source" >/dev/null || fail "SSH key validation failed."; fi
+  local key_root="/var/lib/xpanel-host/ssh/$site_user"
+  install -d -o root -g "$site_user" -m 0750 /var/lib/xpanel-host/ssh "$key_root"
+  install -o root -g "$site_user" -m 0640 "$source" "$key_root/authorized_keys"
+
+  local jail="/var/lib/xpanel-host/jails/$site_user" mountpoint_path="$jail/site"
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails "$jail"
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$mountpoint_path"
+  local mount_unit="xpanel-host-jail-$site_user.service"
+  cat > "/etc/systemd/system/$mount_unit" <<EOF
+[Unit]
+Description=XPanel Host jail mount for $site_user
+After=local-fs.target
+Before=ssh.service vsftpd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/mount --bind $document_root $mountpoint_path
+ExecStop=/bin/umount $mountpoint_path
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  if [[ "$sftp_enabled" == "1" && "$ssh_enabled" == "0" ]]; then
+    if mountpoint -q "$mountpoint_path" && [[ "$(findmnt -n -o SOURCE --target "$mountpoint_path")" != "$document_root" ]]; then umount "$mountpoint_path"; fi
+    if ! mountpoint -q "$mountpoint_path"; then mount --bind "$document_root" "$mountpoint_path"; fi
+    systemctl enable "$mount_unit" >/dev/null
+  else
+    if mountpoint -q "$mountpoint_path"; then umount "$mountpoint_path"; fi
+    systemctl disable "$mount_unit" >/dev/null 2>&1 || true
+  fi
+
+  install -d -o root -g root -m 0755 /etc/ssh/sshd_config.d
+  local ssh_config="/etc/ssh/sshd_config.d/90-xpanel-$site_user.conf"
+  if [[ "$ssh_enabled" == "1" ]]; then
+    usermod -s /bin/bash -d "$document_root" "$site_user"
+    cat > "$ssh_config" <<EOF
+Match User $site_user
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    AuthenticationMethods publickey
+    AuthorizedKeysFile /var/lib/xpanel-host/ssh/%u/authorized_keys
+    AllowTcpForwarding no
+    X11Forwarding no
+    PermitTunnel no
+    GatewayPorts no
+Match all
+EOF
+  elif [[ "$sftp_enabled" == "1" ]]; then
+    usermod -s /usr/sbin/nologin -d "$document_root" "$site_user"
+    cat > "$ssh_config" <<EOF
+Match User $site_user
+    ChrootDirectory $jail
+    ForceCommand internal-sftp -d /site
+    PasswordAuthentication yes
+    PubkeyAuthentication yes
+    AuthorizedKeysFile /var/lib/xpanel-host/ssh/%u/authorized_keys
+    AllowTcpForwarding no
+    X11Forwarding no
+    PermitTunnel no
+    GatewayPorts no
+Match all
+EOF
+  else
+    usermod -s /usr/sbin/nologin -d "$document_root" "$site_user"
+    rm -f "$ssh_config"
+  fi
+
+  install -d -o root -g root -m 0755 /etc/xpanel-host
+  touch /etc/xpanel-host/ftp-users
+  grep -vxF "$site_user" /etc/xpanel-host/ftp-users > /etc/xpanel-host/ftp-users.tmp || true
+  if [[ "$ftp_enabled" == "1" ]]; then printf '%s\n' "$site_user" >> /etc/xpanel-host/ftp-users.tmp; fi
+  sort -u /etc/xpanel-host/ftp-users.tmp > /etc/xpanel-host/ftp-users
+  rm -f /etc/xpanel-host/ftp-users.tmp
+  chmod 0600 /etc/xpanel-host/ftp-users
+
+  sshd -t
+  systemctl reload ssh 2>/dev/null || systemctl reload sshd
+  if systemctl is-enabled --quiet vsftpd; then systemctl restart vsftpd; fi
+}
+
+access_remove() {
+  local site_user="$2" document_root="$3"
+  valid_site_identity "$site_user" || fail "Invalid access removal user."
+  valid_document_root "$document_root" || fail "Invalid access removal document root."
+  local jail="/var/lib/xpanel-host/jails/$site_user" mountpoint_path="$jail/site" mount_unit="xpanel-host-jail-$site_user.service"
+  rm -f "/etc/ssh/sshd_config.d/90-xpanel-$site_user.conf"
+  if [[ -f /etc/xpanel-host/ftp-users ]]; then
+    grep -vxF "$site_user" /etc/xpanel-host/ftp-users > /etc/xpanel-host/ftp-users.tmp || true
+    mv /etc/xpanel-host/ftp-users.tmp /etc/xpanel-host/ftp-users
+    chmod 0600 /etc/xpanel-host/ftp-users
+  fi
+  if mountpoint -q "$mountpoint_path"; then umount "$mountpoint_path"; fi
+  systemctl disable "$mount_unit" >/dev/null 2>&1 || true
+  rm -f "/etc/systemd/system/$mount_unit"
+  rm -rf -- "/var/lib/xpanel-host/ssh/$site_user" "$jail"
+  if [[ -d "$document_root" && ! -L "$document_root" ]]; then chown -R root:root "$document_root"; fi
+  if id "$site_user" >/dev/null 2>&1; then userdel "$site_user"; fi
+  if getent group "$site_user" >/dev/null; then groupdel "$site_user"; fi
+  systemctl daemon-reload
+  sshd -t
+  systemctl reload ssh 2>/dev/null || systemctl reload sshd
+  if systemctl is-enabled --quiet vsftpd; then systemctl restart vsftpd; fi
+}
+
 mail_sync() {
   local source="$ROOT/storage/app/mail"
   for name in domains mailboxes users sender-login aliases dkim-selector; do
@@ -773,6 +905,8 @@ case "$ACTION" in
   database-create|database-password|database-remove) database_action "$@" ;;
   database-remote-create|database-remote-remove) database_remote_action "$@" ;;
   database-remote-sync) database_remote_sync ;;
+  access-sync) access_sync "$@" ;;
+  access-remove) access_remove "$@" ;;
   mail-sync) mail_sync ;;
   mail-remove) mail_remove "$@" ;;
   mail-remove-domain) mail_remove_domain "$@" ;;

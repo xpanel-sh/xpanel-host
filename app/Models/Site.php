@@ -116,6 +116,16 @@ class Site extends Model
         return $this->hasOne(SiteWebSetting::class);
     }
 
+    public function accessSettings(): HasOne
+    {
+        return $this->hasOne(SiteAccessSetting::class);
+    }
+
+    public function sshKeys(): HasMany
+    {
+        return $this->hasMany(SiteSshKey::class)->orderBy('name');
+    }
+
     public function gitRepository(): HasOne
     {
         return $this->hasOne(SiteGitRepository::class);

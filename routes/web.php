@@ -28,6 +28,7 @@ use App\Http\Controllers\RemoteMysqlController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
+use App\Http\Controllers\SiteAccessController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SiteOperationController;
 use App\Http\Controllers\SubdomainController;
@@ -133,6 +134,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/files/manager', [FileManagerController::class, 'index'])->name('sites.files.index');
             Route::get('/sites/{site}/files/manager/ikode', [FileManagerController::class, 'ikode'])->name('sites.files.ikode');
             Route::get('/sites/{site}/files/backups', [BackupController::class, 'index'])->name('sites.backups.index');
+            Route::get('/sites/{site}/files/ftp', [SiteAccessController::class, 'files'])->name('sites.access.files');
+            Route::get('/sites/{site}/advanced/ssh-access', [SiteAccessController::class, 'ssh'])->name('sites.access.ssh');
             Route::get('/sites/{site}/advanced/activity-log', [ActivityLogController::class, 'index'])->name('sites.activity.index');
             Route::get('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'index'])->name('sites.php.configuration');
             Route::get('/sites/{site}/advanced/php-info', [PhpConfigurationController::class, 'info'])->name('sites.php.info');
@@ -150,6 +153,9 @@ Route::middleware('setup.complete')->group(function () {
         });
         Route::middleware('permission:'.Permissions::SITES_MANAGE)->group(function () {
             Route::post('/sites/{site}/files/backups', [BackupController::class, 'store'])->name('sites.backups.store');
+            Route::put('/sites/{site}/access', [SiteAccessController::class, 'update'])->name('sites.access.update');
+            Route::post('/sites/{site}/access/ssh-keys', [SiteAccessController::class, 'storeKey'])->name('sites.access.keys.store');
+            Route::delete('/sites/{site}/access/ssh-keys/{sshKey}', [SiteAccessController::class, 'destroyKey'])->name('sites.access.keys.destroy');
             Route::put('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'update'])->name('sites.php.configuration.update');
             Route::post('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'store'])->name('sites.cron.store');
             Route::put('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'update'])->name('sites.cron.update');

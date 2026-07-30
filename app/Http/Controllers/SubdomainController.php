@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\Site;
 use App\Services\CertificateProvisioner;
 use App\Services\ServerContext;
+use App\Services\SiteAccessProvisioner;
 use App\Services\SiteProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,6 +85,7 @@ class SubdomainController extends Controller
         Site $subdomain,
         SiteProvisioner $provisioner,
         CertificateProvisioner $certificates,
+        SiteAccessProvisioner $access,
     ): RedirectResponse {
         abort_unless($subdomain->parent_site_id === $site->id, 404);
 
@@ -96,6 +98,7 @@ class SubdomainController extends Controller
                 $certificates->disable($subdomain);
             }
             $provisioner->remove($subdomain);
+            $access->remove($subdomain);
         } catch (\Throwable $exception) {
             return back()->withErrors(['server' => $exception->getMessage()]);
         }

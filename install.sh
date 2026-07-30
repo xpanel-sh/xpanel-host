@@ -28,7 +28,7 @@ install_base_dependencies() {
   echo "postfix postfix/mailname string ${XPANEL_MAIL_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}" | debconf-set-selections
   echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync \
+    ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync acl openssh-server vsftpd \
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
     certbot python3-certbot-nginx \
     mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks
@@ -248,6 +248,52 @@ configure_database_server() {
   systemctl enable --now mariadb
   systemctl enable --now cron
   mariadb-admin --protocol=socket ping >/dev/null
+}
+
+configure_file_access() {
+  install -d -o root -g root -m 0755 /etc/xpanel-host
+  touch /etc/xpanel-host/ftp-users
+  chmod 0600 /etc/xpanel-host/ftp-users
+  grep -qxF /usr/sbin/nologin /etc/shells || printf '/usr/sbin/nologin\n' >> /etc/shells
+  cat > /etc/vsftpd.conf <<'EOF'
+listen=YES
+listen_ipv6=NO
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+use_localtime=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+chroot_local_user=YES
+allow_writeable_chroot=YES
+secure_chroot_dir=/var/run/vsftpd/empty
+pam_service_name=vsftpd
+userlist_enable=YES
+userlist_deny=NO
+userlist_file=/etc/xpanel-host/ftp-users
+ssl_enable=YES
+allow_anon_ssl=NO
+force_local_data_ssl=YES
+force_local_logins_ssl=YES
+ssl_ciphers=HIGH
+require_ssl_reuse=NO
+rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+ssl_sslv2=NO
+ssl_sslv3=NO
+ssl_tlsv1=YES
+pasv_enable=YES
+pasv_min_port=40000
+pasv_max_port=40100
+EOF
+  local access_tls_host="${XPANEL_PANEL_DOMAIN:-${XPANEL_WEBMAIL_HOSTNAME:-${XPANEL_MAIL_HOSTNAME:-}}}"
+  if [[ -n "$access_tls_host" && -f "/etc/letsencrypt/live/$access_tls_host/fullchain.pem" && -f "/etc/letsencrypt/live/$access_tls_host/privkey.pem" ]]; then
+    sed -i "s|^rsa_cert_file=.*|rsa_cert_file=/etc/letsencrypt/live/$access_tls_host/fullchain.pem|" /etc/vsftpd.conf
+    sed -i "s|^rsa_private_key_file=.*|rsa_private_key_file=/etc/letsencrypt/live/$access_tls_host/privkey.pem|" /etc/vsftpd.conf
+  fi
+  systemctl enable --now ssh vsftpd
 }
 
 configure_mail_server() {
@@ -529,6 +575,8 @@ configure_site_helper
 configure_backup_runtime
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:sites-sync
 configure_database_server
+configure_file_access
+sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:access-sync
 if [[ "${XPANEL_PHPMYADMIN_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-phpmyadmin.sh"
 fi

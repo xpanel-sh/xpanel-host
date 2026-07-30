@@ -131,10 +131,12 @@ class SiteModules
             $section === 'analytics' => route('sites.analytics', $site),
             $section === 'files' && $key === 'file-manager' => route('sites.files.index', $site),
             $section === 'files' && $key === 'backups' => route('sites.backups.index', $site),
+            $section === 'files' && $key === 'ftp' => route('sites.access.files', $site),
             $section === 'database' && $key === 'mysql-databases' => route('sites.databases.index', $site),
             $section === 'database' && $key === 'phpmyadmin' => route('sites.phpmyadmin', $site),
             $section === 'database' && $key === 'remote-mysql' => route('sites.remote-mysql.index', $site),
             $section === 'advanced' && $key === 'activity-log' => route('sites.activity.index', $site),
+            $section === 'advanced' && $key === 'ssh-access' => route('sites.access.ssh', $site),
             $section === 'advanced' && $key === 'php-configuration' => route('sites.php.configuration', $site),
             $section === 'advanced' && $key === 'php-info' => route('sites.php.info', $site),
             $section === 'advanced' && $key === 'cron-jobs' => route('sites.cron.index', $site),
@@ -154,6 +156,8 @@ class SiteModules
             request()->routeIs('sites.module') => request()->route('module'),
             request()->routeIs('sites.files.*') => 'file-manager',
             request()->routeIs('sites.backups.*') => 'backups',
+            request()->routeIs('sites.access.files') => 'ftp',
+            request()->routeIs('sites.access.ssh') => 'ssh-access',
             request()->routeIs('sites.databases.*') => 'mysql-databases',
             request()->routeIs('sites.phpmyadmin') => 'phpmyadmin',
             request()->routeIs('sites.remote-mysql.*') => 'remote-mysql',
@@ -182,12 +186,12 @@ class SiteModules
         return in_array($section.'.'.$key, [
             'server.summary', 'server.usage', 'server.external', 'analytics.analytics',
             'security.ssl', 'domains.subdomains', 'domains.parked-domains', 'domains.redirects',
-            'website.error-pages', 'files.file-manager', 'files.backups', 'database.mysql-databases',
+            'website.error-pages', 'files.file-manager', 'files.backups', 'files.ftp', 'database.mysql-databases',
             'database.phpmyadmin', 'database.remote-mysql',
             'advanced.php-configuration', 'advanced.cron-jobs', 'advanced.php-info',
             'advanced.cache-manager', 'advanced.ip-manager', 'advanced.hotlink-protection',
             'advanced.folder-index-manager', 'advanced.git', 'advanced.password-protect-directories',
-            'advanced.fix-file-ownership', 'advanced.activity-log',
+            'advanced.fix-file-ownership', 'advanced.activity-log', 'advanced.ssh-access',
         ], true);
     }
 }

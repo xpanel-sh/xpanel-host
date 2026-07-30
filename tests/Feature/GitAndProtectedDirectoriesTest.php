@@ -126,9 +126,10 @@ class GitAndProtectedDirectoriesTest extends TestCase
         ])->assertSessionHas('status');
     }
 
-    public function test_ssh_page_explains_why_shared_service_user_is_not_exposed(): void
+    public function test_ssh_page_exposes_only_key_authenticated_site_identity(): void
     {
-        $this->actingAs($this->owner())->get(route('sites.module', [$this->site(), 'advanced', 'ssh-access']))
-            ->assertOk()->assertSee('Desactivado por seguridad')->assertSee('usuario Unix aislado');
+        $site = $this->site();
+        $this->actingAs($this->owner())->get(route('sites.access.ssh', $site))
+            ->assertOk()->assertSee('exclusivamente mediante llaves públicas')->assertSee($site->systemUser());
     }
 }

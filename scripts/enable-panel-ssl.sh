@@ -18,6 +18,11 @@ email="${1:-$(env_value XPANEL_ACME_EMAIL || true)}"
 [[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || { echo "A valid ACME email is required." >&2; exit 1; }
 certbot --nginx --non-interactive --agree-tos --no-eff-email --redirect \
   --cert-name "$domain" -d "$domain" -m "$email"
+if [[ -f /etc/vsftpd.conf ]]; then
+  sed -i "s|^rsa_cert_file=.*|rsa_cert_file=/etc/letsencrypt/live/$domain/fullchain.pem|" /etc/vsftpd.conf
+  sed -i "s|^rsa_private_key_file=.*|rsa_private_key_file=/etc/letsencrypt/live/$domain/privkey.pem|" /etc/vsftpd.conf
+  systemctl restart vsftpd
+fi
 
 mail_hostname="$(env_value XPANEL_MAIL_HOSTNAME || true)"
 if [[ "$domain" == "$mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then

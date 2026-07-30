@@ -20,6 +20,12 @@ fi
 certbot --nginx --non-interactive --agree-tos --no-eff-email --redirect \
   --cert-name "$hostname" -d "$hostname" -m "$email"
 
+if [[ -f /etc/vsftpd.conf ]] && grep -q '^rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem$' /etc/vsftpd.conf; then
+  sed -i "s|^rsa_cert_file=.*|rsa_cert_file=/etc/letsencrypt/live/$hostname/fullchain.pem|" /etc/vsftpd.conf
+  sed -i "s|^rsa_private_key_file=.*|rsa_private_key_file=/etc/letsencrypt/live/$hostname/privkey.pem|" /etc/vsftpd.conf
+  systemctl restart vsftpd
+fi
+
 mail_hostname="$(grep -E '^XPANEL_MAIL_HOSTNAME=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
 if [[ "$hostname" == "$mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then
   sed -i "s|^ssl_cert = .*|ssl_cert = </etc/letsencrypt/live/$hostname/fullchain.pem|" /etc/dovecot/conf.d/99-xpanel-host.conf

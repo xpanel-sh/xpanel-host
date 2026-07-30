@@ -1,37 +1,11 @@
 @extends('layouts.client')
-
+@section('title', 'SFTP y FTPS - '.$site->domain)
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Archivos',
-        'title' => 'Cuentas FTP',
-        'description' => 'Administra accesos FTP/SFTP limitados al sitio seleccionado.',
-        'actions' => [
-            ['label' => 'Nueva cuenta', 'icon' => 'ki-plus', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Cuentas', 'value' => '0', 'icon' => 'ki-user'],
-            ['label' => 'Directorio', 'value' => '/', 'icon' => 'ki-folder'],
-            ['label' => 'Acceso', 'value' => 'Seguro', 'icon' => 'ki-lock'],
-        ],
-        'cards' => [
-            [
-                'title' => 'Accesos del sitio',
-                'body' => 'Aqui apareceran las credenciales FTP creadas para este dominio.',
-                'items' => [
-                    ['label' => 'Usuario principal', 'value' => 'Sin crear'],
-                    ['label' => 'Permisos', 'value' => 'Lectura/escritura'],
-                    ['label' => 'Ruta base', 'value' => $site->domain],
-                ],
-            ],
-            [
-                'title' => 'Seguridad',
-                'body' => 'Las cuentas podran limitarse por carpeta, IP y estado activo.',
-                'items' => [
-                    ['label' => 'SFTP', 'value' => 'Recomendado'],
-                    ['label' => 'Rotacion', 'value' => 'Manual'],
-                    ['label' => 'Logs', 'value' => 'Pendiente'],
-                ],
-            ],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+<div><div class="text-sm text-secondary-foreground">Archivos / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">SFTP y FTPS</h1><p class="mt-1 text-sm text-secondary-foreground">Acceso de archivos con una identidad Unix exclusiva y confinamiento al sitio.</p></div>
+@if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+<div class="grid gap-5 md:grid-cols-3">@foreach([['Usuario',$site->systemUser()],['SFTP',$settings->sftp_enabled?'Activo':'Inactivo'],['FTPS',$settings->ftp_enabled?'Activo':'Inactivo']] as [$label,$value])<div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">{{ $label }}</div><div class="mt-2 font-semibold text-mono">{{ $value }}</div></div></div>@endforeach</div>
+@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Protocolos y contraseña</h2></div><div class="kt-card-content p-5"><form method="post" action="{{ route('sites.access.update',$site) }}" class="grid gap-4">@csrf @method('PUT')<label class="flex items-center gap-2"><input type="checkbox" name="sftp_enabled" value="1" @checked($settings->sftp_enabled)> SFTP por el puerto SSH (recomendado)</label><label class="flex items-center gap-2"><input type="checkbox" name="ftp_enabled" value="1" @checked($settings->ftp_enabled)> FTPS explícito mediante vsftpd</label><input type="hidden" name="ssh_enabled" value="{{ $settings->ssh_enabled ? 1 : 0 }}"><label class="grid max-w-xl gap-2 text-sm"><span>Nueva contraseña Linux</span><input class="kt-input" type="password" name="password" minlength="16" autocomplete="new-password"><span class="text-xs text-secondary-foreground">Obligatoria al activar SFTP/FTPS. No se guarda en Host.</span></label><button class="kt-btn kt-btn-primary w-fit">Guardar accesos</button></form></div></section>@endif
+<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Datos de conexión</h2></div><div class="kt-card-content grid gap-3 p-5 text-sm"><div><strong>Servidor:</strong> {{ request()->getHost() }}</div><div><strong>SFTP:</strong> puerto 22, usuario <code>{{ $site->systemUser() }}</code>, carpeta inicial <code>/site</code>.</div><div><strong>FTPS:</strong> puerto 21 con TLS explícito y rango pasivo 40000-40100.</div><div class="text-secondary-foreground">FTP sin cifrado y el acceso anónimo están deshabilitados.</div></div></section>
+</div></main></div></div>
 @endsection

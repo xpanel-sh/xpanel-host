@@ -32,6 +32,17 @@ opendkim -n -x /etc/opendkim.conf
 mariadb-admin --protocol=socket ping >/dev/null
 systemctl is-active --quiet nginx mariadb postfix dovecot opendkim
 postconf smtpd_milters | grep -q '127.0.0.1:8891'
+sshd -t
+systemctl is-active --quiet ssh vsftpd
+grep -q '^anonymous_enable=NO$' /etc/vsftpd.conf
+grep -q '^force_local_logins_ssl=YES$' /etc/vsftpd.conf
+
+if [[ -n "${XPANEL_SMOKE_SITE_USER:-}" ]]; then
+  echo "Checking isolated site access for $XPANEL_SMOKE_SITE_USER..."
+  [[ "$XPANEL_SMOKE_SITE_USER" =~ ^xps[a-z0-9]{9,29}$ ]]
+  id "$XPANEL_SMOKE_SITE_USER" >/dev/null
+  test -f "/var/lib/xpanel-host/ssh/$XPANEL_SMOKE_SITE_USER/authorized_keys"
+fi
 
 if [[ -n "${XPANEL_WEBMAIL_HOSTNAME:-}" ]]; then
   echo "Checking Roundcube webmail..."
