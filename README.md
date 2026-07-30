@@ -107,6 +107,13 @@ Después entra en **Ajustes → Acceso al panel**, escribe el dominio o subdomin
 
 El instalador crea automáticamente el primer propietario y muestra sus credenciales una sola vez. Guárdalas antes de cerrar la terminal. La ruta `/setup` queda bloqueada y el acceso normal continúa por `/login`.
 
+Si la terminal se cerró antes de mostrar las credenciales, genera una contraseña nueva como `root`:
+
+```bash
+cd /opt/xpanel-host
+php artisan xpanel:admin-password --generate
+```
+
 ## Primer sitio
 
 1. Apunta el registro `A` del dominio a la IP del servidor.

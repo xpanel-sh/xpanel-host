@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class PanelAccessSettingsTest extends TestCase
@@ -25,5 +26,17 @@ class PanelAccessSettingsTest extends TestCase
         $this->artisan('xpanel:admin-bootstrap', ['--status-only' => true])
             ->expectsOutput('missing')
             ->assertSuccessful();
+    }
+
+    public function test_owner_password_can_be_recovered_from_the_server_console(): void
+    {
+        $owner = User::factory()->create([
+            'role_id' => Role::where('slug', 'owner')->firstOrFail()->id,
+            'password' => 'previous-password-value',
+        ]);
+
+        $this->artisan('xpanel:admin-password', ['--generate' => true])->assertSuccessful();
+
+        $this->assertFalse(Hash::check('previous-password-value', $owner->fresh()->password));
     }
 }

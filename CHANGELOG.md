@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- Recuperación local de la contraseña del propietario mediante `php artisan xpanel:admin-password --generate`.
 - Instalación interactiva sin variables de entorno, acceso inicial por `IP:8080`, propietario automático y resumen final de credenciales.
 - Ajustes para verificar y cambiar el dominio del panel, volver al acceso por IP e instalar SSL posteriormente.
 - Gestión de sitios PHP y estáticos, subdominios y raíces aisladas.
@@ -39,6 +40,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- Un fallo auxiliar de instalación de la CLI ya no impide mostrar la URL y el estado final del panel.
 - El helper privilegiado se versiona como ejecutable para que el instalador no ensucie el árbol Git ni bloquee `git pull`/`xpanel update`.
 - Primera instalación completamente no interactiva por `IP:8080`, sin solicitar dominio/correo ni intentar certificados del panel o webmail.
 - Instalación obligatoria y comprobación de la CLI global durante el despliegue de Host.

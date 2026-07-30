@@ -51,6 +51,7 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('XPANEL_PANEL_PORT:-8080', $installer);
         $this->assertStringContainsString('xpanel:admin-bootstrap --status-only', $installer);
         $this->assertStringContainsString('install_cli', $installer);
+        $this->assertStringContainsString('if ! install_cli', $installer);
         $this->assertStringContainsString('CLI global: xpanel', $installer);
         $this->assertStringContainsString('panel-access-apply', $helper);
         $this->assertStringContainsString('Nginx rejected the new panel address; the previous configuration was restored.', $helper);

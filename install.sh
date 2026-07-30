@@ -668,8 +668,12 @@ if [[ "$(sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:admi
   initial_admin_created=true
 fi
 
-install_cli
-"/usr/local/bin/xpanel" status --root="$ROOT" >/dev/null
+cli_ready=true
+if ! install_cli; then
+  cli_ready=false
+elif ! "/usr/local/bin/xpanel" status --root="$ROOT" >/dev/null; then
+  cli_ready=false
+fi
 
 panel_url="$(grep '^APP_URL=' "$ROOT/.env" | tail -n1 | cut -d= -f2-)"
 echo
@@ -683,7 +687,11 @@ if [[ "$initial_admin_created" == "true" ]]; then
 else
   echo "Administrador: se conservó la cuenta existente."
 fi
-echo "CLI global: xpanel"
+if [[ "$cli_ready" == "true" ]]; then
+  echo "CLI global: xpanel"
+else
+  echo "CLI: instalación pendiente; el acceso web sí está listo."
+fi
 if [[ "${XPANEL_PANEL_ACCESS_MODE:-ip}" == "domain" ]]; then
   echo "SSL: actívalo después desde Ajustes cuando el dominio esté verificado."
 fi
