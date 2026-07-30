@@ -84,6 +84,16 @@ class Site extends Model
         return $this->hasOne(BackupPolicy::class);
     }
 
+    public function phpSettings(): HasOne
+    {
+        return $this->hasOne(SitePhpSetting::class);
+    }
+
+    public function cronJobs(): HasMany
+    {
+        return $this->hasMany(SiteCronJob::class)->orderBy('id');
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_site_id');

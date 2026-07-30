@@ -54,6 +54,7 @@ Servidor Linux o MicroVM
 | **Correo** | Postfix, Dovecot, Maildir, Roundcube, SPF, DKIM, DMARC y verificación DNS |
 | **Archivos** | Gestor de archivos confinado al espacio administrado |
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
+| **PHP y tareas** | Límites PHP por sitio, resumen seguro del runtime y tareas Cron administradas sin ejecución como root |
 | **Acceso** | Propietario, equipo, roles y permisos |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
 | **Despliegue** | Standalone o dentro de una MicroVM administrada por Core |
@@ -161,6 +162,8 @@ No existe una contraseña predeterminada. Después de crear el primer propietari
 5. Crea el sitio y copia los archivos al document root o usa el file manager.
 6. Abre **Seguridad → SSL** y emite el certificado.
 7. Crea una base desde **Bases de datos → Administración** si la aplicación la necesita.
+8. Ajusta memoria, subidas y tiempo de ejecución desde **Avanzado → Configuración PHP**.
+9. Si la aplicación necesita procesos periódicos, créalos desde **Avanzado → Cron Jobs**.
 
 ### Subdominios
 

@@ -254,6 +254,12 @@ CONF;
     private function renderOpenLiteSpeed(Site $site): string
     {
         $php = str_replace('.', '', $site->php_version);
+        $settings = Schema::hasTable('site_php_settings') ? $site->phpSettings : null;
+        $memoryLimit = $settings?->memory_limit ?? '256M';
+        $uploadLimit = $settings?->upload_max_filesize ?? '64M';
+        $postLimit = $settings?->post_max_size ?? '64M';
+        $executionTime = $settings?->max_execution_time ?? 60;
+        $displayErrors = $settings?->display_errors ? 'On' : 'Off';
 
         return <<<CONF
 docRoot                   {$site->document_root}
@@ -302,6 +308,14 @@ scripthandler  {
 rewrite  {
     enable                  1
     autoLoadHtaccess        1
+}
+
+phpIniOverride  {
+    php_admin_value         memory_limit {$memoryLimit}
+    php_admin_value         upload_max_filesize {$uploadLimit}
+    php_admin_value         post_max_size {$postLimit}
+    php_admin_value         max_execution_time {$executionTime}
+    php_admin_flag          display_errors {$displayErrors}
 }
 CONF;
     }
@@ -427,6 +441,12 @@ CONF;
         $socket = '/run/php/php'.$site->php_version.'-fpm-'.$site->domain.'.sock';
         $user = (string) config('xpanel.site_user', 'www-data');
         $group = (string) config('xpanel.site_group', 'www-data');
+        $settings = Schema::hasTable('site_php_settings') ? $site->phpSettings : null;
+        $memoryLimit = $settings?->memory_limit ?? '256M';
+        $uploadLimit = $settings?->upload_max_filesize ?? '64M';
+        $postLimit = $settings?->post_max_size ?? '64M';
+        $executionTime = $settings?->max_execution_time ?? 60;
+        $displayErrors = $settings?->display_errors ? 'on' : 'off';
 
         return <<<CONF
 [xpanel-{$site->domain}]
@@ -442,6 +462,11 @@ pm.process_idle_timeout = 10s
 pm.max_requests = 500
 chdir = {$site->document_root}
 catch_workers_output = yes
+php_admin_value[memory_limit] = {$memoryLimit}
+php_admin_value[upload_max_filesize] = {$uploadLimit}
+php_admin_value[post_max_size] = {$postLimit}
+php_admin_value[max_execution_time] = {$executionTime}
+php_admin_flag[display_errors] = {$displayErrors}
 CONF;
     }
 

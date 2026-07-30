@@ -14,6 +14,14 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Instalador, actualizador y operación mediante XPanel CLI.
 - Backups manuales y programados de archivos y bases MariaDB, con retención, descarga y restauración protegida por un punto de seguridad previo.
 - Registro de actividad por sitio sin almacenar contraseñas ni contenido de formularios.
+- Límites PHP por sitio para PHP-FPM y OpenLiteSpeed, junto con una vista segura de información del runtime.
+- Tareas Cron administradas por sitio, instaladas en `/etc/cron.d` con usuario de servicio sin privilegios root y log independiente.
+- Reinicio controlado de los servicios asociados a un sitio desde su panel.
+
+### Corregido
+
+- Navegación del menú de Sitios hacia las pantallas funcionales de archivos, backups, bases, actividad, PHP y Cron.
+- Estados dinámicos de SSL y backups en el resumen; las acciones aún no implementadas ya no se presentan como enlaces activos.
 
 ### Seguridad
 

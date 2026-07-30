@@ -109,6 +109,56 @@ site_action() {
   reload_web_server "$engine"
 }
 
+site_restart() {
+  local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6"
+  valid_domain "$domain" || fail "Invalid site domain."
+  [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
+  [[ "$type" == "php" || "$type" == "static" ]] || fail "Invalid site type."
+  [[ "$php_version" =~ ^8\.[1-5]$ ]] || fail "Invalid PHP version."
+  valid_document_root "$document_root" || fail "Invalid document root."
+  if [[ "$type" == "php" && "$engine" != "openlitespeed" ]]; then
+    "php-fpm$php_version" -t
+    systemctl reload "php$php_version-fpm"
+  fi
+  reload_web_server "$engine"
+}
+
+cron_sync() {
+  local domain="$2" document_root="$3"
+  valid_domain "$domain" || fail "Invalid cron domain."
+  valid_document_root "$document_root" || fail "Invalid cron document root."
+  local source="$ROOT/storage/app/cron/$domain"
+  local target="/etc/cron.d/xpanel-$domain"
+  local log="/var/log/xpanel-host/$domain-cron.log"
+  [[ -f "$source" && ! -L "$source" ]] || fail "Staged cron configuration not found."
+  [[ "$SITE_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail "Invalid configured cron user."
+  [[ "$(head -n1 "$source")" == "SHELL=/bin/bash" ]] || fail "Invalid staged cron header."
+  [[ "$(sed -n '2p' "$source")" == "PATH=/usr/local/bin:/usr/bin:/bin" ]] || fail "Invalid staged cron path."
+  grep -q $'\r' "$source" && fail "Invalid bytes in staged cron configuration."
+  cmp -s "$source" <(tr -d '\000' < "$source") || fail "Invalid bytes in staged cron configuration."
+  local line minute hour month_day month week_day command expected_prefix expected_suffix
+  while IFS= read -r line; do
+    [[ "$line" == "SHELL=/bin/bash" || "$line" == "PATH=/usr/local/bin:/usr/bin:/bin" || -z "$line" ]] && continue
+    read -r minute hour month_day month week_day command <<< "$line"
+    for field in "$minute" "$hour" "$month_day" "$month" "$week_day"; do
+      [[ "$field" =~ ^[0-9*,/-]+$ ]] || fail "Invalid staged cron expression."
+    done
+    expected_prefix="$SITE_USER cd -- '$document_root' && "
+    expected_suffix=" >> '/var/log/xpanel-host/$domain-cron.log' 2>&1"
+    [[ "$command" == "$expected_prefix"* && "$command" == *"$expected_suffix" ]] || fail "Invalid staged cron command."
+  done < "$source"
+  install -d -o root -g "$SITE_GROUP" -m 0750 /var/log/xpanel-host
+  touch "$log"
+  chown "$SITE_USER:$SITE_GROUP" "$log"
+  chmod 0640 "$log"
+  if [[ "$(wc -l < "$source")" -le 2 ]]; then
+    rm -f -- "$target"
+  else
+    install -o root -g root -m 0644 "$source" "$target"
+  fi
+  systemctl reload cron 2>/dev/null || systemctl restart cron
+}
+
 engine_status() {
   local engine="$2" installed=false version=""
   case "$engine" in
@@ -455,6 +505,8 @@ backup_delete() {
 
 case "$ACTION" in
   apply|remove) site_action "$@" ;;
+  site-restart) site_restart "$@" ;;
+  cron-sync) cron_sync "$@" ;;
   ssl-issue|ssl-delete) ssl_action "$@" ;;
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;

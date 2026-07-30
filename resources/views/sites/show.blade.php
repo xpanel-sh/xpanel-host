@@ -5,19 +5,9 @@
 @php
     $canManage = auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE);
     $siteCount = \App\Models\Site::whereNull('parent_site_id')->count();
-    $moduleUrl = function (string $section, string $key) use ($site) {
-        if ($section === 'domains' && $key === 'subdomains') {
-            return route('sites.subdomains.index', $site->parent ?? $site);
-        }
-        if ($section === 'analytics') {
-            return route('sites.analytics', $site);
-        }
-        if ($section === 'files' && $key === 'file-manager') {
-            return route('sites.files.index', $site);
-        }
-
-        return route('sites.module', [$site, $section, $key]);
-    };
+    $moduleUrl = fn (string $section, string $key) => \App\Support\SiteModules::url($site, $section, $key);
+    $backupPolicy = $site->backupPolicy;
+    $backupCount = $site->backups()->where('status', 'completed')->count();
 @endphp
 
 @section('content')
@@ -26,6 +16,8 @@
         <main class="grow" role="content">
             <div class="kt-container-fluid">
                 <div class="grid gap-5 lg:gap-7.5">
+                    @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+                    @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <h1 class="text-2xl font-semibold text-mono">Panel</h1>
                         <a class="kt-btn kt-btn-outline" href="{{ $moduleUrl('server', 'summary') }}">
@@ -43,7 +35,7 @@
                                     <div class="min-w-0">
                                         <div class="flex min-w-0 items-center gap-2">
                                             <h2 class="truncate text-lg font-semibold text-mono">{{ $site->domain }}</h2>
-                                            <a class="shrink-0 text-secondary-foreground hover:text-primary" href="http://{{ $site->domain }}" target="_blank" rel="noopener">
+                                            <a class="shrink-0 text-secondary-foreground hover:text-primary" href="{{ $site->ssl_status === 'active' || config('xpanel.management_mode') === 'core' ? 'https' : 'http' }}://{{ $site->domain }}" target="_blank" rel="noopener">
                                                 <i class="ki-filled ki-exit-right-corner"></i>
                                             </a>
                                         </div>
@@ -71,24 +63,21 @@
                                         Editar sitio
                                     </a>
                                 @endif
-                                <button type="button" class="kt-btn kt-btn-outline opacity-50 cursor-not-allowed" disabled title="Reinicio de PHP-FPM/servidor web por sitio (no implementado)">
-                                    <i class="ki-filled ki-arrows-circle"></i>
-                                    Reiniciar sitio
-                                </button>
+                                @if($canManage)<form method="post" action="{{ route('sites.restart', $site) }}">@csrf<button type="submit" class="kt-btn kt-btn-outline"><i class="ki-filled ki-arrows-circle"></i> Reiniciar sitio</button></form>@endif
                             </div>
 
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="kt-badge kt-badge-outline kt-badge-warning">
+                                <span class="kt-badge kt-badge-outline kt-badge-warning" title="El escáner todavía no está instalado">
                                     <i class="ki-filled ki-information-2"></i>
-                                    Malware pendiente
+                                    Malware no instalado
                                 </span>
-                                <span class="kt-badge kt-badge-outline kt-badge-warning">
+                                <span class="kt-badge kt-badge-outline {{ $site->ssl_status === 'active' ? 'kt-badge-success' : 'kt-badge-warning' }}">
                                     <i class="ki-filled ki-information-2"></i>
-                                    SSL pendiente
+                                    SSL {{ $site->ssl_status === 'active' ? 'activo' : 'pendiente' }}
                                 </span>
-                                <span class="kt-badge kt-badge-outline kt-badge-warning">
+                                <span class="kt-badge kt-badge-outline kt-badge-warning" title="No existe un proveedor CDN configurado">
                                     <i class="ki-filled ki-information-2"></i>
-                                    CDN pendiente
+                                    CDN no configurado
                                 </span>
                             </div>
                         </div>
@@ -116,7 +105,7 @@
                                         <i class="ki-filled ki-time text-2xl text-secondary-foreground"></i>
                                         <span class="min-w-0">
                                             <span class="block truncate text-sm font-semibold text-mono">Copias de seguridad</span>
-                                            <span class="mt-1 block text-sm text-secondary-foreground">Sin programar todavia</span>
+                                            <span class="mt-1 block text-sm text-secondary-foreground">{{ $backupPolicy?->enabled ? ($backupPolicy->frequency === 'daily' ? 'Programación diaria' : 'Programación semanal') : ($backupCount.' copias disponibles') }}</span>
                                         </span>
                                     </a>
                                     <i class="ki-filled ki-right text-secondary-foreground"></i>
@@ -249,12 +238,12 @@
                                             <i class="ki-filled ki-lock text-xl"></i>
                                         </div>
                                         <div class="min-w-0">
-                                            <div class="truncate text-sm font-semibold text-mono">SSL pendiente de configurar</div>
-                                            <div class="mt-1 text-sm text-secondary-foreground">Activa un certificado para servir {{ $site->domain }} por HTTPS.</div>
+                                            <div class="truncate text-sm font-semibold text-mono">{{ $site->ssl_status === 'active' ? 'SSL activo' : 'SSL pendiente de configurar' }}</div>
+                                            <div class="mt-1 text-sm text-secondary-foreground">{{ $site->ssl_status === 'active' ? 'El certificado está instalado'.($site->ssl_expires_at ? ' y vence el '.$site->ssl_expires_at->format('Y-m-d').'.' : '.') : 'Activa un certificado para servir '.$site->domain.' por HTTPS.' }}</div>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 lg:justify-end">
-                                        <a class="kt-btn kt-btn-primary kt-btn-sm" href="{{ $moduleUrl('security', 'ssl') }}">Configurar SSL</a>
+                                        <a class="kt-btn {{ $site->ssl_status === 'active' ? 'kt-btn-outline' : 'kt-btn-primary' }} kt-btn-sm" href="{{ $moduleUrl('security', 'ssl') }}">{{ $site->ssl_status === 'active' ? 'Administrar' : 'Configurar SSL' }}</a>
                                     </div>
                                 </div>
                                 <div class="flex flex-col gap-4 rounded-xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -263,8 +252,8 @@
                                             <i class="ki-filled ki-cloud-change text-xl"></i>
                                         </div>
                                         <div class="min-w-0">
-                                            <div class="truncate text-sm font-semibold text-mono">Sin backups programados</div>
-                                            <div class="mt-1 text-sm text-secondary-foreground">Configura copias de seguridad periodicas de este sitio.</div>
+                                            <div class="truncate text-sm font-semibold text-mono">{{ $backupPolicy?->enabled ? 'Backups automáticos activos' : 'Sin backups programados' }}</div>
+                                            <div class="mt-1 text-sm text-secondary-foreground">{{ $backupPolicy?->enabled ? 'Frecuencia '.($backupPolicy->frequency === 'daily' ? 'diaria' : 'semanal').' y '.$backupCount.' copia(s) disponible(s).' : 'Configura copias de seguridad periódicas de este sitio.' }}</div>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 lg:justify-end">

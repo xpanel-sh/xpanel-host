@@ -28,7 +28,7 @@ install_base_dependencies() {
   echo "postfix postfix/mailname string ${XPANEL_MAIL_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}" | debconf-set-selections
   echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates curl git unzip xz-utils tar gzip sudo composer \
+    ca-certificates curl git unzip xz-utils tar gzip sudo composer cron \
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
     certbot python3-certbot-nginx \
     mariadb-server postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks
@@ -246,6 +246,7 @@ EOF
 
 configure_database_server() {
   systemctl enable --now mariadb
+  systemctl enable --now cron
   mariadb-admin --protocol=socket ping >/dev/null
 }
 

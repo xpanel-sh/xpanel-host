@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainController;
@@ -10,10 +11,12 @@ use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\GlobalFileManagerController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\MailDnsController;
+use App\Http\Controllers\PhpConfigurationController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SiteOperationController;
 use App\Http\Controllers\SubdomainController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WebServerEngineController;
@@ -68,6 +71,7 @@ Route::middleware('setup.complete')->group(function () {
                 ->name('mail.dns-status');
         });
         Route::middleware('permission:'.Permissions::SITES_MANAGE)->group(function () {
+            Route::post('/sites/{site}/restart', [SiteOperationController::class, 'restart'])->name('sites.restart');
             Route::resource('sites', SiteController::class)->except(['index', 'show']);
 
             Route::get('/domains/create', [DomainController::class, 'create'])->name('domains.create');
@@ -106,6 +110,9 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/files/manager/ikode', [FileManagerController::class, 'ikode'])->name('sites.files.ikode');
             Route::get('/sites/{site}/files/backups', [BackupController::class, 'index'])->name('sites.backups.index');
             Route::get('/sites/{site}/advanced/activity-log', [ActivityLogController::class, 'index'])->name('sites.activity.index');
+            Route::get('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'index'])->name('sites.php.configuration');
+            Route::get('/sites/{site}/advanced/php-info', [PhpConfigurationController::class, 'info'])->name('sites.php.info');
+            Route::get('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'index'])->name('sites.cron.index');
             Route::prefix('/sites/{site}/files/manager/api')->name('sites.files.api.')->group(function () {
                 Route::get('/list', [FileManagerController::class, 'list'])->name('list');
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
@@ -119,6 +126,10 @@ Route::middleware('setup.complete')->group(function () {
         });
         Route::middleware('permission:'.Permissions::SITES_MANAGE)->group(function () {
             Route::post('/sites/{site}/files/backups', [BackupController::class, 'store'])->name('sites.backups.store');
+            Route::put('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'update'])->name('sites.php.configuration.update');
+            Route::post('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'store'])->name('sites.cron.store');
+            Route::put('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'update'])->name('sites.cron.update');
+            Route::delete('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'destroy'])->name('sites.cron.destroy');
             Route::put('/sites/{site}/files/backups/policy', [BackupController::class, 'policy'])->name('sites.backups.policy');
             Route::get('/sites/{site}/files/backups/{siteBackup}/download', [BackupController::class, 'download'])->name('sites.backups.download');
             Route::post('/sites/{site}/files/backups/{siteBackup}/restore', [BackupController::class, 'restore'])->name('sites.backups.restore');

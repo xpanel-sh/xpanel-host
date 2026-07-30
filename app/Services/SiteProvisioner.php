@@ -75,4 +75,16 @@ class SiteProvisioner
         $this->vhosts->remove($site);
         $this->vhosts->writeOpenLiteSpeedRegistry($site->id);
     }
+
+    public function restart(Site $site): void
+    {
+        if (! config('xpanel.apply_system_changes')) {
+            return;
+        }
+
+        $this->commands->run([
+            'sudo', '-n', (string) config('xpanel.site_helper'), 'site-restart',
+            $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root,
+        ]);
+    }
 }

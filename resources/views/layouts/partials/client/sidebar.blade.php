@@ -48,31 +48,9 @@
         ] : null,
     ]));
 
-    // Secondary sidebar: only shown while a site is selected (its module console).
-    // 'file-manager' and 'analytics' are served by their own dedicated routes
-    // (sites.files.index / sites.analytics), not the generic sites.module wildcard,
-    // so they need to be recognized as the active module too.
-    $activeModuleKey = match (true) {
-        request()->routeIs('sites.module') => request()->route('module'),
-        request()->routeIs('sites.files.*') => 'file-manager',
-        request()->routeIs('sites.analytics') => 'analytics',
-        request()->routeIs('sites.subdomains.*') => 'subdomains',
-        default => null,
-    };
+    $activeModuleKey = \App\Support\SiteModules::activeKey();
 
-    $moduleUrl = function (string $sectionKey, string $key) use ($selectedSite) {
-        if ($sectionKey === 'domains' && $key === 'subdomains') {
-            return route('sites.subdomains.index', $selectedSite->parent ?? $selectedSite);
-        }
-        if ($sectionKey === 'analytics') {
-            return route('sites.analytics', $selectedSite);
-        }
-        if ($sectionKey === 'files' && $key === 'file-manager') {
-            return route('sites.files.index', $selectedSite);
-        }
-
-        return route('sites.module', [$selectedSite, $sectionKey, $key]);
-    };
+    $moduleUrl = fn (string $sectionKey, string $key) => \App\Support\SiteModules::url($selectedSite, $sectionKey, $key);
 
     $secondaryMenu = $selectedSite ? array_merge(
         [[

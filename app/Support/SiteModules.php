@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Site;
+
 class SiteModules
 {
     /**
@@ -117,5 +119,38 @@ class SiteModules
         }
 
         return $sectionData['items'][$key] + ['section' => $sectionData['label']];
+    }
+
+    public static function url(Site $site, string $section, string $key): string
+    {
+        return match (true) {
+            $section === 'domains' && $key === 'subdomains' => route('sites.subdomains.index', $site->parent ?? $site),
+            $section === 'analytics' => route('sites.analytics', $site),
+            $section === 'files' && $key === 'file-manager' => route('sites.files.index', $site),
+            $section === 'files' && $key === 'backups' => route('sites.backups.index', $site),
+            $section === 'database' && $key === 'mysql-databases' => route('sites.databases.index', $site),
+            $section === 'advanced' && $key === 'activity-log' => route('sites.activity.index', $site),
+            $section === 'advanced' && $key === 'php-configuration' => route('sites.php.configuration', $site),
+            $section === 'advanced' && $key === 'php-info' => route('sites.php.info', $site),
+            $section === 'advanced' && $key === 'cron-jobs' => route('sites.cron.index', $site),
+            default => route('sites.module', [$site, $section, $key]),
+        };
+    }
+
+    public static function activeKey(): ?string
+    {
+        return match (true) {
+            request()->routeIs('sites.module') => request()->route('module'),
+            request()->routeIs('sites.files.*') => 'file-manager',
+            request()->routeIs('sites.backups.*') => 'backups',
+            request()->routeIs('sites.databases.*') => 'mysql-databases',
+            request()->routeIs('sites.activity.*') => 'activity-log',
+            request()->routeIs('sites.php.configuration*') => 'php-configuration',
+            request()->routeIs('sites.php.info') => 'php-info',
+            request()->routeIs('sites.cron.*') => 'cron-jobs',
+            request()->routeIs('sites.analytics') => 'analytics',
+            request()->routeIs('sites.subdomains.*') => 'subdomains',
+            default => null,
+        };
     }
 }

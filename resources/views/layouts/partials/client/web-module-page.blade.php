@@ -23,12 +23,19 @@
 
                         <div class="flex flex-wrap items-center gap-2">
                             @foreach($actions as $action)
-                                <a class="kt-btn {{ $action['style'] ?? 'kt-btn-outline' }}" href="{{ $action['url'] ?? '#' }}">
+                                @if(!empty($action['url']))
+                                <a class="kt-btn {{ $action['style'] ?? 'kt-btn-outline' }}" href="{{ $action['url'] }}">
                                     @isset($action['icon'])
                                         <i class="ki-filled {{ $action['icon'] }}"></i>
                                     @endisset
                                     {{ $action['label'] }}
                                 </a>
+                                @else
+                                <button class="kt-btn kt-btn-outline opacity-60 cursor-not-allowed" type="button" disabled title="Esta operación todavía no está conectada al servidor">
+                                    @isset($action['icon'])<i class="ki-filled {{ $action['icon'] }}"></i>@endisset
+                                    {{ $action['label'] }} · pendiente
+                                </button>
+                                @endif
                             @endforeach
                         </div>
                     </div>

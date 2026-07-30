@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
+use App\Services\ServerCommandRunner;
 use App\Support\SiteModules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,6 +26,7 @@ class SiteModulesTest extends TestCase
             'document_root' => '/var/www/cliente.example.com',
             'php_version' => '8.3',
             'type' => 'php',
+            'web_server' => 'nginx',
             'status' => 'active',
         ]);
     }
@@ -46,11 +48,7 @@ class SiteModulesTest extends TestCase
 
         foreach (SiteModules::catalog() as $sectionKey => $section) {
             foreach (array_keys($section['items']) as $key) {
-                $url = match (true) {
-                    $sectionKey === 'analytics' => route('sites.analytics', $site),
-                    $sectionKey === 'files' && $key === 'file-manager' => route('sites.files.index', $site),
-                    default => route('sites.module', [$site, $sectionKey, $key]),
-                };
+                $url = SiteModules::url($site, $sectionKey, $key);
 
                 $owner->get($url)
                     ->assertStatus(200)
@@ -71,5 +69,31 @@ class SiteModulesTest extends TestCase
         $this->actingAs($this->owner())
             ->get(route('sites.module', [$this->site(), 'does-not-exist', 'subdomains']))
             ->assertStatus(404);
+    }
+
+    public function test_real_modules_use_their_dedicated_routes(): void
+    {
+        $site = $this->site();
+
+        $this->assertSame(route('sites.backups.index', $site), SiteModules::url($site, 'files', 'backups'));
+        $this->assertSame(route('sites.databases.index', $site), SiteModules::url($site, 'database', 'mysql-databases'));
+        $this->assertSame(route('sites.activity.index', $site), SiteModules::url($site, 'advanced', 'activity-log'));
+    }
+
+    public function test_developer_can_restart_a_real_site_through_the_limited_helper(): void
+    {
+        $site = $this->site();
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
+            $mock->shouldReceive('run')->once()->with([
+                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-restart',
+                $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root,
+            ]);
+        });
+        $developer = User::factory()->create(['role_id' => Role::where('slug', 'developer')->firstOrFail()->id]);
+
+        $this->actingAs($developer)->post(route('sites.restart', $site))
+            ->assertRedirect()
+            ->assertSessionHas('status');
     }
 }
