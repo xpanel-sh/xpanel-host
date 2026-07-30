@@ -1,0 +1,52 @@
+name: Reportar un error
+description: Informa un comportamiento reproducible de XPanel Host
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar el problema. No publiques secretos ni vulnerabilidades; para seguridad utiliza SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Versión o commit
+      placeholder: Ej. main @ abc1234
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Entorno
+      placeholder: Ej. Ubuntu 24.04, PHP 8.3, instalación standalone
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: ¿Qué ocurrió y qué esperabas que ocurriera?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Pasos para reproducir
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Registros relevantes
+      description: Elimina contraseñas, tokens, dominios privados y datos personales.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Comprobaciones
+      options:
+        - label: Busqué issues existentes sobre este problema.
+          required: true
+        - label: Confirmo que este reporte no contiene una vulnerabilidad ni secretos.
+          required: true

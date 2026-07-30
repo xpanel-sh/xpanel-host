@@ -3,6 +3,7 @@
     "name": "xpanel-sh/xpanel-host",
     "type": "project",
     "description": "XPanel Host, a cPanel-like hosting panel for standalone Linux servers or MicroVMs.",
+    "license": "Apache-2.0",
     "keywords": ["xpanel", "hosting", "laravel", "cpanel", "microvm"],
     "require": {
         "php": "^8.3",

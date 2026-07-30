@@ -1,0 +1,32 @@
+name: Proponer una mejora
+description: Sugiere una capacidad o mejora para XPanel Host
+title: "[Mejora]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema que deseas resolver
+      description: Describe el caso de uso antes de proponer la solución.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Propuesta
+      description: Explica el comportamiento esperado y su alcance.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Alcance
+      options:
+        - label: Esta propuesta mantiene a Host independiente de Core.
+          required: true
+        - label: Busqué propuestas existentes sobre este tema.
+          required: true

@@ -1,23 +1,61 @@
-# XPanel Host
+<h1 align="center">XPanel Host</h1>
 
-Panel de hosting para administrar sitios, dominios, certificados SSL, bases de datos y correo desde un servidor Linux propio. Funciona de manera independiente en un VPS, VDS o servidor dedicado, y también puede instalarse dentro de una MicroVM creada por XPanel Core.
+<p align="center">
+  Panel de hosting libre y autohospedable para administrar sitios, dominios, SSL,<br>
+  bases de datos, archivos y correo desde tu propio servidor Linux.
+</p>
 
-Host no vende planes de hosting ni crea revendedores. Una instalación pertenece a un propietario, que puede invitar colaboradores y utilizar libremente los recursos disponibles en el servidor o asignados por Core.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Licencia Apache-2.0"></a>
+  <img src="https://img.shields.io/badge/PHP-8.3%2B-777BB4" alt="PHP 8.3 o posterior">
+  <img src="https://img.shields.io/badge/Laravel-13-FF2D20" alt="Laravel 13">
+  <img src="https://img.shields.io/badge/status-desarrollo_activo-f59e0b" alt="Estado: desarrollo activo">
+</p>
 
-## Funciones disponibles
+<p align="center">
+  <a href="#inicio-rápido">Inicio rápido</a> ·
+  <a href="#capacidades">Capacidades</a> ·
+  <a href="#correo">Correo</a> ·
+  <a href="#actualizaciones">Actualizaciones</a> ·
+  <a href="CONTRIBUTING.md">Contribuir</a> ·
+  <a href="SECURITY.md">Seguridad</a>
+</p>
 
-- Sitios PHP y estáticos con document root aislado.
-- Subdominios agrupados bajo su sitio principal, cada uno con vhost, carpeta y SSL propios.
-- Nginx instalado inicialmente y servido directamente.
-- Apache y OpenLiteSpeed instalables bajo demanda desde el panel.
-- Cambio de motor por sitio.
-- Certificados Let's Encrypt mediante Certbot y renovación automática.
-- Bases y usuarios MariaDB aislados por sitio.
-- Cuentas de correo con Postfix, Dovecot, SMTP submission, IMAP y Maildir.
-- Roundcube instalado como webmail inicial; XMail se desarrollará sobre los mismos buzones.
-- File manager, usuarios, roles y permisos.
-- CLI común mediante el comando `xpanel`.
-- Modo standalone o integración opcional con XPanel Core.
+---
+
+> [!WARNING]
+> XPanel Host está en desarrollo activo y todavía no tiene una versión estable. Pruébalo primero en un VDS limpio y conserva respaldos externos antes de utilizarlo con datos importantes.
+
+## Qué es XPanel Host
+
+XPanel Host funciona de manera independiente en un VPS, VDS o servidor dedicado. También puede instalarse dentro de una MicroVM creada por [XPanel Core](https://github.com/xpanel-sh/xpanel-core), pero Core no es un requisito.
+
+Host no vende planes ni crea revendedores. Cada instalación pertenece a un propietario, que puede invitar colaboradores y utilizar los recursos del servidor o los asignados por Core.
+
+```text
+Servidor Linux o MicroVM
+        │
+        ├── Nginx público :80/:443
+        ├── PHP-FPM / Apache / OpenLiteSpeed
+        ├── MariaDB
+        ├── Postfix + Dovecot + OpenDKIM
+        ├── Roundcube
+        └── XPanel Host + xpanel CLI
+```
+
+## Capacidades
+
+| Área | Incluido actualmente |
+| --- | --- |
+| **Sitios** | PHP y estáticos, document root aislado, subdominios y cambio de motor por sitio |
+| **Motores web** | Nginx inicial; Apache y OpenLiteSpeed instalables bajo demanda |
+| **SSL** | Let's Encrypt con Certbot, renovación y estado del certificado |
+| **Bases de datos** | Bases y usuarios MariaDB aislados por sitio |
+| **Correo** | Postfix, Dovecot, Maildir, Roundcube, SPF, DKIM, DMARC y verificación DNS |
+| **Archivos** | Gestor de archivos confinado al espacio administrado |
+| **Acceso** | Propietario, equipo, roles y permisos |
+| **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
+| **Despliegue** | Standalone o dentro de una MicroVM administrada por Core |
 
 ## Servidor recomendado
 
@@ -33,7 +71,7 @@ Para la primera instalación se recomienda un VDS limpio con:
 
 No publiques los puertos internos 8082, 8083, 7080 u 8088. Host limita los backends opcionales a loopback.
 
-## Instalación desde Git
+## Inicio rápido
 
 Primero publica estos repositorios:
 
@@ -193,7 +231,9 @@ sudo bash install.sh
 
 No crees `mail.example.com` como un sitio normal: el instalador reserva ese hostname para Roundcube. XMail tendrá autenticación propia por buzón y no reutilizará la sesión administrativa; su contrato y migración están descritos en `docs/XMAIL.md`.
 
-## CLI
+<a id="actualizaciones"></a>
+
+## CLI y actualizaciones
 
 La CLI detecta el producto desde el directorio actual:
 
@@ -280,6 +320,14 @@ php artisan serve --port=8081
 
 El instalador web `get.xpanel.sh` se documentará cuando la distribución pública esté lista. Hasta entonces, el método soportado es Git + `install.sh`.
 
+## Proyecto y comunidad
+
+- Consulta los cambios en [CHANGELOG.md](CHANGELOG.md).
+- Lee cómo participar en [CONTRIBUTING.md](CONTRIBUTING.md).
+- Sigue el [Código de conducta](CODE_OF_CONDUCT.md).
+- Para preguntas de uso consulta [SUPPORT.md](SUPPORT.md).
+- Para vulnerabilidades utiliza el proceso privado de [SECURITY.md](SECURITY.md); no abras un issue público.
+
 ## Licencia
 
-La licencia del proyecto todavía no está definida. Añade un archivo `LICENSE` antes de publicar una versión estable.
+XPanel Host se distribuye bajo la [Apache License 2.0](LICENSE). Puedes usarlo, modificarlo y distribuirlo, incluso comercialmente, respetando los avisos y condiciones de la licencia. Los nombres y marcas de XPanel no se conceden mediante esta licencia.
