@@ -1,0 +1,14 @@
+/.env
+/.phpunit.result.cache
+/ARCHITECTURE.local.md
+/node_modules/
+/vendor/
+/public/build/
+/public/hot
+/storage/*.key
+/storage/app/gateways/
+/storage/app/mail/
+/storage/app/openlitespeed/
+/storage/app/php-fpm/
+/storage/app/sites/
+/storage/app/vhosts/

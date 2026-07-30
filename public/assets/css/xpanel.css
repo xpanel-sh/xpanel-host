@@ -1,0 +1,26 @@
+/*
+ * XPanel local utilities.
+ * Keep this file small and loaded after Metronic styles.css.
+ */
+
+@media (width >= 64rem) {
+  .lg\:mt-\(--header-height\) {
+    margin-top: var(--header-height);
+  }
+}
+
+/* Client header sits after the fixed primary sidebar rail (90px). The
+   secondary site-module panel, when present, starts lower than the header
+   (see .xpanel-secondary-sidebar), so the header never needs to widen. */
+.xpanel-header {
+  z-index: 89;
+  margin-left: 90px;
+}
+
+/* styles.css is a static bundle pre-compiled from the original theme's own
+   page set — it only has the utility classes those pages happened to use.
+   py-20 wasn't one of them, so we add it here by hand (same --spacing scale
+   Tailwind v4 uses in the bundle: padding-block = var(--spacing) * 20). */
+.py-20 {
+  padding-block: calc(var(--spacing) * 20);
+}

@@ -1,0 +1,121 @@
+<?php
+
+namespace App\Support;
+
+class SiteModules
+{
+    /**
+     * Matches the real xpanel client site menu: same sections, same order,
+     * same items. 'flat' sections render as a single link instead of an
+     * accordion. Disabled items render but don't get a route/page.
+     *
+     * @return array<string, array{label: string, icon: string, flat?: bool, items: array<string, array{label: string, icon: string, description: string, disabled?: bool}>}>
+     */
+    public static function catalog(): array
+    {
+        return [
+            'server' => [
+                'label' => 'Servidor y recursos',
+                'icon' => 'ki-external-drive',
+                'items' => [
+                    'summary' => ['label' => 'Resumen del servidor', 'icon' => 'ki-external-drive', 'description' => 'Modo de administracion y capacidad disponible para todos tus sitios.'],
+                    'usage' => ['label' => 'Uso de recursos', 'icon' => 'ki-chart-simple', 'description' => 'CPU, RAM y disco disponibles en el servidor o MicroVM.'],
+                    'external' => ['label' => 'Administracion externa', 'icon' => 'ki-arrow-up-right', 'description' => 'En modo Core, abre el servicio para renovar o cambiar recursos.'],
+                ],
+            ],
+            'performance' => [
+                'label' => 'Rendimiento',
+                'icon' => 'ki-chart-line-up',
+                'items' => [
+                    'ai-troubleshooter' => ['label' => 'Solucionador con IA', 'icon' => 'ki-message-programming', 'description' => 'Diagnostico asistido de errores comunes del sitio.'],
+                    'page-speed' => ['label' => 'Page Speed', 'icon' => 'ki-chart-simple', 'description' => 'Diagnostico de velocidad de carga del sitio.'],
+                    'cdn' => ['label' => 'CDN', 'icon' => 'ki-world', 'description' => 'Sirve contenido estatico desde una red de distribucion.'],
+                ],
+            ],
+            'analytics' => [
+                'label' => 'Analisis',
+                'icon' => 'ki-chart-simple',
+                'flat' => true,
+                'items' => [
+                    'analytics' => ['label' => 'Analisis', 'icon' => 'ki-chart-simple', 'description' => 'Visitas, trafico y paginas mas vistas.'],
+                ],
+            ],
+            'security' => [
+                'label' => 'Seguridad',
+                'icon' => 'ki-shield-tick',
+                'items' => [
+                    'malware-scanner' => ['label' => 'Escaner de malware', 'icon' => 'ki-shield-search', 'description' => 'Analiza los archivos del sitio en busca de codigo malicioso.'],
+                    'ssl' => ['label' => 'SSL', 'icon' => 'ki-lock', 'description' => 'Certificados SSL y renovacion automatica.'],
+                ],
+            ],
+            'domains' => [
+                'label' => 'Dominios',
+                'icon' => 'ki-click',
+                'items' => [
+                    'subdomains' => ['label' => 'Subdominios', 'icon' => 'ki-abstract-26', 'description' => 'Crea subdominios que apunten a carpetas dentro de este sitio.'],
+                    'parked-domains' => ['label' => 'Dominios aparcados', 'icon' => 'ki-parcel', 'description' => 'Sirve el mismo contenido bajo dominios adicionales.'],
+                    'redirects' => ['label' => 'Redirecciones', 'icon' => 'ki-exit-right-corner', 'description' => 'Redirige rutas o dominios completos hacia otra URL.'],
+                ],
+            ],
+            'website' => [
+                'label' => 'Sitio web',
+                'icon' => 'ki-screen',
+                'items' => [
+                    'wordpress' => ['label' => 'Instalar WordPress', 'icon' => 'ki-abstract-6', 'description' => 'Gestion avanzada para sitios WordPress.'],
+                    'auto-installer' => ['label' => 'Instalador automatico', 'icon' => 'ki-package', 'description' => 'Instala apps populares en un clic.'],
+                    'migration' => ['label' => 'Migrar sitio web', 'icon' => 'ki-arrow-up-right', 'description' => 'Importa un sitio existente desde otro proveedor.'],
+                    'error-pages' => ['label' => 'Paginas de error', 'icon' => 'ki-cross-circle', 'description' => 'Personaliza las paginas 404/500 de este sitio.'],
+                    'builder' => ['label' => 'Creador de sitios', 'icon' => 'ki-color-swatch', 'description' => 'Constructor visual de este sitio sin escribir codigo.'],
+                ],
+            ],
+            'files' => [
+                'label' => 'Archivos',
+                'icon' => 'ki-folder',
+                'items' => [
+                    'file-manager' => ['label' => 'Gestor de archivos', 'icon' => 'ki-folder', 'description' => 'Explora, sube y edita archivos del sitio desde el navegador.'],
+                    'backups' => ['label' => 'Backups', 'icon' => 'ki-cloud-change', 'description' => 'Copias de seguridad del sitio, programables y descargables.'],
+                    'ftp' => ['label' => 'Cuentas FTP', 'icon' => 'ki-abstract-14', 'description' => 'Crea cuentas FTP/SFTP con acceso limitado a carpetas.'],
+                ],
+            ],
+            'database' => [
+                'label' => 'Bases de datos',
+                'icon' => 'ki-data',
+                'items' => [
+                    'mysql-databases' => ['label' => 'Administracion', 'icon' => 'ki-data', 'description' => 'Crea bases de datos y usuarios con privilegios por base.'],
+                    'phpmyadmin' => ['label' => 'phpMyAdmin', 'icon' => 'ki-code', 'description' => 'Administra tus bases de datos desde una interfaz visual.'],
+                    'remote-mysql' => ['label' => 'MySQL remoto', 'icon' => 'ki-abstract-41', 'description' => 'Autoriza IPs externas para conectarse a tus bases de datos.'],
+                ],
+            ],
+            'advanced' => [
+                'label' => 'Avanzado',
+                'icon' => 'ki-setting-2',
+                'items' => [
+                    'ssh-access' => ['label' => 'Acceso SSH', 'icon' => 'ki-terminal', 'description' => 'Llaves SSH y acceso remoto por terminal a este sitio.'],
+                    'php-configuration' => ['label' => 'Configuracion PHP', 'icon' => 'ki-code', 'description' => 'Version de PHP, extensiones y limites por sitio.'],
+                    'dns-zone-editor' => ['label' => 'Editor DNS', 'icon' => 'ki-abstract-45', 'description' => 'Edita registros DNS (A, CNAME, MX, TXT) de este sitio.'],
+                    'cron-jobs' => ['label' => 'Cron Jobs', 'icon' => 'ki-timer', 'description' => 'Programa tareas periodicas para este sitio.'],
+                    'php-info' => ['label' => 'PHP info', 'icon' => 'ki-information-2', 'description' => 'Detalle de la configuracion activa de PHP.'],
+                    'cache-manager' => ['label' => 'Administrador de cache', 'icon' => 'ki-time', 'description' => 'Activa y limpia cache a nivel de sitio.'],
+                    'git' => ['label' => 'Git', 'icon' => 'ki-abstract-22', 'description' => 'Despliega el sitio automaticamente desde un repositorio Git.'],
+                    'password-protect-directories' => ['label' => 'Directorios protegidos', 'icon' => 'ki-lock-3', 'description' => 'Protege carpetas del sitio con usuario y contrasena.'],
+                    'ip-manager' => ['label' => 'Administrador de IP', 'icon' => 'ki-security-user', 'description' => 'Bloquea o permite el acceso segun direccion IP.'],
+                    'hotlink-protection' => ['label' => 'Proteccion Hotlink', 'icon' => 'ki-link', 'description' => 'Evita que otros sitios enlacen directo a tus archivos.'],
+                    'folder-index-manager' => ['label' => 'Indice de carpetas', 'icon' => 'ki-folder', 'description' => 'Define el archivo indice por carpeta.'],
+                    'fix-file-ownership' => ['label' => 'Corregir propietarios', 'icon' => 'ki-setting-3', 'description' => 'Corrige el dueno y permisos de los archivos del sitio.'],
+                    'activity-log' => ['label' => 'Registro de actividad', 'icon' => 'ki-time', 'description' => 'Historial de cambios realizados en este sitio.'],
+                ],
+            ],
+        ];
+    }
+
+    public static function find(string $section, string $key): ?array
+    {
+        $sectionData = self::catalog()[$section] ?? null;
+
+        if ($sectionData === null || ! isset($sectionData['items'][$key])) {
+            return null;
+        }
+
+        return $sectionData['items'][$key] + ['section' => $sectionData['label']];
+    }
+}
