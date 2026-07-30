@@ -327,7 +327,12 @@ configure_backup_runtime() {
   local backup_root="/var/lib/xpanel-host/backups"
   local php_binary
   php_binary="$(command -v php)"
-  install -d -o root -g "${XPANEL_SITE_GROUP:-www-data}" -m 0750 /var/lib/xpanel-host "$backup_root"
+  # /var/lib/xpanel-host itself is a shared namespace directory (also holds
+  # ssh/ for authorized_keys — see access_sync() in xpanel-site-helper.sh),
+  # so it must stay world-traversable; only backups/ underneath it needs to
+  # stay group-restricted.
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host
+  install -d -o root -g "${XPANEL_SITE_GROUP:-www-data}" -m 0750 "$backup_root"
   set_env_var XPANEL_BACKUP_ROOT "$backup_root"
 
   cat > /etc/systemd/system/xpanel-host-scheduler.service <<EOF
