@@ -18,6 +18,7 @@ use App\Http\Controllers\HotlinkController;
 use App\Http\Controllers\IpRuleController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\MailDnsController;
+use App\Http\Controllers\MalwareScanController;
 use App\Http\Controllers\OwnershipController;
 use App\Http\Controllers\ParkedDomainController;
 use App\Http\Controllers\PhpConfigurationController;
@@ -140,6 +141,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'index'])->name('sites.php.configuration');
             Route::get('/sites/{site}/advanced/php-info', [PhpConfigurationController::class, 'info'])->name('sites.php.info');
             Route::get('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'index'])->name('sites.cron.index');
+            Route::get('/sites/{site}/security/malware-scanner', [MalwareScanController::class, 'index'])->name('sites.malware.index');
             Route::prefix('/sites/{site}/files/manager/api')->name('sites.files.api.')->group(function () {
                 Route::get('/list', [FileManagerController::class, 'list'])->name('list');
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
@@ -182,6 +184,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/files/backups/{siteBackup}/restore', [BackupController::class, 'restore'])->name('sites.backups.restore');
             Route::delete('/sites/{site}/files/backups/{siteBackup}', [BackupController::class, 'destroy'])->name('sites.backups.destroy');
             Route::post('/sites/{site}/security/ssl', [CertificateController::class, 'issue'])->name('sites.ssl.issue');
+            Route::post('/sites/{site}/security/malware-scanner', [MalwareScanController::class, 'store'])->middleware('throttle:3,1')->name('sites.malware.store');
+            Route::post('/sites/{site}/security/malware-scanner/{malwareScan}/findings/{finding}/quarantine', [MalwareScanController::class, 'quarantine'])->whereNumber('finding')->name('sites.malware.quarantine');
             Route::delete('/sites/{site}/security/ssl', [CertificateController::class, 'destroy'])->name('sites.ssl.destroy');
             Route::post('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'store'])->name('sites.databases.store');
             Route::post('/sites/{site}/domains/subdomains', [SubdomainController::class, 'store'])->name('sites.subdomains.store');

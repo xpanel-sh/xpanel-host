@@ -28,10 +28,23 @@ install_base_dependencies() {
   echo "postfix postfix/mailname string ${XPANEL_MAIL_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}" | debconf-set-selections
   echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync acl openssh-server vsftpd \
+    ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync acl util-linux openssh-server vsftpd \
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
     certbot python3-certbot-nginx \
-    mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks
+    mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks \
+    clamav clamav-freshclam
+}
+
+configure_malware_scanner() {
+  command -v clamscan >/dev/null 2>&1 || { echo "ClamAV installation failed." >&2; exit 1; }
+  install -d -o root -g "${XPANEL_SITE_GROUP:-www-data}" -m 0750 /var/lib/xpanel-host/quarantine
+  if [[ ! -s /var/lib/clamav/daily.cvd && ! -s /var/lib/clamav/daily.cld && ! -s /var/lib/clamav/main.cvd && ! -s /var/lib/clamav/main.cld ]]; then
+    systemctl stop clamav-freshclam.service >/dev/null 2>&1 || true
+    freshclam
+  fi
+  if systemctl list-unit-files clamav-freshclam.service >/dev/null 2>&1; then
+    systemctl enable --now clamav-freshclam.service
+  fi
 }
 
 ensure_node_runtime() {
@@ -576,6 +589,7 @@ configure_backup_runtime
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:sites-sync
 configure_database_server
 configure_file_access
+configure_malware_scanner
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:access-sync
 if [[ "${XPANEL_PHPMYADMIN_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-phpmyadmin.sh"

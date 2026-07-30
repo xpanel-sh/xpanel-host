@@ -77,7 +77,7 @@ if [[ -f "$database_file" ]]; then
 fi
 
 missing_services=()
-for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip crontab rsync sshd vsftpd nft; do
+for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip crontab rsync sshd vsftpd nft clamscan freshclam flock; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     missing_services+=("$command_name")
   fi

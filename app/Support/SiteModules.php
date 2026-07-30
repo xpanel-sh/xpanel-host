@@ -146,6 +146,7 @@ class SiteModules
             $section === 'advanced' && $key === 'ip-manager' => route('sites.ip-rules.index', $site),
             $section === 'advanced' && $key === 'git' => route('sites.git.index', $site),
             $section === 'advanced' && $key === 'password-protect-directories' => route('sites.protected-directories.index', $site),
+            $section === 'security' && $key === 'malware-scanner' => route('sites.malware.index', $site),
             default => route('sites.module', [$site, $section, $key]),
         };
     }
@@ -177,6 +178,7 @@ class SiteModules
             request()->routeIs('sites.ip-rules.*') => 'ip-manager',
             request()->routeIs('sites.git.*') => 'git',
             request()->routeIs('sites.protected-directories.*') => 'password-protect-directories',
+            request()->routeIs('sites.malware.*') => 'malware-scanner',
             default => null,
         };
     }
@@ -185,7 +187,7 @@ class SiteModules
     {
         return in_array($section.'.'.$key, [
             'server.summary', 'server.usage', 'server.external', 'analytics.analytics',
-            'security.ssl', 'domains.subdomains', 'domains.parked-domains', 'domains.redirects',
+            'security.ssl', 'security.malware-scanner', 'domains.subdomains', 'domains.parked-domains', 'domains.redirects',
             'website.error-pages', 'files.file-manager', 'files.backups', 'files.ftp', 'database.mysql-databases',
             'database.phpmyadmin', 'database.remote-mysql',
             'advanced.php-configuration', 'advanced.cron-jobs', 'advanced.php-info',

@@ -176,13 +176,19 @@ En una MicroVM administrada por Core, cada alias también debe registrarse como 
 
 ### Módulos visibles que siguen en preparación
 
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, malware, instaladores/migración/constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, instaladores/migración/constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
 Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio.
 
 **Archivos → Cuentas FTP** habilita SFTP confinado en un jail cuya carpeta `/site` enlaza únicamente el document root. FTPS explícito es opcional, utiliza vsftpd, una allowlist de usuarios y los puertos 21/40000-40100; FTP anónimo o sin TLS permanece desactivado. La contraseña Linux se entrega al helper por entrada estándar y Host sólo registra cuándo se rotó.
 
 **Avanzado → Acceso SSH** habilita terminal exclusivamente después de registrar una llave Ed25519 o RSA. La terminal no acepta contraseña y bloquea forwarding TCP, X11, túneles y gateway ports. Al permitir terminal, SFTP utiliza el mismo usuario y el aislamiento entre sitios depende de los grupos Unix exclusivos y permisos `0750`; sin terminal, SFTP usa además `ChrootDirectory`.
+
+### Escáner de malware
+
+**Seguridad → Escáner de malware** ejecuta ClamAV sobre el document root real, registra cuántos archivos revisó, conserva los últimos resultados y muestra la firma exacta de cada detección. El escaneo no sigue enlaces simbólicos ni cruza otros sistemas de archivos. Las definiciones se mantienen mediante `clamav-freshclam`.
+
+La acción de cuarentena sólo puede aplicarse a un hallazgo del mismo sitio. El helper vuelve a resolver y confinar la ruta antes de mover el archivo a `/var/lib/xpanel-host/quarantine/<dominio>/<escaneo>/`; no lo elimina ni lo deja accesible desde la web. Los falsos positivos deben revisarse antes de borrar o restaurar manualmente un archivo.
 
 ### phpMyAdmin y MySQL remoto
 

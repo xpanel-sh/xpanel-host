@@ -220,6 +220,60 @@ ownership_fix() {
   printf 'directories=%s\n' "$(find -P "$document_root" -xdev -type d -printf . | wc -c)"
 }
 
+malware_scan() {
+  local domain="$2" document_root="$3"
+  valid_domain "$domain" || fail "Invalid malware scan domain."
+  valid_document_root "$document_root" || fail "Invalid malware scan document root."
+  [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
+  command -v clamscan >/dev/null || fail "ClamAV is not installed."
+  exec 9>"/run/lock/xpanel-malware-$domain.lock"
+  flock -n 9 || fail "Another malware scan is already running for this site."
+  local report result files infected line body path signature relative
+  report="$(mktemp /var/tmp/xpanel-clam.XXXXXX)"
+  trap 'rm -f -- "$report"' RETURN
+  set +e
+  LC_ALL=C clamscan --recursive=yes --infected --no-summary --cross-fs=no --follow-dir-symlinks=0 --follow-file-symlinks=0 -- "$document_root" >"$report" 2>&1
+  result=$?
+  set -e
+  [[ "$result" == 0 || "$result" == 1 ]] || { tail -n 20 "$report" >&2; fail "ClamAV could not scan the site."; }
+  files="$(find -P "$document_root" -xdev -type f -printf . | wc -c)"
+  infected=0
+  printf 'files=%s\n' "$files"
+  while IFS= read -r line; do
+    [[ "$line" == *" FOUND" ]] || continue
+    body="${line% FOUND}"
+    path="${body%: *}"
+    signature="${body##*: }"
+    [[ "$path" == "$document_root/"* && -n "$signature" ]] || fail "ClamAV reported a path outside the site."
+    relative="${path#"$document_root/"}"
+    [[ "$relative" != "$path" && "$relative" != *$'\n'* && "$relative" != *$'\r'* ]] || fail "ClamAV reported an invalid path."
+    MALWARE_FINDINGS+=("finding=$(printf %s "$relative" | base64 -w0)"$'\t'"$(printf %s "$signature" | base64 -w0)")
+    infected=$((infected + 1))
+  done < "$report"
+  printf 'infected=%s\n' "$infected"
+  printf '%s\n' "${MALWARE_FINDINGS[@]:-}"
+}
+
+malware_quarantine() {
+  local domain="$2" document_root="$3" token="$4" relative="$5" site_user="$6"
+  valid_domain "$domain" || fail "Invalid quarantine domain."
+  valid_document_root "$document_root" || fail "Invalid quarantine document root."
+  valid_site_identity "$site_user" || fail "Invalid quarantine site identity."
+  [[ "$token" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]] || fail "Invalid quarantine token."
+  [[ -n "$relative" && "$relative" != /* && "$relative" != *$'\n'* && "$relative" != *$'\r'* && ! "$relative" =~ (^|/)\.\.(/|$) ]] || fail "Invalid quarantine path."
+  local root_real source destination fingerprint quarantine_root
+  root_real="$(realpath -e -- "$document_root")"
+  source="$(realpath -e -- "$document_root/$relative")"
+  [[ "$source" == "$root_real/"* && -f "$source" && ! -L "$source" ]] || fail "Quarantine source is outside the site or is not a regular file."
+  quarantine_root="/var/lib/xpanel-host/quarantine/$domain/$token"
+  fingerprint="$(printf %s "$relative" | sha256sum | cut -d' ' -f1)"
+  destination="$quarantine_root/$fingerprint.quarantine"
+  install -d -o root -g "$site_user" -m 0750 "/var/lib/xpanel-host/quarantine/$domain" "$quarantine_root"
+  mv -- "$source" "$destination"
+  chown root:"$site_user" "$destination"
+  chmod 0640 "$destination"
+}
+
 access_log_read() {
   local domain="$2" engine="$3" log
   valid_domain "$domain" || fail "Invalid log domain."
@@ -894,6 +948,8 @@ case "$ACTION" in
   cron-sync) cron_sync "$@" ;;
   error-pages-sync) error_pages_sync "$@" ;;
   ownership-fix) ownership_fix "$@" ;;
+  malware-scan) MALWARE_FINDINGS=(); malware_scan "$@" ;;
+  malware-quarantine) malware_quarantine "$@" ;;
   access-log-read) access_log_read "$@" ;;
   cache-purge) cache_purge "$@" ;;
   git-deploy) git_deploy "$@" ;;

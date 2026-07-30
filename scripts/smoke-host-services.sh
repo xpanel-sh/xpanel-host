@@ -36,6 +36,15 @@ sshd -t
 systemctl is-active --quiet ssh vsftpd
 grep -q '^anonymous_enable=NO$' /etc/vsftpd.conf
 grep -q '^force_local_logins_ssl=YES$' /etc/vsftpd.conf
+clamscan --version | grep -q '^ClamAV '
+test -s /var/lib/clamav/daily.cvd || test -s /var/lib/clamav/daily.cld || test -s /var/lib/clamav/main.cvd || test -s /var/lib/clamav/main.cld
+
+if [[ -n "${XPANEL_SMOKE_MALWARE_ROOT:-}" && -n "${XPANEL_SMOKE_DOMAIN:-}" ]]; then
+  echo "Checking ClamAV scan integration for $XPANEL_SMOKE_DOMAIN..."
+  malware_result="$($HELPER malware-scan "$XPANEL_SMOKE_DOMAIN" "$XPANEL_SMOKE_MALWARE_ROOT")"
+  grep -q '^files=[0-9]\+$' <<< "$malware_result"
+  grep -q '^infected=[0-9]\+$' <<< "$malware_result"
+fi
 
 if [[ -n "${XPANEL_SMOKE_SITE_USER:-}" ]]; then
   echo "Checking isolated site access for $XPANEL_SMOKE_SITE_USER..."
