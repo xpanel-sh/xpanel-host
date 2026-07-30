@@ -698,7 +698,12 @@ configure_terminal_agent() {
   fi
   set_env_var XPANEL_TERMINAL_ENABLED true
 
-  go build -o /usr/local/bin/xpanel-terminal-agent "$ROOT/agent"
+  # agent/ is its own independent Go module (its own go.mod), not a
+  # subpackage of anything at $ROOT, so the build must run with agent/
+  # as the working directory (-C) rather than pointing at it as a path
+  # from outside — otherwise Go looks for a go.mod at $ROOT and fails
+  # with "cannot find main module".
+  go build -C "$ROOT/agent" -o /usr/local/bin/xpanel-terminal-agent .
   chmod 0755 /usr/local/bin/xpanel-terminal-agent
 
   local signing_key panel_port
