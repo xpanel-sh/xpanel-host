@@ -1,27 +1,12 @@
 @extends('layouts.client')
 
+@section('title', 'phpMyAdmin - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Bases de datos',
-        'title' => 'phpMyAdmin',
-        'description' => 'Accede a phpMyAdmin para inspeccionar y editar las bases del sitio.',
-        'actions' => [
-            ['label' => 'Abrir phpMyAdmin', 'icon' => 'ki-exit-right-corner', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Sesion', 'value' => 'No iniciada', 'icon' => 'ki-user'],
-            ['label' => 'Conexion', 'value' => 'Local', 'icon' => 'ki-data'],
-            ['label' => 'Permisos', 'value' => 'Seguros', 'icon' => 'ki-shield-tick'],
-        ],
-        'cards' => [
-            [
-                'title' => 'Acceso rapido',
-                'body' => 'Desde aqui se abrira una sesion segura hacia phpMyAdmin.',
-                'items' => [
-                    ['label' => 'Dominio', 'value' => $site->domain],
-                    ['label' => 'Metodo', 'value' => 'Token temporal'],
-                ],
-            ],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Bases de datos / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">phpMyAdmin</h1><p class="mt-1 text-sm text-secondary-foreground">Interfaz visual instalada por Host para administrar MariaDB con las credenciales de cada base.</p></div>
+  <div class="grid gap-5 md:grid-cols-3"><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Estado</div><div class="mt-2 font-semibold text-mono">{{ $enabled ? 'Instalado' : 'Desactivado' }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Bases de este sitio</div><div class="mt-2 font-semibold text-mono">{{ $databases->count() }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Autenticación</div><div class="mt-2 font-semibold text-mono">Usuario MariaDB</div></div></div></div>
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Abrir administrador</h2></div><div class="kt-card-content grid gap-4 p-5"><p class="text-sm text-secondary-foreground">Ingresa con el usuario y la contraseña creados desde <strong>Administración</strong>. phpMyAdmin sólo mostrará las bases concedidas a ese usuario; el acceso root está bloqueado.</p>@if($enabled)<a class="kt-btn kt-btn-primary w-fit" href="{{ $phpMyAdminUrl }}" target="_blank" rel="noopener"><i class="ki-filled ki-exit-up"></i>Abrir phpMyAdmin</a>@else<div class="rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">phpMyAdmin está desactivado en la configuración del servidor.</div>@endif</div></section>
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Usuarios disponibles</h2></div><div class="overflow-x-auto"><table class="w-full min-w-[650px] text-left"><thead class="border-b border-border text-xs uppercase text-secondary-foreground"><tr><th class="px-5 py-3">Base</th><th class="px-5 py-3">Usuario</th><th class="px-5 py-3">Estado</th></tr></thead><tbody class="divide-y divide-border">@forelse($databases as $database)<tr><td class="px-5 py-3 font-medium text-mono">{{ $database->name }}</td><td class="px-5 py-3 font-mono">{{ $database->username }}</td><td class="px-5 py-3"><span class="kt-badge kt-badge-outline">{{ $database->status }}</span></td></tr>@empty<tr><td colspan="3" class="px-5 py-10 text-center text-secondary-foreground">Crea primero una base de datos y conserva su contraseña.</td></tr>@endforelse</tbody></table></div></section>
+</div></main></div></div>
 @endsection

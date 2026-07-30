@@ -128,6 +128,11 @@ if [[ "${roundcube_enabled:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-roundcube.sh"
 fi
 
+phpmyadmin_enabled="$(env_value XPANEL_PHPMYADMIN_ENABLED)"
+if [[ -z "$phpmyadmin_enabled" || "$phpmyadmin_enabled" == "true" ]]; then
+  bash "$ROOT/scripts/install-phpmyadmin.sh"
+fi
+
 sudo -u "$site_user" php "$ROOT/artisan" optimize
 if [[ "$maintenance_enabled" == "true" ]]; then
   sudo -u "$site_user" php "$ROOT/artisan" up

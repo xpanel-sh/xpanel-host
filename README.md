@@ -50,7 +50,7 @@ Servidor Linux o MicroVM
 | **Sitios** | PHP y estáticos, document root aislado, subdominios, dominios aparcados, redirecciones y páginas de error |
 | **Motores web** | Nginx inicial; Apache y OpenLiteSpeed instalables bajo demanda |
 | **SSL** | Let's Encrypt con Certbot, renovación y estado del certificado |
-| **Bases de datos** | Bases y usuarios MariaDB aislados por sitio |
+| **Bases de datos** | Bases y usuarios MariaDB aislados por sitio, phpMyAdmin y accesos remotos limitados por IPv4 |
 | **Correo** | Postfix, Dovecot, Maildir, Roundcube, SPF, DKIM, DMARC y verificación DNS |
 | **Archivos** | Gestor de archivos confinado al espacio administrado |
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
@@ -176,9 +176,15 @@ En una MicroVM administrada por Core, cada alias también debe registrarse como 
 
 ### Módulos visibles que siguen en preparación
 
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, malware, instaladores/migración/constructor web, FTP, phpMyAdmin, MySQL remoto, SSH y editor DNS autoritativo. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, malware, instaladores/migración/constructor web, FTP, SSH y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
 SSH permanece desactivado intencionalmente: la arquitectura actual utiliza un usuario Linux de servicio compartido. Antes de entregar llaves se migrará a usuarios Unix distintos por sitio y SFTP confinado; exponer ahora `authorized_keys` del usuario compartido rompería el aislamiento entre dominios.
+
+### phpMyAdmin y MySQL remoto
+
+El instalador añade phpMyAdmin desde los paquetes mantenidos por Debian/Ubuntu y lo publica en `/phpmyadmin` bajo el mismo hostname del panel. Utiliza autenticación `cookie`, conecta únicamente a MariaDB local, bloquea el acceso root y no permite elegir servidores arbitrarios. Cada usuario entra con las credenciales creadas en **Bases de datos → Administración**.
+
+**Bases de datos → MySQL remoto** autoriza una IPv4 exacta para una base concreta. Host crea una identidad `usuario@IP`, conserva los privilegios dentro de esa base y reconstruye una allowlist nftables para el puerto 3306. No utiliza `%`, rangos ni root remoto. Al retirar la última autorización, MariaDB vuelve a escuchar sólo en `127.0.0.1`. Si el proveedor del VDS tiene un firewall exterior, la misma IP debe permitirse también allí.
 
 ### Subdominios
 

@@ -1,27 +1,14 @@
 @extends('layouts.client')
 
+@section('title', 'MySQL remoto - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Bases de datos',
-        'title' => 'Remote MySQL',
-        'description' => 'Controla IPs y hosts autorizados para conectarse a las bases de datos del sitio.',
-        'actions' => [
-            ['label' => 'Agregar host', 'icon' => 'ki-plus', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Hosts', 'value' => '0', 'icon' => 'ki-router'],
-            ['label' => 'Modo', 'value' => 'Cerrado', 'icon' => 'ki-lock'],
-            ['label' => 'Auditoria', 'value' => 'Activa', 'icon' => 'ki-notepad'],
-        ],
-        'cards' => [
-            [
-                'title' => 'Hosts permitidos',
-                'body' => 'Lista de IPs autorizadas para conexiones externas.',
-                'items' => [
-                    ['label' => 'Wildcard', 'value' => 'No permitido'],
-                    ['label' => 'Recomendacion', 'value' => 'IP fija'],
-                ],
-            ],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Bases de datos / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">MySQL remoto</h1><p class="mt-1 text-sm text-secondary-foreground">Autoriza una IPv4 exacta para conectarse únicamente a una base y usuario concretos.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Autorizar origen</h2></div><div class="kt-card-content p-5"><form method="post" action="{{ route('sites.remote-mysql.store', $site) }}" class="grid gap-4 md:grid-cols-3">@csrf<label class="grid gap-2 text-sm"><span>Base y usuario</span><select class="kt-select" name="site_database_id" required><option value="">Selecciona</option>@foreach($databases as $database)<option value="{{ $database->id }}" @selected((string) old('site_database_id') === (string) $database->id)>{{ $database->name }} · {{ $database->username }}</option>@endforeach</select></label><label class="grid gap-2 text-sm"><span>IPv4 de origen</span><input class="kt-input font-mono" name="address" value="{{ old('address') }}" required placeholder="203.0.113.25"></label><label class="grid gap-2 text-sm"><span>Contraseña para este acceso</span><input class="kt-input" type="password" name="password" required minlength="16" autocomplete="new-password"></label><div class="md:col-span-3"><button class="kt-btn kt-btn-primary" @disabled($databases->isEmpty())>Autorizar IP</button></div></form><p class="mt-3 text-xs text-secondary-foreground">La contraseña se envía al helper por entrada estándar y no se guarda en Host. No se admiten comodines ni acceso remoto de root.</p></div></section>@endif
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Accesos autorizados</h2></div><div class="overflow-x-auto"><table class="w-full min-w-[760px] text-left"><thead class="border-b border-border text-xs uppercase text-secondary-foreground"><tr><th class="px-5 py-3">Base</th><th class="px-5 py-3">Usuario</th><th class="px-5 py-3">IPv4</th><th class="px-5 py-3">Estado</th><th></th></tr></thead><tbody class="divide-y divide-border">@forelse($databases->flatMap->remoteHosts as $remoteHost)<tr><td class="px-5 py-3 font-mono">{{ $remoteHost->database->name }}</td><td class="px-5 py-3 font-mono">{{ $remoteHost->database->username }}</td><td class="px-5 py-3 font-mono">{{ $remoteHost->address }}</td><td class="px-5 py-3"><span class="kt-badge kt-badge-outline">{{ $remoteHost->status }}</span></td><td class="px-5 py-3 text-right">@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<form method="post" action="{{ route('sites.remote-mysql.destroy', [$site, $remoteHost]) }}" onsubmit="return confirm('¿Revocar esta IP y eliminar su usuario remoto?')">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline">Revocar</button></form>@endif</td></tr>@empty<tr><td colspan="5" class="px-5 py-10 text-center text-secondary-foreground">No hay IPs autorizadas.</td></tr>@endforelse</tbody></table></div></section>
+  <div class="rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">Conexión: IP pública del servidor, puerto 3306, usuario indicado y TLS cuando el servidor lo tenga configurado. También debes permitir el tráfico en el firewall externo del proveedor si existe.</div>
+</div></main></div></div>
 @endsection

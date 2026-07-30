@@ -14,6 +14,7 @@ fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
 valid_document_root() { [[ "$1" =~ ^/(var|srv)/www/[A-Za-z0-9._/-]+$ && "$1" != *".."* ]]; }
 valid_identifier() { [[ "$1" =~ ^[a-z0-9_]{1,64}$ ]]; }
+valid_ipv4() { [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && php -r 'exit(filter_var($argv[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? 0 : 1);' "$1"; }
 valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; }
 
 [[ "$(id -u)" == "0" ]] || fail "xpanel-site-helper must run as root."
@@ -467,6 +468,95 @@ SQL
   fi
 }
 
+database_remote_action() {
+  local database="$2" username="$3" address="$4"
+  valid_identifier "$database" || fail "Invalid database name."
+  [[ "$username" =~ ^[a-z0-9_]{1,32}$ ]] || fail "Invalid database username."
+  valid_ipv4 "$address" || fail "Remote database access requires an exact IPv4 address."
+
+  if [[ "$ACTION" == "database-remote-remove" ]]; then
+    mariadb --protocol=socket -e "DROP USER IF EXISTS '$username'@'$address';"
+    return
+  fi
+
+  local password=""
+  IFS= read -r password || true
+  [[ "$password" =~ ^[A-Za-z0-9!@#%\^*_=+.,:-]{16,128}$ ]] || fail "Database password contains unsupported characters or is too short."
+  [[ "$(mariadb --protocol=socket --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$database'")" == "1" ]] || fail "Database does not exist."
+  mariadb --protocol=socket <<SQL
+CREATE USER IF NOT EXISTS '$username'@'$address' IDENTIFIED BY '$password';
+ALTER USER '$username'@'$address' IDENTIFIED BY '$password';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM '$username'@'$address';
+GRANT ALL PRIVILEGES ON \`$database\`.* TO '$username'@'$address';
+SQL
+}
+
+database_remote_sync() {
+  local source="$ROOT/storage/app/mysql/remote-hosts"
+  [[ -f "$source" && ! -L "$source" ]] || fail "Staged remote MySQL allowlist not found."
+  local addresses=()
+  while IFS= read -r address; do
+    [[ -z "$address" ]] && continue
+    valid_ipv4 "$address" || fail "Invalid IPv4 in staged remote MySQL allowlist."
+    addresses+=("$address")
+  done < "$source"
+
+  install -d -o root -g root -m 0755 /etc/mysql/mariadb.conf.d /etc/xpanel-host
+  if (( ${#addresses[@]} == 0 )); then
+    cat > /etc/mysql/mariadb.conf.d/60-xpanel-remote.cnf <<'EOF'
+[mysqld]
+bind-address = 127.0.0.1
+EOF
+  else
+    cat > /etc/mysql/mariadb.conf.d/60-xpanel-remote.cnf <<'EOF'
+[mysqld]
+bind-address = 0.0.0.0
+EOF
+  fi
+
+  local rules="/etc/xpanel-host/mysql-firewall.nft"
+  {
+    printf 'table inet xpanel_host_mysql {\n'
+    printf '  chain input {\n'
+    printf '    type filter hook input priority -10; policy accept;\n'
+    printf '    ct state established,related accept\n'
+    local address
+    for address in "${addresses[@]}"; do
+      printf '    ip saddr %s tcp dport 3306 accept\n' "$address"
+    done
+    printf '    tcp dport 3306 reject\n'
+    printf '  }\n}\n'
+  } > "$rules"
+  chmod 0600 "$rules"
+
+  if nft list table inet xpanel_host_mysql >/dev/null 2>&1; then
+    nft delete table inet xpanel_host_mysql
+  fi
+  nft -c -f "$rules"
+  nft -f "$rules"
+  cat > /etc/systemd/system/xpanel-host-mysql-firewall.service <<EOF
+[Unit]
+Description=XPanel Host MySQL remote access allowlist
+After=network-pre.target nftables.service
+Before=mariadb.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/usr/sbin/nft delete table inet xpanel_host_mysql
+ExecStart=/usr/sbin/nft -f $rules
+ExecReload=/bin/sh -c '/usr/sbin/nft delete table inet xpanel_host_mysql 2>/dev/null || true; /usr/sbin/nft -f $rules'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable xpanel-host-mysql-firewall.service >/dev/null
+  mariadbd --verbose --help >/dev/null
+  systemctl restart mariadb
+  mariadb-admin --protocol=socket ping >/dev/null
+}
+
 mail_sync() {
   local source="$ROOT/storage/app/mail"
   for name in domains mailboxes users sender-login aliases dkim-selector; do
@@ -658,6 +748,8 @@ case "$ACTION" in
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;
   database-create|database-password|database-remove) database_action "$@" ;;
+  database-remote-create|database-remote-remove) database_remote_action "$@" ;;
+  database-remote-sync) database_remote_sync ;;
   mail-sync) mail_sync ;;
   mail-remove) mail_remove "$@" ;;
   mail-remove-domain) mail_remove_domain "$@" ;;

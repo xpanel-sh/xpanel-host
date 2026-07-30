@@ -21,8 +21,10 @@ use App\Http\Controllers\MailDnsController;
 use App\Http\Controllers\OwnershipController;
 use App\Http\Controllers\ParkedDomainController;
 use App\Http\Controllers\PhpConfigurationController;
+use App\Http\Controllers\PhpMyAdminController;
 use App\Http\Controllers\ProtectedDirectoryController;
 use App\Http\Controllers\RedirectController;
+use App\Http\Controllers\RemoteMysqlController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
@@ -119,6 +121,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/advanced/git', [GitDeploymentController::class, 'index'])->name('sites.git.index');
             Route::get('/sites/{site}/advanced/password-protect-directories', [ProtectedDirectoryController::class, 'index'])->name('sites.protected-directories.index');
             Route::get('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'index'])->name('sites.databases.index');
+            Route::get('/sites/{site}/database/phpmyadmin', PhpMyAdminController::class)->name('sites.phpmyadmin');
+            Route::get('/sites/{site}/database/remote-mysql', [RemoteMysqlController::class, 'index'])->name('sites.remote-mysql.index');
             Route::get('/sites/{site}/domains/subdomains', [SubdomainController::class, 'index'])->name('sites.subdomains.index');
             Route::get('/sites/{site}/domains/parked-domains', [ParkedDomainController::class, 'index'])->name('sites.parked-domains.index');
             Route::get('/sites/{site}/domains/redirects', [RedirectController::class, 'index'])->name('sites.redirects.index');
@@ -178,6 +182,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::delete('/sites/{site}/domains/subdomains/{subdomain}', [SubdomainController::class, 'destroy'])->name('sites.subdomains.destroy');
             Route::post('/sites/{site}/database/mysql-databases/{siteDatabase}/password', [DatabaseController::class, 'password'])->name('sites.databases.password');
             Route::delete('/sites/{site}/database/mysql-databases/{siteDatabase}', [DatabaseController::class, 'destroy'])->name('sites.databases.destroy');
+            Route::post('/sites/{site}/database/remote-mysql', [RemoteMysqlController::class, 'store'])->name('sites.remote-mysql.store');
+            Route::delete('/sites/{site}/database/remote-mysql/{remoteHost}', [RemoteMysqlController::class, 'destroy'])->name('sites.remote-mysql.destroy');
             Route::prefix('/sites/ikode/api')->name('sites.ikode.api.')->group(function () {
                 Route::post('/write', [GlobalFileManagerController::class, 'write'])->name('write');
                 Route::post('/create', [GlobalFileManagerController::class, 'create'])->name('create');

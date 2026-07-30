@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Site;
 use App\Models\SiteDatabase;
 use App\Services\DatabaseProvisioner;
+use App\Services\RemoteMysqlProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -59,10 +60,17 @@ class DatabaseController extends Controller
         return back()->with('status', "Contrasena de {$siteDatabase->username} actualizada.");
     }
 
-    public function destroy(Site $site, SiteDatabase $siteDatabase, DatabaseProvisioner $provisioner): RedirectResponse
-    {
+    public function destroy(
+        Site $site,
+        SiteDatabase $siteDatabase,
+        DatabaseProvisioner $provisioner,
+        RemoteMysqlProvisioner $remoteProvisioner,
+    ): RedirectResponse {
         abort_unless($siteDatabase->site_id === $site->id, 404);
         try {
+            foreach ($siteDatabase->remoteHosts()->get() as $remoteHost) {
+                $remoteProvisioner->revoke($remoteHost);
+            }
             $provisioner->remove($siteDatabase);
         } catch (\Throwable $exception) {
             return back()->withErrors(['server' => $exception->getMessage()]);

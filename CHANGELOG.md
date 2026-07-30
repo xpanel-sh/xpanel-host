@@ -23,6 +23,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Analítica reciente sin tracking, calculada desde un log público separado por sitio y leído de forma confinada.
 - Purga segura de cachés conocidas, listado de carpetas configurable, protección Hotlink y reglas IP/CIDR en el gateway.
 - Despliegues manuales desde repositorios Git HTTPS públicos y autenticación Basic para directorios seleccionados.
+- phpMyAdmin con autenticación por cookies, root bloqueado y servidor MariaDB fijo en loopback.
+- Acceso MariaDB remoto por base e IPv4 exacta, con identidades limitadas y allowlist nftables persistente.
 
 ### Corregido
 
@@ -36,5 +38,6 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Confinamiento del gestor de archivos al espacio administrado.
 - Validación de acciones privilegiadas y backends internos limitados a loopback.
 - SSH permanece cerrado mientras los sitios compartan usuario de servicio; no se generan llaves ni shells que atraviesen el aislamiento.
+- MySQL remoto rechaza comodines, CIDR y hostnames; las contraseñas viajan por entrada estándar y no se persisten en Host.
 
 [Sin publicar]: https://github.com/xpanel-sh/xpanel-host/commits/main

@@ -36,6 +36,7 @@ return [
     'webmail_url' => env('XPANEL_WEBMAIL_URL'),
     'roundcube_enabled' => env('XPANEL_ROUNDCUBE_ENABLED', true),
     'xmail_enabled' => env('XPANEL_XMAIL_ENABLED', false),
+    'phpmyadmin_enabled' => env('XPANEL_PHPMYADMIN_ENABLED', true),
     'mail_uid' => (int) env('XPANEL_MAIL_UID', 5000),
     'mail_gid' => (int) env('XPANEL_MAIL_GID', 5000),
     'server_ipv4' => env('XPANEL_SERVER_IPV4'),

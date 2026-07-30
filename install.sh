@@ -31,7 +31,7 @@ install_base_dependencies() {
     ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync \
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
     certbot python3-certbot-nginx \
-    mariadb-server postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks
+    mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks
 }
 
 ensure_node_runtime() {
@@ -128,7 +128,7 @@ load_existing_configuration() {
   local key value
   for key in \
     XPANEL_MANAGEMENT_MODE XPANEL_PANEL_DOMAIN XPANEL_WEB_SERVER \
-    XPANEL_MAIL_HOSTNAME XPANEL_WEBMAIL_HOSTNAME XPANEL_WEBMAIL_URL XPANEL_ROUNDCUBE_ENABLED \
+    XPANEL_MAIL_HOSTNAME XPANEL_WEBMAIL_HOSTNAME XPANEL_WEBMAIL_URL XPANEL_ROUNDCUBE_ENABLED XPANEL_PHPMYADMIN_ENABLED \
     XPANEL_MAIL_UID XPANEL_MAIL_GID XPANEL_SERVER_IPV4 XPANEL_DKIM_SELECTOR \
     XPANEL_SITE_USER XPANEL_SITE_GROUP; do
     [[ -z "${!key:-}" ]] || continue
@@ -439,6 +439,7 @@ server {
     server_name $panel_host;
     root $ROOT/public;
     index index.php;
+    include /etc/nginx/snippets/xpanel-phpmyadmin.conf;
 
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
@@ -528,6 +529,9 @@ configure_site_helper
 configure_backup_runtime
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:sites-sync
 configure_database_server
+if [[ "${XPANEL_PHPMYADMIN_ENABLED:-true}" == "true" ]]; then
+  bash "$ROOT/scripts/install-phpmyadmin.sh"
+fi
 configure_mail_server
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:mail-sync
 configure_certbot_renewal
