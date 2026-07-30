@@ -150,15 +150,20 @@ class FileManagerTest extends TestCase
             ->assertJsonFragment(['name' => 'index.php', 'path' => '/index.php', 'is_dir' => false]);
     }
 
-    public function test_parent_file_manager_mounts_subdomains_as_independent_virtual_folders(): void
+    public function test_root_shows_the_site_and_its_subdomains_as_sibling_virtual_folders(): void
     {
         $parent = $this->site();
         $child = $this->subdomain($parent, 'blog.'.$parent->domain);
-        file_put_contents($child->localRoot().'/child.txt', 'subdomain content');
         $developer = $this->userWithRole('developer');
 
-        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/']))
+        $response = $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/']))
             ->assertOk()
+            ->assertJsonFragment([
+                'name' => $parent->domain,
+                'path' => '/'.$parent->domain,
+                'is_dir' => true,
+                'is_virtual' => true,
+            ])
             ->assertJsonFragment([
                 'name' => $child->domain,
                 'path' => '/'.$child->domain,
@@ -166,15 +171,39 @@ class FileManagerTest extends TestCase
                 'is_virtual' => true,
             ]);
 
-        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$child->domain]))
-            ->assertOk()
-            ->assertJsonFragment([
-                'name' => 'child.txt',
-                'path' => '/'.$child->domain.'/child.txt',
-            ]);
+        $this->assertCount(2, $response->json('entries'));
     }
 
-    public function test_parent_file_manager_can_edit_child_files_but_cannot_delete_or_move_child_root(): void
+    public function test_entering_the_site_or_subdomain_folder_lists_its_own_real_files(): void
+    {
+        $parent = $this->site();
+        $child = $this->subdomain($parent, 'blog.'.$parent->domain);
+        file_put_contents($parent->localRoot().'/index.php', 'parent');
+        file_put_contents($child->localRoot().'/child.txt', 'subdomain content');
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$parent->domain]))
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'index.php', 'path' => '/'.$parent->domain.'/index.php'])
+            ->assertJsonMissing(['name' => $child->domain]);
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$child->domain]))
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'child.txt', 'path' => '/'.$child->domain.'/child.txt']);
+    }
+
+    public function test_a_site_without_subdomains_still_lists_its_files_directly_at_root(): void
+    {
+        $site = $this->site();
+        file_put_contents($site->localRoot().'/index.php', 'no subdomains here');
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/']))
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'index.php', 'path' => '/index.php', 'is_dir' => false]);
+    }
+
+    public function test_can_edit_child_files_but_cannot_delete_or_move_the_site_or_subdomain_root(): void
     {
         $parent = $this->site();
         $child = $this->subdomain($parent, 'shop.'.$parent->domain);
@@ -192,29 +221,31 @@ class FileManagerTest extends TestCase
             'path' => '/'.$child->domain,
         ])->assertUnprocessable();
 
+        $this->actingAs($developer)->postJson(route('sites.files.api.delete', $parent), [
+            'path' => '/'.$parent->domain,
+        ])->assertUnprocessable();
+
         $this->actingAs($developer)->postJson(route('sites.files.api.rename', $parent), [
             'old_path' => $virtualFile,
-            'new_path' => '/index.php',
+            'new_path' => '/'.$parent->domain.'/index.php',
         ])->assertUnprocessable();
     }
 
-    public function test_parent_file_manager_cannot_create_a_folder_or_file_named_like_a_subdomain(): void
+    public function test_file_operations_at_root_require_selecting_the_site_or_a_subdomain_first(): void
     {
         $parent = $this->site();
-        $child = $this->subdomain($parent, 'shop.'.$parent->domain);
+        $this->subdomain($parent, 'shop.'.$parent->domain);
         $developer = $this->userWithRole('developer');
 
         $this->actingAs($developer)->postJson(route('sites.files.api.mkdir', $parent), [
-            'path' => '/'.$child->domain,
+            'path' => '/',
         ])->assertUnprocessable();
 
         $this->actingAs($developer)->postJson(route('sites.files.api.create', $parent), [
             'path' => '/',
-            'name' => $child->domain,
-            'type' => 'dir',
+            'name' => 'newfile.txt',
+            'type' => 'file',
         ])->assertUnprocessable();
-
-        $this->assertFalse(is_dir($parent->localRoot().'/'.$child->domain));
     }
 
     public function test_search_finds_matching_file_names(): void

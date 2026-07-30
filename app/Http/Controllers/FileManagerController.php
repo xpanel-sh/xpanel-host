@@ -28,20 +28,30 @@ class FileManagerController extends Controller
     public function list(Request $request, Site $site): JsonResponse
     {
         $requestedPath = $request->query('path', '/');
-        [$effectiveSite, $dir] = $this->resolveContext($site, $requestedPath, mustExist: true);
-        abort_unless(is_dir($dir), 422, 'La ruta no es una carpeta.');
-
         $normalizedPath = '/'.trim(str_replace('\\', '/', $requestedPath), '/');
-        $virtualSubdomains = $normalizedPath === '/' && $effectiveSite->is($site) && $site->parent_site_id === null
-            ? $site->subdomains()->get()->keyBy('domain')
-            : collect();
+
+        if ($normalizedPath === '/' && $this->hasLinkedSubdomains($site)) {
+            $entries = collect([$site])->concat($site->subdomains()->get())
+                ->map(fn (Site $item) => [
+                    'name' => $item->domain,
+                    'path' => '/'.$item->domain,
+                    'is_dir' => true,
+                    'is_virtual' => true,
+                    'size' => null,
+                    'modified' => optional($item->updated_at)->format('Y-m-d H:i') ?? '-',
+                ])
+                ->sortBy('name')
+                ->values();
+
+            return response()->json(['path' => '/', 'entries' => $entries]);
+        }
+
+        [, $dir] = $this->resolveContext($site, $requestedPath, mustExist: true);
+        abort_unless(is_dir($dir), 422, 'La ruta no es una carpeta.');
 
         $entries = [];
         foreach (scandir($dir) ?: [] as $name) {
             if ($name === '.' || $name === '..') {
-                continue;
-            }
-            if ($virtualSubdomains->has($name)) {
                 continue;
             }
             $full = $dir.DIRECTORY_SEPARATOR.$name;
@@ -52,16 +62,6 @@ class FileManagerController extends Controller
                 'is_dir' => $isDir,
                 'size' => $isDir ? null : filesize($full),
                 'modified' => date('Y-m-d H:i', filemtime($full)),
-            ];
-        }
-        foreach ($virtualSubdomains as $subdomain) {
-            $entries[] = [
-                'name' => $subdomain->domain,
-                'path' => '/'.$subdomain->domain,
-                'is_dir' => true,
-                'is_virtual' => true,
-                'size' => null,
-                'modified' => optional($subdomain->updated_at)->format('Y-m-d H:i') ?? '-',
             ];
         }
 
@@ -108,7 +108,6 @@ class FileManagerController extends Controller
         ]);
 
         $this->assertSafeName($data['name']);
-        abort_if($this->isVirtualMountName($site, $data['path'], $data['name']), 422, 'Ese nombre pertenece a un subdominio vinculado.');
         $dir = $this->resolve($site, $data['path'], mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta base no es una carpeta.');
 
@@ -129,7 +128,6 @@ class FileManagerController extends Controller
     {
         $data = $request->validate(['path' => 'required|string']);
 
-        abort_if($this->isVirtualMountName($site, dirname($data['path']), basename($data['path'])), 422, 'Ese nombre pertenece a un subdominio vinculado.');
         $target = $this->resolve($site, $data['path']);
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
@@ -185,7 +183,6 @@ class FileManagerController extends Controller
         $file = $request->file('file');
         $name = $file->getClientOriginalName();
         $this->assertSafeName($name);
-        abort_if($this->isVirtualMountName($site, $request->input('path', '/'), $name), 422, 'Ese nombre pertenece a un subdominio vinculado.');
         $file->move($dir, $name);
 
         return response()->json(['status' => 'uploaded', 'name' => $name]);
@@ -250,29 +247,24 @@ class FileManagerController extends Controller
     /** @return array{0: Site, 1: string, 2: string} */
     private function resolveContext(Site $site, string $requestedPath, bool $mustExist = false): array
     {
-        $parts = array_values(array_filter(explode('/', str_replace('\\', '/', $requestedPath)), fn (string $part): bool => $part !== ''));
-        if ($site->parent_site_id === null && isset($parts[0])) {
-            $subdomain = $site->subdomains()->where('domain', $parts[0])->first();
-            if ($subdomain) {
-                $relativePath = count($parts) === 1 ? '/' : '/'.implode('/', array_slice($parts, 1));
+        if ($this->hasLinkedSubdomains($site)) {
+            $parts = array_values(array_filter(explode('/', str_replace('\\', '/', $requestedPath)), fn (string $part): bool => $part !== ''));
+            abort_if($parts === [], 422, 'Selecciona el sitio o un subdominio antes de continuar.');
 
-                return [
-                    $subdomain,
-                    $this->resolveWithinRoot($subdomain->localRoot(), $relativePath, $mustExist),
-                    '/'.$subdomain->domain,
-                ];
-            }
+            $label = array_shift($parts);
+            $target = $label === $site->domain ? $site : $site->subdomains()->where('domain', $label)->first();
+            abort_if($target === null, 404, 'No encontrado.');
+
+            $relativePath = $parts === [] ? '/' : '/'.implode('/', $parts);
+
+            return [$target, $this->resolveWithinRoot($target->localRoot(), $relativePath, $mustExist), '/'.$label];
         }
 
         return [$site, $this->resolveWithinRoot($site->localRoot(), $requestedPath, $mustExist), ''];
     }
 
-    private function isVirtualMountName(Site $site, string $directory, string $name): bool
+    private function hasLinkedSubdomains(Site $site): bool
     {
-        $normalizedDirectory = '/'.trim(str_replace('\\', '/', $directory), '/');
-
-        return $normalizedDirectory === '/'
-            && $site->parent_site_id === null
-            && $site->subdomains()->where('domain', $name)->exists();
+        return $site->parent_site_id === null && $site->subdomains()->exists();
     }
 }
