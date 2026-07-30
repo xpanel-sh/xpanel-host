@@ -1,6 +1,7 @@
 /.env
 /.phpunit.result.cache
 /ARCHITECTURE.local.md
+/PUBLISHING.local.md
 /node_modules/
 /vendor/
 /public/build/

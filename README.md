@@ -76,23 +76,16 @@ No publiques los puertos internos 8082, 8083, 7080 u 8088. Host limita los backe
 
 ## Inicio rápido
 
-Primero publica estos repositorios:
-
-```text
-https://github.com/xpanel-sh/xpanel-host
-https://github.com/xpanel-sh/xpanel-cli
-```
-
-Después entra al servidor:
+Conéctate a un VDS limpio y ejecuta:
 
 ```bash
 ssh root@IP_DEL_SERVIDOR
-git clone https://github.com/xpanel-sh/xpanel-host /opt/xpanel-host
+git clone https://github.com/xpanel-sh/xpanel-host.git /opt/xpanel-host
 cd /opt/xpanel-host
 XPANEL_INSTALL_CLI=yes bash install.sh
 ```
 
-El instalador descarga dependencias, configura Nginx, PHP-FPM, MariaDB, Postfix, Dovecot y Certbot, ejecuta las migraciones e instala `xpanel-cli` como `/usr/local/bin/xpanel`.
+El instalador obtiene por sí mismo la CLI oficial, descarga las dependencias, configura Nginx, PHP-FPM, MariaDB, Postfix, Dovecot y Certbot, ejecuta las migraciones e instala el comando `xpanel` en `/usr/local/bin/xpanel`. No necesitas descargar ni publicar otro repositorio.
 
 ### Instalación con dominio y SSL del panel
 
