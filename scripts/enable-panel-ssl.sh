@@ -15,9 +15,18 @@ email="${1:-$(env_value XPANEL_ACME_EMAIL || true)}"
 
 [[ "$management_mode" != "core" ]] || { echo "Panel TLS is managed by Core/Traefik in core mode." >&2; exit 1; }
 [[ "$domain" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$domain" == *.* ]] || { echo "Configure a valid XPANEL_PANEL_DOMAIN first." >&2; exit 1; }
-[[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || { echo "A valid ACME email is required." >&2; exit 1; }
-certbot --nginx --non-interactive --agree-tos --no-eff-email --redirect \
-  --cert-name "$domain" -d "$domain" -m "$email"
+if [[ -n "$email" && ! "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
+  echo "The optional ACME email is invalid." >&2
+  exit 1
+fi
+
+certbot_args=(--nginx --non-interactive --agree-tos --no-eff-email --redirect --cert-name "$domain" -d "$domain")
+if [[ -n "$email" ]]; then
+  certbot_args+=(-m "$email")
+else
+  certbot_args+=(--register-unsafely-without-email)
+fi
+certbot "${certbot_args[@]}"
 if [[ -f /etc/vsftpd.conf ]]; then
   sed -i "s|^rsa_cert_file=.*|rsa_cert_file=/etc/letsencrypt/live/$domain/fullchain.pem|" /etc/vsftpd.conf
   sed -i "s|^rsa_private_key_file=.*|rsa_private_key_file=/etc/letsencrypt/live/$domain/privkey.pem|" /etc/vsftpd.conf
@@ -34,10 +43,12 @@ if [[ "$domain" == "$mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.con
 fi
 
 sed -i "s|^APP_URL=.*|APP_URL=https://$domain|" "$ROOT/.env"
-if grep -q '^XPANEL_ACME_EMAIL=' "$ROOT/.env"; then
-  sed -i "s|^XPANEL_ACME_EMAIL=.*|XPANEL_ACME_EMAIL=$email|" "$ROOT/.env"
-else
-  printf 'XPANEL_ACME_EMAIL=%s\n' "$email" >> "$ROOT/.env"
+if [[ -n "$email" ]]; then
+  if grep -q '^XPANEL_ACME_EMAIL=' "$ROOT/.env"; then
+    sed -i "s|^XPANEL_ACME_EMAIL=.*|XPANEL_ACME_EMAIL=$email|" "$ROOT/.env"
+  else
+    printf 'XPANEL_ACME_EMAIL=%s\n' "$email" >> "$ROOT/.env"
+  fi
 fi
 cd "$ROOT"
 php artisan optimize:clear

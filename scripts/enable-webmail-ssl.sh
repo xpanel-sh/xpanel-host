@@ -14,11 +14,19 @@ fi
 
 [[ "$(id -u)" == "0" ]] || { echo "Run as root." >&2; exit 1; }
 [[ "$hostname" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])$ ]] || { echo "A valid webmail hostname is required." >&2; exit 1; }
-[[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || { echo "A valid ACME email is required." >&2; exit 1; }
+if [[ -n "$email" && ! "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
+  echo "The optional ACME email is invalid." >&2
+  exit 1
+fi
 [[ -f /etc/nginx/sites-enabled/xpanel-host-webmail.conf ]] || { echo "Install Roundcube first." >&2; exit 1; }
 
-certbot --nginx --non-interactive --agree-tos --no-eff-email --redirect \
-  --cert-name "$hostname" -d "$hostname" -m "$email"
+certbot_args=(--nginx --non-interactive --agree-tos --no-eff-email --redirect --cert-name "$hostname" -d "$hostname")
+if [[ -n "$email" ]]; then
+  certbot_args+=(-m "$email")
+else
+  certbot_args+=(--register-unsafely-without-email)
+fi
+certbot "${certbot_args[@]}"
 
 if [[ -f /etc/vsftpd.conf ]] && grep -q '^rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem$' /etc/vsftpd.conf; then
   sed -i "s|^rsa_cert_file=.*|rsa_cert_file=/etc/letsencrypt/live/$hostname/fullchain.pem|" /etc/vsftpd.conf

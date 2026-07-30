@@ -92,28 +92,27 @@ El instalador obtiene por sí mismo la CLI oficial, descarga las dependencias, c
 Antes de ejecutar este comando, crea el registro DNS:
 
 ```text
-panel.example.com A IP_DEL_SERVIDOR
+example.com A IP_DEL_SERVIDOR
 ```
 
 Cuando DNS ya resuelva y el puerto 80 sea accesible:
 
 ```bash
 cd /opt/xpanel-host
-XPANEL_PANEL_DOMAIN=panel.example.com \
-XPANEL_ACME_EMAIL=admin@example.com \
-XPANEL_MAIL_HOSTNAME=mail.example.com \
-XPANEL_WEBMAIL_HOSTNAME=mail.example.com \
+XPANEL_PANEL_DOMAIN=example.com \
 XPANEL_INSTALL_CLI=yes \
 bash install.sh
 ```
 
+El dominio es el único dato necesario: Host deduce `mail.example.com`, instala los componentes de correo y obtiene el SSL del panel. Puedes proporcionar `XPANEL_ACME_EMAIL` opcionalmente si quieres recibir avisos de la autoridad certificadora; no es una cuenta de Host.
+
 El panel quedará en:
 
 ```text
-https://panel.example.com/setup
+https://example.com/setup
 ```
 
-Si todavía no tienes DNS, omite `XPANEL_PANEL_DOMAIN` y `XPANEL_ACME_EMAIL`. Al terminar abre:
+Si todavía no tienes DNS, omite `XPANEL_PANEL_DOMAIN`. Al terminar abre:
 
 ```text
 http://IP_DEL_SERVIDOR/setup
@@ -124,8 +123,7 @@ Cuando prepares DNS, vuelve a ejecutar el instalador de forma idempotente para g
 ```bash
 cd /opt/xpanel-host
 sudo env \
-  XPANEL_PANEL_DOMAIN=panel.example.com \
-  XPANEL_ACME_EMAIL=admin@example.com \
+  XPANEL_PANEL_DOMAIN=example.com \
   XPANEL_INSTALL_CLI=yes \
   bash install.sh
 ```
@@ -134,7 +132,7 @@ Si el hostname ya estaba configurado y solamente faltaba emitir el certificado, 
 
 ```bash
 cd /opt/xpanel-host
-sudo bash scripts/enable-panel-ssl.sh admin@example.com
+sudo bash scripts/enable-panel-ssl.sh
 ```
 
 ## Primer acceso
@@ -261,11 +259,11 @@ Antes de instalar crea:
 mail.example.com A IP_DEL_SERVIDOR
 ```
 
-Con `XPANEL_ACME_EMAIL` configurado, el instalador emite el certificado de `mail.example.com` y lo aplica tanto al webmail HTTPS como a IMAP/SMTP. Si DNS todavía no estaba listo:
+La instalación inicial no exige que `mail.example.com` ya exista. Cuando el usuario active correo, Host muestra los registros A, MX, SPF, DKIM y DMARC que debe crear. Después de apuntar `mail.example.com` a la IP, emite su certificado y lo aplica al webmail, IMAP y SMTP con:
 
 ```bash
 cd /opt/xpanel-host
-sudo bash scripts/enable-webmail-ssl.sh admin@example.com
+sudo bash scripts/enable-webmail-ssl.sh
 ```
 
 Accesos disponibles:

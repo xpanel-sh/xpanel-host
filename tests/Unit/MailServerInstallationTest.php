@@ -29,4 +29,17 @@ class MailServerInstallationTest extends TestCase
         $this->assertLessThan($dependenciesPosition, $validationPosition);
         $this->assertStringContainsString('XPANEL_ACME_EMAIL must be a real email address', $installer);
     }
+
+    public function test_initial_panel_ssl_does_not_require_an_email_or_webmail_dns(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $panelSsl = file_get_contents(base_path('scripts/enable-panel-ssl.sh'));
+        $webmailSsl = file_get_contents(base_path('scripts/enable-webmail-ssl.sh'));
+
+        $this->assertStringContainsString('enable-panel-ssl.sh" "${XPANEL_ACME_EMAIL:-}"', $installer);
+        $this->assertStringNotContainsString('read -r -p "Correo para Let', $installer);
+        $this->assertStringNotContainsString('enable-webmail-ssl.sh" "$XPANEL_ACME_EMAIL"', $installer);
+        $this->assertStringContainsString('--register-unsafely-without-email', $panelSsl);
+        $this->assertStringContainsString('--register-unsafely-without-email', $webmailSsl);
+    }
 }

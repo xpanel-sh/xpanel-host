@@ -625,23 +625,7 @@ if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
 fi
 
 if [[ "${XPANEL_MANAGEMENT_MODE:-standalone}" == "standalone" && -n "${XPANEL_PANEL_DOMAIN:-}" ]]; then
-  if [[ -n "${XPANEL_ACME_EMAIL:-}" ]]; then
-    bash "$ROOT/scripts/enable-panel-ssl.sh" "$XPANEL_ACME_EMAIL"
-    if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
-      bash "$ROOT/scripts/enable-webmail-ssl.sh" "$XPANEL_ACME_EMAIL"
-    fi
-  elif [[ -t 0 ]]; then
-    read -r -p "Emitir SSL para el panel ahora? DNS y puerto 80 deben estar listos. [y/N] " answer
-    case "$answer" in
-      y|Y|yes|YES)
-        read -r -p "Correo para Let's Encrypt: " acme_email
-        bash "$ROOT/scripts/enable-panel-ssl.sh" "$acme_email"
-        if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
-          bash "$ROOT/scripts/enable-webmail-ssl.sh" "$acme_email"
-        fi
-        ;;
-    esac
-  fi
+  bash "$ROOT/scripts/enable-panel-ssl.sh" "${XPANEL_ACME_EMAIL:-}"
 fi
 
 if [[ "${XPANEL_INSTALL_CLI:-}" == "yes" ]]; then
