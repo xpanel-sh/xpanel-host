@@ -176,7 +176,7 @@ En una MicroVM administrada por Core, cada alias también debe registrarse como 
 
 ### Módulos visibles que siguen en preparación
 
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, instaladores/migración/constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, migración/constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
 Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio.
 
@@ -189,6 +189,14 @@ Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, desplieg
 **Seguridad → Escáner de malware** ejecuta ClamAV sobre el document root real, registra cuántos archivos revisó, conserva los últimos resultados y muestra la firma exacta de cada detección. El escaneo no sigue enlaces simbólicos ni cruza otros sistemas de archivos. Las definiciones se mantienen mediante `clamav-freshclam`.
 
 La acción de cuarentena sólo puede aplicarse a un hallazgo del mismo sitio. El helper vuelve a resolver y confinar la ruta antes de mover el archivo a `/var/lib/xpanel-host/quarantine/<dominio>/<escaneo>/`; no lo elimina ni lo deja accesible desde la web. Los falsos positivos deben revisarse antes de borrar o restaurar manualmente un archivo.
+
+### WordPress e instalador automático
+
+**Sitio web → Instalador automático** muestra únicamente provisionadores disponibles; inicialmente ofrece WordPress. El flujo descarga WordPress con [WP-CLI oficial](https://make.wordpress.org/cli/handbook/guides/installing/), verifica los checksums del core, crea una base y usuario MariaDB exclusivos y configura el administrador e idioma elegidos.
+
+Antes de publicar la instalación se crea un backup `pre_install`. WordPress se prepara en una carpeta temporal y sólo después de instalarse correctamente reemplaza el contenido web, conservando ACME y las páginas de error de Host. Si falla después del backup, Host intenta restaurarlo y marca cualquier limpieza manual pendiente. Las contraseñas de WordPress y MariaDB viajan por entrada estándar: la primera queda bajo control de WordPress y la segunda sólo en `wp-config.php`; ninguna se guarda en la base de XPanel Host.
+
+El instalador y cada actualización descargan el PHAR estable de WP-CLI junto con su SHA-512 publicado y rechazan el archivo si no coincide. La operación usa la versión PHP seleccionada para el sitio y su identidad Unix independiente.
 
 ### phpMyAdmin y MySQL remoto
 

@@ -590,6 +590,7 @@ sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:sites-sync
 configure_database_server
 configure_file_access
 configure_malware_scanner
+bash "$ROOT/scripts/install-wp-cli.sh"
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:access-sync
 if [[ "${XPANEL_PHPMYADMIN_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-phpmyadmin.sh"

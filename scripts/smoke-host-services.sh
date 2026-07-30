@@ -37,6 +37,7 @@ systemctl is-active --quiet ssh vsftpd
 grep -q '^anonymous_enable=NO$' /etc/vsftpd.conf
 grep -q '^force_local_logins_ssl=YES$' /etc/vsftpd.conf
 clamscan --version | grep -q '^ClamAV '
+wp --info | grep -q '^WP-CLI root dir:'
 test -s /var/lib/clamav/daily.cvd || test -s /var/lib/clamav/daily.cld || test -s /var/lib/clamav/main.cvd || test -s /var/lib/clamav/main.cld
 
 if [[ -n "${XPANEL_SMOKE_MALWARE_ROOT:-}" && -n "${XPANEL_SMOKE_DOMAIN:-}" ]]; then

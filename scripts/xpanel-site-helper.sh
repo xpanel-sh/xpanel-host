@@ -274,6 +274,49 @@ malware_quarantine() {
   chmod 0640 "$destination"
 }
 
+wordpress_install() {
+  local domain="$2" document_root="$3" site_user="$4" php_version="$5" database="$6" database_user="$7"
+  local title="$8" admin_user="$9" admin_email="${10}" locale="${11}" url="${12}"
+  valid_domain "$domain" || fail "Invalid WordPress domain."
+  valid_document_root "$document_root" || fail "Invalid WordPress document root."
+  valid_site_identity "$site_user" || fail "Invalid WordPress site identity."
+  [[ "$php_version" =~ ^8\.[1-5]$ && -x "/usr/bin/php$php_version" ]] || fail "The selected PHP CLI is not installed."
+  valid_identifier "$database" || fail "Invalid WordPress database."
+  valid_identifier "$database_user" || fail "Invalid WordPress database user."
+  [[ ${#title} -ge 1 && ${#title} -le 120 && "$title" != *$'\n'* && "$title" != *$'\r'* ]] || fail "Invalid WordPress title."
+  [[ "$admin_user" =~ ^[A-Za-z0-9_.@-]{3,60}$ ]] || fail "Invalid WordPress administrator."
+  [[ "$admin_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$ ]] || fail "Invalid WordPress administrator email."
+  [[ "$locale" =~ ^(es_ES|es_MX|es_PE|en_US)$ ]] || fail "Invalid WordPress locale."
+  [[ "$url" == "http://$domain" || "$url" == "https://$domain" ]] || fail "Invalid WordPress URL."
+  [[ -x /usr/local/bin/wp ]] || fail "WP-CLI is not installed."
+  local database_password="" admin_password=""
+  IFS= read -r database_password || fail "WordPress database password is required."
+  IFS= read -r admin_password || fail "WordPress administrator password is required."
+  [[ "$database_password" =~ ^[A-Za-z0-9!@#%\^*_=+.,:-]{16,128}$ ]] || fail "Invalid WordPress database password."
+  [[ "$admin_password" =~ ^[A-Za-z0-9!@#%\^*_=+.,:-]{16,128}$ ]] || fail "Invalid WordPress administrator password."
+  exec 9>"/run/lock/xpanel-app-$domain.lock"
+  flock -n 9 || fail "Another application operation is already running for this site."
+
+  local staging cache_root
+  staging="$(mktemp -d "$(dirname "$document_root")/.xpanel-wordpress.XXXXXX")"
+  trap 'rm -rf -- "$staging"' RETURN
+  cache_root="/var/lib/xpanel-host/wp-cli-cache/$site_user"
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$cache_root"
+  chown "$site_user:$site_user" "$staging"
+  runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp core download --path="$staging" --locale="$locale" --force --quiet
+  printf '%s\n' "$database_password" | runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp config create \
+    --path="$staging" --dbname="$database" --dbuser="$database_user" --dbhost=127.0.0.1 --dbcharset=utf8mb4 --prompt=dbpass --quiet
+  printf '%s\n' "$admin_password" | runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp core install \
+    --path="$staging" --url="$url" --title="$title" --admin_user="$admin_user" --admin_email="$admin_email" --prompt=admin_password --skip-email --quiet
+  database_password=""
+  admin_password=""
+  runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp core verify-checksums --path="$staging" --locale="$locale" --quiet
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
+  rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$staging/" "$document_root/"
+  chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  printf 'version=%s\n' "$(runuser -u "$site_user" -- "/usr/bin/php$php_version" /usr/local/bin/wp core version --path="$document_root" --quiet)"
+}
+
 access_log_read() {
   local domain="$2" engine="$3" log
   valid_domain "$domain" || fail "Invalid log domain."
@@ -950,6 +993,7 @@ case "$ACTION" in
   ownership-fix) ownership_fix "$@" ;;
   malware-scan) MALWARE_FINDINGS=(); malware_scan "$@" ;;
   malware-quarantine) malware_quarantine "$@" ;;
+  wordpress-install) wordpress_install "$@" ;;
   access-log-read) access_log_read "$@" ;;
   cache-purge) cache_purge "$@" ;;
   git-deploy) git_deploy "$@" ;;
