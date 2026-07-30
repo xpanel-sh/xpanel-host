@@ -676,7 +676,8 @@ git_deploy() {
   valid_site_identity "$site_user" || fail "Invalid Git site user."
   [[ "$repository_url" =~ ^https://(github\.com|gitlab\.com|bitbucket\.org)/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\.git)?$ ]] || fail "Unsupported Git repository URL."
   [[ "$branch" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$ && "$branch" != *..* && "$branch" != */ && "$branch" != *'@{'* ]] || fail "Invalid Git branch."
-  local repositories_root="/var/lib/xpanel-host/git" repository="$repositories_root/$domain" staging lock
+  local repositories_root="/var/lib/xpanel-host/git"
+  local repository="$repositories_root/$domain" staging lock
   install -d -o "$site_user" -g "$site_user" -m 0750 "$repositories_root"
   lock="/run/lock/xpanel-git-$domain.lock"
   exec 9>"$lock"
@@ -1035,7 +1036,8 @@ access_sync() {
     rm -f "$terminal_keys_file"
   fi
 
-  local jail="/var/lib/xpanel-host/jails/$site_user" mountpoint_path="$jail/site"
+  local jail="/var/lib/xpanel-host/jails/$site_user"
+  local mountpoint_path="$jail/site"
   install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails "$jail"
   install -d -o "$site_user" -g "$site_user" -m 0750 "$mountpoint_path"
   local mount_unit="xpanel-host-jail-$site_user.service"
@@ -1123,7 +1125,9 @@ access_remove() {
   local site_user="$2" document_root="$3"
   valid_site_identity "$site_user" || fail "Invalid access removal user."
   valid_document_root "$document_root" || fail "Invalid access removal document root."
-  local jail="/var/lib/xpanel-host/jails/$site_user" mountpoint_path="$jail/site" mount_unit="xpanel-host-jail-$site_user.service"
+  local jail="/var/lib/xpanel-host/jails/$site_user"
+  local mountpoint_path="$jail/site"
+  local mount_unit="xpanel-host-jail-$site_user.service"
   rm -f "/etc/ssh/sshd_config.d/90-xpanel-$site_user.conf"
   if [[ -f /etc/xpanel-host/ftp-users ]]; then
     grep -vxF "$site_user" /etc/xpanel-host/ftp-users > /etc/xpanel-host/ftp-users.tmp || true
