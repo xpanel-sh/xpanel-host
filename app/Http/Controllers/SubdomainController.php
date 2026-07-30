@@ -70,6 +70,7 @@ class SubdomainController extends Controller
 
         Domain::create([
             'domain' => $domain,
+            'type' => 'subdomain',
             'site_id' => $subdomain->id,
             'dns_status' => 'pending',
             'ssl_status' => 'pending',

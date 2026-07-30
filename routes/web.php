@@ -7,11 +7,15 @@ use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\ErrorPageController;
 use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\GlobalFileManagerController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\MailDnsController;
+use App\Http\Controllers\OwnershipController;
+use App\Http\Controllers\ParkedDomainController;
 use App\Http\Controllers\PhpConfigurationController;
+use App\Http\Controllers\RedirectController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
@@ -103,6 +107,9 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/analytics', [SiteController::class, 'analytics'])->name('sites.analytics');
             Route::get('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'index'])->name('sites.databases.index');
             Route::get('/sites/{site}/domains/subdomains', [SubdomainController::class, 'index'])->name('sites.subdomains.index');
+            Route::get('/sites/{site}/domains/parked-domains', [ParkedDomainController::class, 'index'])->name('sites.parked-domains.index');
+            Route::get('/sites/{site}/domains/redirects', [RedirectController::class, 'index'])->name('sites.redirects.index');
+            Route::get('/sites/{site}/website/error-pages', [ErrorPageController::class, 'index'])->name('sites.error-pages.index');
 
             // File manager chooser + real editor: registered before the generic
             // {section}/{module} wildcard below (same segment shape) so they win the match.
@@ -130,6 +137,13 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'store'])->name('sites.cron.store');
             Route::put('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'update'])->name('sites.cron.update');
             Route::delete('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'destroy'])->name('sites.cron.destroy');
+            Route::post('/sites/{site}/domains/parked-domains', [ParkedDomainController::class, 'store'])->name('sites.parked-domains.store');
+            Route::delete('/sites/{site}/domains/parked-domains/{parkedDomain}', [ParkedDomainController::class, 'destroy'])->name('sites.parked-domains.destroy');
+            Route::post('/sites/{site}/domains/redirects', [RedirectController::class, 'store'])->name('sites.redirects.store');
+            Route::put('/sites/{site}/domains/redirects/{redirect}', [RedirectController::class, 'update'])->name('sites.redirects.update');
+            Route::delete('/sites/{site}/domains/redirects/{redirect}', [RedirectController::class, 'destroy'])->name('sites.redirects.destroy');
+            Route::put('/sites/{site}/website/error-pages', [ErrorPageController::class, 'update'])->name('sites.error-pages.update');
+            Route::post('/sites/{site}/advanced/fix-file-ownership', [OwnershipController::class, 'repair'])->name('sites.ownership.repair');
             Route::put('/sites/{site}/files/backups/policy', [BackupController::class, 'policy'])->name('sites.backups.policy');
             Route::get('/sites/{site}/files/backups/{siteBackup}/download', [BackupController::class, 'download'])->name('sites.backups.download');
             Route::post('/sites/{site}/files/backups/{siteBackup}/restore', [BackupController::class, 'restore'])->name('sites.backups.restore');

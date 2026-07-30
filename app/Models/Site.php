@@ -94,6 +94,21 @@ class Site extends Model
         return $this->hasMany(SiteCronJob::class)->orderBy('id');
     }
 
+    public function redirects(): HasMany
+    {
+        return $this->hasMany(SiteRedirect::class)->orderBy('source_path');
+    }
+
+    public function errorPages(): HasMany
+    {
+        return $this->hasMany(SiteErrorPage::class)->orderBy('status_code');
+    }
+
+    public function parkedDomains(): HasMany
+    {
+        return $this->hasMany(Domain::class)->where('type', 'alias')->orderBy('domain');
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_site_id');

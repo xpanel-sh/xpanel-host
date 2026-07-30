@@ -135,6 +135,9 @@ class SiteController extends Controller
         if ($site->backups()->exists()) {
             return back()->withErrors(['server' => 'Elimina primero los backups del sitio para no perder puntos de recuperación ni dejar archivos huérfanos.']);
         }
+        if ($site->parkedDomains()->exists()) {
+            return back()->withErrors(['server' => 'Retira primero los dominios aparcados para no dejar alias huérfanos ni certificados inconsistentes.']);
+        }
         try {
             if ($site->ssl_status === 'active') {
                 $certificates->disable($site);
@@ -159,7 +162,10 @@ class SiteController extends Controller
     private function linkDomain(Site $site): void
     {
         Domain::where('site_id', $site->id)->where('domain', '!=', $site->domain)->update(['site_id' => null]);
-        Domain::updateOrCreate(['domain' => $site->domain], ['site_id' => $site->id]);
+        Domain::updateOrCreate(['domain' => $site->domain], [
+            'site_id' => $site->id,
+            'type' => $site->parent_site_id === null ? 'primary' : 'subdomain',
+        ]);
     }
 
     private function validated(Request $request, ?Site $site = null): array

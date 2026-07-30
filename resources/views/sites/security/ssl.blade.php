@@ -32,7 +32,7 @@
         </section>
 
         <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Let's Encrypt / ACME</h2></div><div class="kt-card-content p-5">
-          <p class="mb-5 text-sm text-secondary-foreground">El dominio debe resolver a la IP pública de este VDS y el puerto 80 debe ser accesible. Certbot utilizará webroot sin detener el servidor web.</p>
+          <p class="mb-5 text-sm text-secondary-foreground">El dominio principal y todos sus dominios aparcados deben resolver a la IP pública de este VDS; el puerto 80 debe ser accesible. Certbot los incluirá en el mismo certificado mediante webroot, sin detener el servidor web.</p>
           @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
             <form method="post" action="{{ route('sites.ssl.issue', $site) }}" class="grid md:grid-cols-2 gap-4">
               @csrf

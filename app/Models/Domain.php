@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['domain', 'site_id', 'dns_status', 'ssl_status'])]
+#[Fillable(['domain', 'type', 'site_id', 'dns_status', 'ssl_status'])]
 class Domain extends Model
 {
     public function getRouteKeyName(): string

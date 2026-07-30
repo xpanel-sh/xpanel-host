@@ -17,11 +17,16 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Límites PHP por sitio para PHP-FPM y OpenLiteSpeed, junto con una vista segura de información del runtime.
 - Tareas Cron administradas por sitio, instaladas en `/etc/cron.d` con usuario de servicio sin privilegios root y log independiente.
 - Reinicio controlado de los servicios asociados a un sitio desde su panel.
+- Dominios aparcados compartidos entre los tres motores, incluidos como nombres SAN al reemitir certificados locales.
+- Redirecciones exactas o por prefijo en el gateway público y páginas HTML propias para errores 403/404/500/502/503.
+- Reparación confinada de propietarios y permisos del document root, sin seguir symlinks ni cruzar sistemas de archivos.
 
 ### Corregido
 
 - Navegación del menú de Sitios hacia las pantallas funcionales de archivos, backups, bases, actividad, PHP y Cron.
 - Estados dinámicos de SSL y backups en el resumen; las acciones aún no implementadas ya no se presentan como enlaces activos.
+- Conservación del estado SSL activo cuando una reemisión falla y soporte de certificados para sitios OpenLiteSpeed.
+- Bloqueo de eliminación directa de dominios vinculados para evitar vhosts, alias o certificados inconsistentes.
 
 ### Seguridad
 

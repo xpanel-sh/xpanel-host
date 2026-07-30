@@ -41,7 +41,7 @@ class VirtualHostGenerator
                 ->orderBy('id')
                 ->get()
             : collect();
-        $maps = $sites->map(fn (Site $site) => "    map                     xpanel_{$site->id} {$site->domain}")->implode("\n");
+        $maps = $sites->map(fn (Site $site) => "    map                     xpanel_{$site->id} ".implode(',', $this->domainNames($site)))->implode("\n");
         $vhosts = $sites->map(fn (Site $site) => <<<CONF
 virtualhost xpanel_{$site->id} {
     vhRoot                   {$site->document_root}
@@ -116,10 +116,12 @@ CONF);
     private function renderApachePhp(Site $site): string
     {
         $socket = '/run/php/php'.$site->php_version.'-fpm-'.$site->domain.'.sock';
+        $aliases = $this->apacheAliases($site);
 
         return <<<CONF
 <VirtualHost 127.0.0.1:8082>
     ServerName {$site->domain}
+{$aliases}
     DocumentRoot {$site->document_root}
 
     <FilesMatch \.php$>
@@ -139,9 +141,12 @@ CONF;
 
     private function renderApacheStatic(Site $site): string
     {
+        $aliases = $this->apacheAliases($site);
+
         return <<<CONF
 <VirtualHost 127.0.0.1:8082>
     ServerName {$site->domain}
+{$aliases}
     DocumentRoot {$site->document_root}
 
     <Directory {$site->document_root}>
@@ -260,10 +265,11 @@ CONF;
         $postLimit = $settings?->post_max_size ?? '64M';
         $executionTime = $settings?->max_execution_time ?? 60;
         $displayErrors = $settings?->display_errors ? 'On' : 'Off';
+        $domainNames = implode(',', $this->domainNames($site));
 
         return <<<CONF
 docRoot                   {$site->document_root}
-vhDomain                  {$site->domain}
+vhDomain                  {$domainNames}
 enableGzip                1
 
 index  {
@@ -327,12 +333,14 @@ CONF;
             return $http;
         }
 
-        $https = $this->renderGatewayServer($site, true);
+        $https = $this->renderGatewayServer($site, true, $this->domainNames($site, true));
         if ($site->https_redirect && $site->status === 'active') {
+            $secureNames = $this->domainNames($site, true);
+            $serverNames = implode(' ', $secureNames);
             $http = <<<CONF
 server {
     listen 80;
-    server_name {$site->domain};
+    server_name {$serverNames};
     root {$site->document_root};
 
     location ^~ /.well-known/acme-challenge/ {
@@ -344,23 +352,29 @@ server {
     }
 }
 CONF;
+            $pendingNames = array_values(array_diff($this->domainNames($site), $secureNames));
+            if ($pendingNames !== []) {
+                $http .= "\n\n".$this->renderGatewayServer($site, false, $pendingNames);
+            }
         }
 
         return $http."\n\n".$https;
     }
 
-    private function renderGatewayServer(Site $site, bool $tls): string
+    /** @param array<int, string>|null $domainNames */
+    private function renderGatewayServer(Site $site, bool $tls, ?array $domainNames = null): string
     {
         $listen = $tls ? 'listen 443 ssl;' : 'listen 80;';
         $certificate = $tls
             ? "\n    ssl_certificate /etc/letsencrypt/live/{$site->domain}/fullchain.pem;\n    ssl_certificate_key /etc/letsencrypt/live/{$site->domain}/privkey.pem;\n    ssl_protocols TLSv1.2 TLSv1.3;"
             : '';
+        $serverNames = implode(' ', $domainNames ?? $this->domainNames($site));
 
         if ($site->status !== 'active') {
             return <<<CONF
 server {
     {$listen}{$certificate}
-    server_name {$site->domain};
+    server_name {$serverNames};
     root {$site->document_root};
 
     location ^~ /.well-known/acme-challenge/ {
@@ -374,22 +388,27 @@ CONF;
         }
 
         if ($site->web_server === 'nginx') {
-            return $this->renderNginxGatewayServer($site, $listen, $certificate);
+            return $this->renderNginxGatewayServer($site, $listen, $certificate, $domainNames);
         }
 
         $port = $site->web_server === 'apache' ? 8082 : 8083;
+        $redirects = $this->renderGatewayRedirects($site);
+        $errorPages = $this->renderGatewayErrorPages($site);
 
         return <<<CONF
 server {
     {$listen}{$certificate}
-    server_name {$site->domain};
+    server_name {$serverNames};
     root {$site->document_root};
 
     location ^~ /.well-known/acme-challenge/ {
         try_files \$uri =404;
     }
 
+{$redirects}{$errorPages}
+
     location / {
+        proxy_intercept_errors on;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -400,8 +419,12 @@ server {
 CONF;
     }
 
-    private function renderNginxGatewayServer(Site $site, string $listen, string $certificate): string
+    /** @param array<int, string>|null $domainNames */
+    private function renderNginxGatewayServer(Site $site, string $listen, string $certificate, ?array $domainNames = null): string
     {
+        $redirects = $this->renderGatewayRedirects($site);
+        $errorPages = $this->renderGatewayErrorPages($site);
+        $serverNames = implode(' ', $domainNames ?? $this->domainNames($site));
         $handler = $site->type === 'static'
             ? <<<'CONF'
     location / {
@@ -417,13 +440,14 @@ CONF
         include fastcgi_params;
         fastcgi_pass unix:/run/php/php{$site->php_version}-fpm-{$site->domain}.sock;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_intercept_errors on;
     }
 CONF;
 
         return <<<CONF
 server {
     {$listen}{$certificate}
-    server_name {$site->domain};
+    server_name {$serverNames};
     root {$site->document_root};
     index index.php index.html;
 
@@ -431,9 +455,58 @@ server {
         try_files \$uri =404;
     }
 
+{$redirects}{$errorPages}
 {$handler}
 }
 CONF;
+    }
+
+    /** @return array<int, string> */
+    private function domainNames(Site $site, bool $onlySecureAliases = false): array
+    {
+        if (! Schema::hasTable('domains')) {
+            return [$site->domain];
+        }
+
+        return array_values(array_unique(array_merge(
+            [$site->domain],
+            $site->parkedDomains()
+                ->when($onlySecureAliases, fn ($query) => $query->where('ssl_status', 'active'))
+                ->pluck('domain')->all(),
+        )));
+    }
+
+    private function apacheAliases(Site $site): string
+    {
+        $aliases = array_slice($this->domainNames($site), 1);
+
+        return $aliases === [] ? '' : '    ServerAlias '.implode(' ', $aliases);
+    }
+
+    private function renderGatewayRedirects(Site $site): string
+    {
+        if (! Schema::hasTable('site_redirects')) {
+            return '';
+        }
+
+        return $site->redirects()->where('enabled', true)->orderByDesc('source_path')->get()->map(function ($redirect): string {
+            $modifier = $redirect->match_type === 'exact' ? '= ' : '^~ ';
+
+            return "    location {$modifier}{$redirect->source_path} {\n        return {$redirect->status_code} {$redirect->target_url};\n    }\n\n";
+        })->implode('');
+    }
+
+    private function renderGatewayErrorPages(Site $site): string
+    {
+        if (! Schema::hasTable('site_error_pages')) {
+            return '';
+        }
+
+        return $site->errorPages()->where('enabled', true)->get()->map(function ($page): string {
+            $uri = '/.xpanel-errors/'.$page->status_code.'.html';
+
+            return "    error_page {$page->status_code} {$uri};\n    location = {$uri} { internal; }\n\n";
+        })->implode('');
     }
 
     private function renderPhpPool(Site $site): string

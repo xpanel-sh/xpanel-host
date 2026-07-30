@@ -1,21 +1,13 @@
 @extends('layouts.client')
 
+@section('title', 'Redirecciones - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Dominios',
-        'title' => 'Redirecciones',
-        'description' => 'Configura redirecciones 301, 302 o reglas simples para este sitio.',
-        'actions' => [
-            ['label' => 'Nueva redireccion', 'icon' => 'ki-plus', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Reglas', 'value' => '0', 'icon' => 'ki-route'],
-            ['label' => 'Tipo default', 'value' => '301', 'icon' => 'ki-arrow-right'],
-            ['label' => 'Estado', 'value' => 'Sin reglas', 'icon' => 'ki-information'],
-        ],
-        'cards' => [
-            ['title' => 'Reglas activas', 'body' => 'Aqui se mostraran las redirecciones creadas para rutas o dominios.'],
-            ['title' => 'Buenas practicas', 'body' => 'Usa 301 para cambios permanentes y 302 para pruebas temporales.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Dominios / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">Redirecciones</h1><p class="mt-1 text-sm text-secondary-foreground">Reglas aplicadas en el Nginx público antes de entregar la petición al motor del sitio.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Nueva redirección</h2></div><div class="kt-card-content p-5"><form method="post" action="{{ route('sites.redirects.store', $site) }}" class="grid gap-4 md:grid-cols-5">@csrf<label class="grid gap-2 text-sm"><span>Ruta origen</span><input class="kt-input font-mono" name="source_path" value="{{ old('source_path', '/') }}" required></label><label class="grid gap-2 text-sm"><span>Coincidencia</span><select class="kt-select" name="match_type"><option value="exact">Exacta</option><option value="prefix">Ruta y contenido</option></select></label><label class="grid gap-2 text-sm md:col-span-2"><span>URL destino</span><input class="kt-input" type="url" name="target_url" value="{{ old('target_url') }}" placeholder="https://destino.com/nueva-ruta" required></label><label class="grid gap-2 text-sm"><span>Código</span><select class="kt-select" name="status_code">@foreach([301,302,307,308] as $code)<option>{{ $code }}</option>@endforeach</select></label><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" value="1" checked> Activa</label><div class="md:col-span-4"><button class="kt-btn kt-btn-primary">Crear redirección</button></div></form></div></section>@endif
+  <section class="kt-card overflow-visible"><div class="kt-card-header"><h2 class="kt-card-title">Reglas ({{ $redirects->count() }})</h2></div><div class="overflow-x-auto"><table class="w-full min-w-[900px] text-left"><thead class="border-b border-border text-xs uppercase text-secondary-foreground"><tr><th class="px-5 py-3">Origen</th><th class="px-5 py-3">Destino</th><th class="px-5 py-3">Código</th><th class="px-5 py-3">Estado</th><th></th></tr></thead><tbody class="divide-y divide-border">@forelse($redirects as $redirect)<tr><td class="px-5 py-3 font-mono text-sm">{{ $redirect->source_path }} <span class="text-xs text-secondary-foreground">({{ $redirect->match_type === 'exact' ? 'exacta' : 'prefijo' }})</span></td><td class="max-w-md break-all px-5 py-3 text-sm">{{ $redirect->target_url }}</td><td class="px-5 py-3">{{ $redirect->status_code }}</td><td class="px-5 py-3">{{ $redirect->enabled ? 'Activa' : 'Pausada' }}</td><td class="px-5 py-3 text-right">@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<details class="inline-block text-left"><summary class="kt-btn kt-btn-sm kt-btn-outline cursor-pointer">Editar</summary><form method="post" action="{{ route('sites.redirects.update', [$site, $redirect]) }}" class="absolute right-10 z-20 mt-2 grid w-[38rem] max-w-[90vw] gap-3 rounded-xl border border-border bg-background p-4 shadow-lg">@csrf @method('PUT')<input class="kt-input" name="source_path" value="{{ $redirect->source_path }}" required><select class="kt-select" name="match_type"><option value="exact" @selected($redirect->match_type === 'exact')>Exacta</option><option value="prefix" @selected($redirect->match_type === 'prefix')>Ruta y contenido</option></select><input class="kt-input" type="url" name="target_url" value="{{ $redirect->target_url }}" required><select class="kt-select" name="status_code">@foreach([301,302,307,308] as $code)<option @selected($redirect->status_code === $code)>{{ $code }}</option>@endforeach</select><label class="flex gap-2"><input type="checkbox" name="enabled" value="1" @checked($redirect->enabled)> Activa</label><button class="kt-btn kt-btn-primary">Guardar</button></form></details><form class="inline" method="post" action="{{ route('sites.redirects.destroy', [$site, $redirect]) }}" onsubmit="return confirm('¿Eliminar esta redirección?')">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline">Eliminar</button></form>@endif</td></tr>@empty<tr><td colspan="5" class="px-5 py-10 text-center text-secondary-foreground">No hay redirecciones configuradas.</td></tr>@endforelse</tbody></table></div></section>
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

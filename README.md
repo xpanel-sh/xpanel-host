@@ -47,7 +47,7 @@ Servidor Linux o MicroVM
 
 | Área | Incluido actualmente |
 | --- | --- |
-| **Sitios** | PHP y estáticos, document root aislado, subdominios y cambio de motor por sitio |
+| **Sitios** | PHP y estáticos, document root aislado, subdominios, dominios aparcados, redirecciones y páginas de error |
 | **Motores web** | Nginx inicial; Apache y OpenLiteSpeed instalables bajo demanda |
 | **SSL** | Let's Encrypt con Certbot, renovación y estado del certificado |
 | **Bases de datos** | Bases y usuarios MariaDB aislados por sitio |
@@ -164,6 +164,15 @@ No existe una contraseña predeterminada. Después de crear el primer propietari
 7. Crea una base desde **Bases de datos → Administración** si la aplicación la necesita.
 8. Ajusta memoria, subidas y tiempo de ejecución desde **Avanzado → Configuración PHP**.
 9. Si la aplicación necesita procesos periódicos, créalos desde **Avanzado → Cron Jobs**.
+
+### Alias, redirecciones y errores
+
+- **Dominios → Dominios aparcados** añade alias que comparten archivos y configuración con el dominio principal. Cada alias necesita su propio registro `A`/`AAAA`; al reemitir SSL, Certbot lo incorpora al certificado SAN del sitio.
+- **Dominios → Redirecciones** crea reglas exactas o por prefijo con códigos 301, 302, 307 o 308. Se aplican en el Nginx público y por ello funcionan con cualquiera de los motores internos.
+- **Sitio web → Páginas de error** administra HTML estático para 403, 404, 500, 502 y 503. Los archivos quedan dentro de `.xpanel-errors` y no ejecutan PHP.
+- **Avanzado → Corregir propietarios** restaura el usuario/grupo de servicio sin seguir enlaces simbólicos, cruzar montajes ni convertir archivos privados en públicos.
+
+En una MicroVM administrada por Core, cada alias también debe registrarse como dominio de entrada en Core/Traefik. Host configura el servicio interno, pero no modifica automáticamente el enrutamiento del servidor padre.
 
 ### Subdominios
 

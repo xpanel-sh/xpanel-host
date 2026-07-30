@@ -125,6 +125,9 @@ class SiteModules
     {
         return match (true) {
             $section === 'domains' && $key === 'subdomains' => route('sites.subdomains.index', $site->parent ?? $site),
+            $section === 'domains' && $key === 'parked-domains' => route('sites.parked-domains.index', $site),
+            $section === 'domains' && $key === 'redirects' => route('sites.redirects.index', $site),
+            $section === 'website' && $key === 'error-pages' => route('sites.error-pages.index', $site),
             $section === 'analytics' => route('sites.analytics', $site),
             $section === 'files' && $key === 'file-manager' => route('sites.files.index', $site),
             $section === 'files' && $key === 'backups' => route('sites.backups.index', $site),
@@ -150,6 +153,10 @@ class SiteModules
             request()->routeIs('sites.cron.*') => 'cron-jobs',
             request()->routeIs('sites.analytics') => 'analytics',
             request()->routeIs('sites.subdomains.*') => 'subdomains',
+            request()->routeIs('sites.parked-domains.*') => 'parked-domains',
+            request()->routeIs('sites.redirects.*') => 'redirects',
+            request()->routeIs('sites.error-pages.*') => 'error-pages',
+            request()->routeIs('sites.ownership.*') => 'fix-file-ownership',
             default => null,
         };
     }

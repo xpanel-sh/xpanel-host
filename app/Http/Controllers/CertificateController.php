@@ -11,6 +11,7 @@ class CertificateController extends Controller
 {
     public function issue(Request $request, Site $site, CertificateProvisioner $provisioner): RedirectResponse
     {
+        $previousStatus = $site->ssl_status;
         $data = $request->validate([
             'email' => ['required', 'email:rfc', 'max:255'],
             'https_redirect' => ['nullable', 'boolean'],
@@ -18,7 +19,7 @@ class CertificateController extends Controller
         try {
             $provisioner->issue($site, $data['email'], $request->boolean('https_redirect'));
         } catch (\Throwable $exception) {
-            $site->update(['ssl_status' => 'error']);
+            $site->update(['ssl_status' => $previousStatus === 'active' ? 'active' : 'error']);
 
             return back()->withInput()->withErrors(['server' => $exception->getMessage()]);
         }

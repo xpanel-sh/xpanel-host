@@ -1,21 +1,14 @@
 @extends('layouts.client')
 
+@section('title', 'Dominios aparcados - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Dominios',
-        'title' => 'Dominios aparcados',
-        'description' => 'Asocia dominios adicionales para que sirvan el mismo contenido del sitio.',
-        'actions' => [
-            ['label' => 'Aparcar dominio', 'icon' => 'ki-plus', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Aparcados', 'value' => '0', 'icon' => 'ki-click'],
-            ['label' => 'Principal', 'value' => $site->domain, 'icon' => 'ki-star'],
-            ['label' => 'Estado', 'value' => 'Listo', 'icon' => 'ki-check'],
-        ],
-        'cards' => [
-            ['title' => 'Alias del sitio', 'body' => 'Los dominios aparcados compartiran archivos y configuracion con el dominio principal.'],
-            ['title' => 'Validacion', 'body' => 'XPanel verificara DNS antes de activar el dominio aparcado.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Dominios / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">Dominios aparcados</h1><p class="mt-1 text-sm text-secondary-foreground">Alias que muestran exactamente el mismo sitio, archivos y motor que el dominio principal.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  <div class="grid gap-5 md:grid-cols-3"><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Alias</div><div class="mt-2 text-2xl font-semibold text-mono">{{ $domains->count() }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Principal</div><div class="mt-2 truncate text-lg font-semibold text-mono">{{ $site->domain }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">IP esperada</div><div class="mt-2 text-lg font-semibold text-mono">{{ $serverIp ?: 'IP del servidor' }}</div></div></div></div>
+  @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Aparcar otro dominio</h2></div><div class="kt-card-content p-5"><form method="post" action="{{ route('sites.parked-domains.store', $site) }}" class="flex flex-col gap-3 md:flex-row">@csrf<input class="kt-input flex-1" name="domain" value="{{ old('domain') }}" placeholder="otro-dominio.com" required><button class="kt-btn kt-btn-primary" type="submit">Aparcar dominio</button></form><p class="mt-3 text-xs text-secondary-foreground">Antes de usarlo, crea <strong>A {{ $serverIp ?: 'IP_DEL_SERVIDOR' }}</strong> en su proveedor DNS. Si el sitio ya usa SSL, reemite el certificado desde Seguridad → SSL para incluir todos los alias.</p></div></section>@endif
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Alias configurados</h2></div><div class="overflow-x-auto"><table class="w-full min-w-[700px] text-left"><thead class="border-b border-border text-xs uppercase text-secondary-foreground"><tr><th class="px-5 py-3">Dominio</th><th class="px-5 py-3">DNS</th><th class="px-5 py-3">SSL</th><th class="px-5 py-3"></th></tr></thead><tbody class="divide-y divide-border">@forelse($domains as $domain)<tr><td class="px-5 py-3 font-medium text-mono">{{ $domain->domain }}</td><td class="px-5 py-3"><span class="kt-badge kt-badge-outline">{{ $domain->dns_status }}</span></td><td class="px-5 py-3"><span class="kt-badge kt-badge-outline">{{ $domain->ssl_status }}</span></td><td class="px-5 py-3 text-right">@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<form method="post" action="{{ route('sites.parked-domains.destroy', [$site, $domain]) }}" onsubmit="return confirm('¿Retirar este alias del sitio?')">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline">Retirar</button></form>@endif</td></tr>@empty<tr><td colspan="4" class="px-5 py-10 text-center text-secondary-foreground">No hay dominios aparcados.</td></tr>@endforelse</tbody></table></div></section>
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

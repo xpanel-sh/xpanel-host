@@ -21,27 +21,37 @@ class CertificateProvisioner
         }
         if (! config('xpanel.apply_system_changes')) {
             $site->update(['ssl_status' => 'staged', 'https_redirect' => $redirect]);
+            Domain::where('site_id', $site->id)->whereIn('type', ['primary', 'subdomain', 'alias'])->update(['ssl_status' => 'staged']);
 
             return;
         }
 
-        $output = $this->commands->run([
+        $command = [
             'sudo', '-n', (string) config('xpanel.site_helper'), 'ssl-issue',
             $site->domain, $site->web_server, $site->document_root, $email,
-        ]);
+        ];
+        $aliases = $site->parkedDomains()->pluck('domain')->all();
+        $output = $aliases === []
+            ? $this->commands->run($command)
+            : $this->commands->run($command, implode("\n", $aliases)."\n");
         $metadata = $this->metadata($output);
         $original = $site->getAttributes();
+        $aliasStatuses = $site->parkedDomains()->pluck('ssl_status', 'id');
         $site->update([
             'ssl_status' => 'active',
             'ssl_expires_at' => $metadata['not_after'] ?? now()->addDays(89),
             'ssl_issuer' => $metadata['issuer'] ?? 'Let\'s Encrypt',
             'https_redirect' => $redirect,
         ]);
+        Domain::where('site_id', $site->id)->where('type', 'alias')->update(['ssl_status' => 'active']);
 
         try {
             $this->sites->provision($site);
         } catch (\Throwable $exception) {
             $site->forceFill($original)->save();
+            foreach ($aliasStatuses as $id => $status) {
+                Domain::whereKey($id)->update(['ssl_status' => $status]);
+            }
             throw $exception;
         }
         Domain::where('domain', $site->domain)->update(['ssl_status' => 'active']);
@@ -68,6 +78,7 @@ class CertificateProvisioner
             throw $exception;
         }
         Domain::where('domain', $site->domain)->update(['ssl_status' => 'disabled']);
+        Domain::where('site_id', $site->id)->where('type', 'alias')->update(['ssl_status' => 'disabled']);
     }
 
     /** @return array<string, string|CarbonImmutable> */

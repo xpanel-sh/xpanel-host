@@ -30,7 +30,7 @@ class DomainController extends Controller
     {
         $request->merge(['domain' => strtolower(rtrim(trim((string) $request->input('domain')), '.'))]);
         $data = $request->validate([
-            'domain' => ['required', 'string', 'max:255', 'unique:domains,domain', 'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/'],
+            'domain' => ['required', 'string', 'max:255', 'unique:domains,domain', 'unique:sites,domain', 'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/'],
         ]);
 
         Domain::create($data);
@@ -40,6 +40,11 @@ class DomainController extends Controller
 
     public function destroy(Domain $domain, MailProvisioner $provisioner): RedirectResponse
     {
+        if ($domain->site_id !== null) {
+            $destination = $domain->type === 'alias' ? 'Dominios aparcados' : 'la administración del sitio';
+
+            return back()->withErrors(['domain' => "Este dominio está vinculado a un sitio. Retíralo desde {$destination} para sincronizar el servidor web."]);
+        }
         $name = $domain->domain;
         try {
             if ($domain->mailAccounts()->exists()) {

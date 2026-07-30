@@ -159,6 +159,40 @@ cron_sync() {
   systemctl reload cron 2>/dev/null || systemctl restart cron
 }
 
+error_pages_sync() {
+  local domain="$2" document_root="$3"
+  valid_domain "$domain" || fail "Invalid error page domain."
+  valid_document_root "$document_root" || fail "Invalid error page document root."
+  local source_root="$ROOT/storage/app/error-pages/$domain"
+  local target_root="$document_root/.xpanel-errors"
+  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0755 "$target_root"
+  local enabled=() code source
+  while IFS= read -r code; do
+    [[ -z "$code" ]] && continue
+    [[ "$code" =~ ^(403|404|500|502|503)$ ]] || fail "Invalid error status code."
+    source="$source_root/$code.html"
+    [[ -f "$source" && ! -L "$source" ]] || fail "Staged error page not found."
+    [[ "$(stat -c %s "$source")" -le 200000 ]] || fail "Staged error page is too large."
+    install -o "$SITE_USER" -g "$SITE_GROUP" -m 0644 "$source" "$target_root/$code.html"
+    enabled+=("$code")
+  done
+  for code in 403 404 500 502 503; do
+    [[ " ${enabled[*]} " == *" $code "* ]] || rm -f -- "$target_root/$code.html"
+  done
+}
+
+ownership_fix() {
+  local domain="$2" document_root="$3"
+  valid_domain "$domain" || fail "Invalid ownership domain."
+  valid_document_root "$document_root" || fail "Invalid ownership document root."
+  [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
+  chown -R --no-dereference "$SITE_USER:$SITE_GROUP" "$document_root"
+  find -P "$document_root" -xdev -type d -exec chmod u+rwx,go-w,go+rx {} +
+  find -P "$document_root" -xdev -type f -exec chmod u+rw,go-w {} +
+  printf 'files=%s\n' "$(find -P "$document_root" -xdev -type f -printf . | wc -c)"
+  printf 'directories=%s\n' "$(find -P "$document_root" -xdev -type d -printf . | wc -c)"
+}
+
 engine_status() {
   local engine="$2" installed=false version=""
   case "$engine" in
@@ -245,7 +279,7 @@ engine_install() {
 ssl_action() {
   local domain="$2" engine="$3" document_root="$4"
   valid_domain "$domain" || fail "Invalid certificate domain."
-  [[ "$engine" == "nginx" || "$engine" == "apache" ]] || fail "Invalid web server."
+  [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   valid_document_root "$document_root" || fail "Invalid ACME webroot."
 
   if [[ "$ACTION" == "ssl-delete" ]]; then
@@ -266,9 +300,16 @@ ssl_action() {
 
   local email="$5"
   [[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || fail "Invalid ACME email."
+  local certificate_domains=(-d "$domain") alias
+  while IFS= read -r alias; do
+    [[ -z "$alias" ]] && continue
+    valid_domain "$alias" || fail "Invalid certificate alias."
+    [[ "$alias" != "$domain" ]] || fail "Duplicate certificate domain."
+    certificate_domains+=(-d "$alias")
+  done
   install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0755 "$document_root/.well-known/acme-challenge"
   certbot certonly --non-interactive --agree-tos --no-eff-email \
-    --webroot -w "$document_root" --cert-name "$domain" -d "$domain" -m "$email"
+    --expand --webroot -w "$document_root" --cert-name "$domain" "${certificate_domains[@]}" -m "$email"
 
   local certificate="/etc/letsencrypt/live/$domain/fullchain.pem"
   [[ -f "$certificate" ]] || fail "Certbot did not create the expected certificate."
@@ -507,6 +548,8 @@ case "$ACTION" in
   apply|remove) site_action "$@" ;;
   site-restart) site_restart "$@" ;;
   cron-sync) cron_sync "$@" ;;
+  error-pages-sync) error_pages_sync "$@" ;;
+  ownership-fix) ownership_fix "$@" ;;
   ssl-issue|ssl-delete) ssl_action "$@" ;;
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;
