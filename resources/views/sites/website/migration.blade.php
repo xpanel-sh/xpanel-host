@@ -1,21 +1,27 @@
 @extends('layouts.client')
 
+@section('title', 'Migrar sitio - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Sitio web',
-        'title' => 'Migrar sitio web',
-        'description' => 'Importa archivos y bases desde otro proveedor hacia este dominio.',
-        'actions' => [
-            ['label' => 'Nueva migracion', 'icon' => 'ki-plus', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Migraciones', 'value' => '0', 'icon' => 'ki-arrows-circle'],
-            ['label' => 'Origen', 'value' => 'Externo', 'icon' => 'ki-exit-left'],
-            ['label' => 'Destino', 'value' => $site->domain, 'icon' => 'ki-exit-right'],
-        ],
-        'cards' => [
-            ['title' => 'Asistente de migracion', 'body' => 'El asistente recopilara acceso FTP, base de datos y dominio origen.'],
-            ['title' => 'Verificacion', 'body' => 'Antes de publicar se podran revisar archivos importados y estado del sitio.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Sitio web / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">Migrar sitio web</h1><p class="mt-1 text-sm text-secondary-foreground">Importa un ZIP o TAR.GZ y, opcionalmente, una base SQL.GZ hacia recursos nuevos y aislados.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Nueva migración</h2></div><form method="post" action="{{ route('sites.migrations.store', $site) }}" enctype="multipart/form-data" class="kt-card-content p-5 grid gap-4 md:grid-cols-2" id="migration-form">@csrf
+    <label class="grid gap-1"><span class="text-sm font-medium">Tipo de aplicación</span><select class="kt-select" name="application" id="migration-application"><option value="wordpress" @selected(old('application') === 'wordpress')>WordPress</option><option value="generic" @selected(old('application') === 'generic')>PHP/HTML genérico</option></select></label>
+    <label class="grid gap-1"><span class="text-sm font-medium">URL anterior</span><input class="kt-input" type="url" name="source_url" placeholder="https://anterior.example.com" value="{{ old('source_url') }}"><span class="text-xs text-secondary-foreground">En WordPress puede quedar vacía: se intentará leer desde la base importada.</span></label>
+    <label class="grid gap-1"><span class="text-sm font-medium">Archivos del sitio</span><input class="kt-input" type="file" name="files_archive" accept=".zip,.tar.gz,.tgz,application/zip,application/gzip" required><span class="text-xs text-secondary-foreground">Máximo 2 GiB comprimido y 4 GiB extraído. Si existe una sola carpeta raíz se quitará automáticamente.</span></label>
+    <label class="grid gap-1"><span class="text-sm font-medium">Base de datos</span><input class="kt-input" type="file" name="database_archive" id="migration-database" accept=".sql.gz,application/gzip"><span class="text-xs text-secondary-foreground">SQL comprimido con gzip. Obligatorio para WordPress.</span></label>
+    <label class="grid gap-1"><span class="text-sm font-medium">Nueva base</span><input class="kt-input" name="database_name" pattern="[a-z0-9_]+" maxlength="24" placeholder="migracion" value="{{ old('database_name', 'migracion') }}"></label>
+    <label class="grid gap-1"><span class="text-sm font-medium">Nuevo usuario de base</span><input class="kt-input" name="database_username" pattern="[a-z0-9_]+" maxlength="16" placeholder="miguser" value="{{ old('database_username', 'miguser') }}"></label>
+    <label class="grid gap-1 md:col-span-2"><span class="text-sm font-medium">Contraseña de la nueva base</span><input class="kt-input" type="password" name="database_password" minlength="16" maxlength="128" autocomplete="new-password"><span class="text-xs text-secondary-foreground">No se guarda en Host. WordPress recibirá esta credencial en su `wp-config.php`; en modo genérico debes colocarla en la configuración de tu aplicación.</span></label>
+    <div class="md:col-span-2 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">Se crea un backup antes de reemplazar archivos. Los archivos comprimidos no pueden contener enlaces, rutas externas ni tipos especiales; el SQL sólo se importa con el usuario limitado de la base nueva.</div>
+    <label class="grid gap-1 md:col-span-2"><span class="text-sm font-medium">Escribe <code>{{ $site->domain }}</code> para confirmar el reemplazo</span><input class="kt-input" name="confirmation" autocomplete="off" required></label>
+    <div class="md:col-span-2"><button class="kt-btn kt-btn-primary" type="submit">Iniciar migración</button></div>
+  </form></section>
+
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Historial</h2></div><div class="kt-card-content p-5 overflow-x-auto">@if($migrations->isEmpty())<p class="text-sm text-secondary-foreground">Todavía no hay migraciones.</p>@else<table class="kt-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Estado</th><th>Archivos</th><th>Base</th><th>Backup previo</th><th>Detalle</th></tr></thead><tbody>@foreach($migrations as $migration)<tr><td>{{ $migration->created_at->format('Y-m-d H:i') }}</td><td>{{ $migration->application }}</td><td>{{ $migration->status }}</td><td>{{ number_format($migration->files_count) }}</td><td>{{ $migration->database?->name ?? '—' }}</td><td>{{ $migration->backup?->token ?? '—' }}</td><td class="max-w-md text-sm text-danger">{{ $migration->error }}</td></tr>@endforeach</tbody></table>@endif</div></section>
+</div></main>@include('layouts.partials.client.footer')</div></div>
+<script>document.getElementById('migration-form')?.addEventListener('submit',function(){const button=this.querySelector('button[type=submit]');button.disabled=true;button.textContent='Migrando…'});const application=document.getElementById('migration-application');const database=document.getElementById('migration-database');function requirements(){database.required=application.value==='wordpress'}application?.addEventListener('change',requirements);requirements();</script>
 @endsection

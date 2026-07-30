@@ -599,6 +599,7 @@ configure_mail_server
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:mail-sync
 configure_certbot_renewal
 configure_panel_vhost
+bash "$ROOT/scripts/configure-panel-uploads.sh"
 
 if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-roundcube.sh"

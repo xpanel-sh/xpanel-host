@@ -77,7 +77,7 @@ if [[ -f "$database_file" ]]; then
 fi
 
 missing_services=()
-for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip crontab rsync sshd vsftpd nft clamscan freshclam flock wp; do
+for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync sshd vsftpd nft clamscan freshclam flock wp; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     missing_services+=("$command_name")
   fi
@@ -135,6 +135,7 @@ if [[ -z "$phpmyadmin_enabled" || "$phpmyadmin_enabled" == "true" ]]; then
 fi
 
 bash "$ROOT/scripts/install-wp-cli.sh"
+bash "$ROOT/scripts/configure-panel-uploads.sh"
 
 sudo -u "$site_user" php "$ROOT/artisan" optimize
 if [[ "$maintenance_enabled" == "true" ]]; then

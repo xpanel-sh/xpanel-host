@@ -136,6 +136,11 @@ class Site extends Model
         return $this->hasMany(SiteApplication::class)->orderBy('type');
     }
 
+    public function migrations(): HasMany
+    {
+        return $this->hasMany(SiteMigration::class)->latest();
+    }
+
     public function gitRepository(): HasOne
     {
         return $this->hasOne(SiteGitRepository::class);

@@ -317,6 +317,121 @@ wordpress_install() {
   printf 'version=%s\n' "$(runuser -u "$site_user" -- "/usr/bin/php$php_version" /usr/local/bin/wp core version --path="$document_root" --quiet)"
 }
 
+migration_input_path() {
+  local path="$1" resolved
+  [[ -f "$path" && ! -L "$path" ]] || return 1
+  resolved="$(realpath -e -- "$path")"
+  [[ "$resolved" == "$ROOT/storage/app/migrations/"* ]] || return 1
+  printf '%s\n' "$resolved"
+}
+
+migration_safe_names() {
+  awk '
+    BEGIN { count=0 }
+    /^\// || /(^|\/)\.\.($|\/)/ || /\\/ { bad=1 }
+    { count++ }
+    END { exit (bad || count > 200000) ? 1 : 0 }
+  '
+}
+
+site_migrate() {
+  local domain="$2" document_root="$3" site_user="$4" php_version="$5" archive="$6" format="$7"
+  local sql_archive="$8" database="$9" database_user="${10}" application="${11}" source_url="${12}" destination_url="${13}"
+  valid_domain "$domain" || fail "Invalid migration domain."
+  valid_document_root "$document_root" || fail "Invalid migration document root."
+  valid_site_identity "$site_user" || fail "Invalid migration site identity."
+  [[ "$php_version" =~ ^8\.[1-5]$ ]] || fail "Invalid migration PHP version."
+  [[ "$format" == tar || "$format" == zip ]] || fail "Invalid migration archive format."
+  [[ "$application" == wordpress || "$application" == generic ]] || fail "Invalid migration application."
+  [[ "$destination_url" == "http://$domain" || "$destination_url" == "https://$domain" ]] || fail "Invalid migration destination URL."
+  if [[ "$source_url" != - ]]; then
+    [[ ${#source_url} -le 2048 && ( "$source_url" == http://* || "$source_url" == https://* ) && "$source_url" != *$'\n'* && "$source_url" != *$'\r'* ]] || fail "Invalid migration source URL."
+  fi
+  archive="$(migration_input_path "$archive")" || fail "Migration archive is outside the private staging area."
+  if [[ "$sql_archive" != - ]]; then
+    sql_archive="$(migration_input_path "$sql_archive")" || fail "SQL archive is outside the private staging area."
+    valid_identifier "$database" || fail "Invalid migration database."
+    valid_identifier "$database_user" || fail "Invalid migration database user."
+  else
+    [[ "$database" == - && "$database_user" == - ]] || fail "Unexpected migration database parameters."
+    [[ "$application" != wordpress ]] || fail "WordPress migration requires an SQL archive."
+  fi
+  exec 9>"/run/lock/xpanel-app-$domain.lock"
+  flock -n 9 || fail "Another application operation is already running for this site."
+
+  local staging defaults="" content_root entry_count first_entry files bytes database_password="" old_url version="" sql_bytes
+  staging="$(mktemp -d "$(dirname "$document_root")/.xpanel-migration.XXXXXX")"
+  trap 'rm -rf -- "$staging"; [[ -z "$defaults" ]] || rm -f -- "$defaults"' RETURN
+  if [[ "$format" == tar ]]; then
+    tar --quoting-style=literal -tzf "$archive" | migration_safe_names || fail "The TAR.GZ contains unsafe paths or too many entries."
+    tar -tvzf "$archive" | awk '$1 ~ /^[^d-]/ { bad=1 } $1 ~ /^[d-]/ { total += $3; count++ } END { exit (bad || total > 4294967296 || count > 200000) ? 1 : 0 }' \
+      || fail "The TAR.GZ contains links, special files or exceeds 4 GiB expanded."
+    tar --no-same-owner --no-same-permissions -C "$staging" -xzf "$archive"
+  else
+    unzip -Z -1 "$archive" | migration_safe_names || fail "The ZIP contains unsafe paths or too many entries."
+    zipinfo -l "$archive" | awk '$1 ~ /^[bclps]/ { bad=1 } $1 ~ /^[d-]/ { total += $4; count++ } END { exit (bad || total > 4294967296 || count > 200000) ? 1 : 0 }' \
+      || fail "The ZIP contains links, special files or exceeds 4 GiB expanded."
+    unzip -q "$archive" -d "$staging"
+  fi
+  find -P "$staging" -xdev -type l -print -quit | grep -q . && fail "Migration archives may not contain symbolic links."
+  entry_count="$(find -P "$staging" -mindepth 1 -maxdepth 1 -printf . | wc -c)"
+  [[ "$entry_count" -gt 0 ]] || fail "The migration archive is empty."
+  content_root="$staging"
+  if [[ "$entry_count" -eq 1 ]]; then
+    first_entry="$(find -P "$staging" -mindepth 1 -maxdepth 1 -print -quit)"
+    [[ -d "$first_entry" ]] && content_root="$first_entry"
+  fi
+  files="$(find -P "$content_root" -xdev -type f -printf . | wc -c)"
+  bytes="$(find -P "$content_root" -xdev -type f -printf '%s\n' | awk '{ total += $1 } END { print total + 0 }')"
+  [[ "$files" -gt 0 && "$bytes" -le 4294967296 ]] || fail "The extracted migration has no files or exceeds 4 GiB."
+  chown -R --no-dereference "$site_user:$site_user" "$staging"
+
+  if [[ "$sql_archive" != - ]]; then
+    IFS= read -r database_password || fail "Migration database password is required."
+    [[ "$database_password" =~ ^[A-Za-z0-9!@#%\^*_=+.,:-]{16,128}$ ]] || fail "Invalid migration database password."
+    gzip -t "$sql_archive"
+    sql_bytes="$(gzip -dc "$sql_archive" | wc -c)"
+    [[ "$sql_bytes" -le 4294967296 ]] || fail "The expanded SQL archive exceeds 4 GiB."
+    defaults="$(mktemp /run/xpanel-mariadb.XXXXXX)"
+    chmod 0600 "$defaults"
+    printf "[client]\nhost=127.0.0.1\nuser=%s\npassword='%s'\ndatabase=%s\n" "$database_user" "$database_password" "$database" > "$defaults"
+    gzip -dc "$sql_archive" | mariadb --defaults-extra-file="$defaults" --one-database "$database"
+  fi
+
+  if [[ "$application" == wordpress ]]; then
+    [[ -x "/usr/bin/php$php_version" && -x /usr/local/bin/wp && -f "$content_root/wp-settings.php" ]] || fail "The archive is not a valid WordPress site."
+    install -d -o "$site_user" -g "$site_user" -m 0750 "/var/lib/xpanel-host/wp-cli-cache/$site_user"
+    local wp=(runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="/var/lib/xpanel-host/wp-cli-cache/$site_user" "/usr/bin/php$php_version" /usr/local/bin/wp --path="$content_root")
+    if [[ -f "$content_root/wp-config.php" ]]; then
+      "${wp[@]}" config set DB_NAME "$database" --type=constant --quiet
+      "${wp[@]}" config set DB_USER "$database_user" --type=constant --quiet
+      "${wp[@]}" config set DB_HOST 127.0.0.1 --type=constant --quiet
+      printf '%s\n' "$database_password" | "${wp[@]}" config set DB_PASSWORD --prompt=value --type=constant --quiet
+    else
+      printf '%s\n' "$database_password" | "${wp[@]}" config create --dbname="$database" --dbuser="$database_user" --dbhost=127.0.0.1 --dbcharset=utf8mb4 --prompt=dbpass --quiet
+    fi
+    database_password=""
+    "${wp[@]}" core is-installed --quiet || fail "The SQL archive does not contain an installed WordPress database."
+    old_url="$source_url"
+    [[ "$old_url" != - ]] || old_url="$("${wp[@]}" option get home --quiet)"
+    if [[ -n "$old_url" && "$old_url" != "$destination_url" ]]; then
+      "${wp[@]}" search-replace "$old_url" "$destination_url" --all-tables-with-prefix --skip-columns=guid --precise --quiet
+    fi
+    "${wp[@]}" option update home "$destination_url" --quiet
+    "${wp[@]}" option update siteurl "$destination_url" --quiet
+    "${wp[@]}" core verify-checksums --quiet
+    version="$("${wp[@]}" core version --quiet)"
+  fi
+
+  rm -f -- "$defaults"
+  defaults=""
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
+  rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$content_root/" "$document_root/"
+  chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  printf 'files=%s\nbytes=%s\n' "$files" "$bytes"
+  [[ -z "$version" ]] || printf 'version=%s\n' "$version"
+}
+
 access_log_read() {
   local domain="$2" engine="$3" log
   valid_domain "$domain" || fail "Invalid log domain."
@@ -994,6 +1109,7 @@ case "$ACTION" in
   malware-scan) MALWARE_FINDINGS=(); malware_scan "$@" ;;
   malware-quarantine) malware_quarantine "$@" ;;
   wordpress-install) wordpress_install "$@" ;;
+  site-migrate) site_migrate "$@" ;;
   access-log-read) access_log_read "$@" ;;
   cache-purge) cache_purge "$@" ;;
   git-deploy) git_deploy "$@" ;;

@@ -29,6 +29,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - SFTP confinado por sitio, FTPS opcional con TLS y SSH por llaves públicas sin forwarding.
 - Escaneos ClamAV con historial de hallazgos y cuarentena recuperable fuera del document root.
 - Instalación WordPress mediante WP-CLI verificado, base exclusiva, backup previo y rollback ante fallos.
+- Migración ZIP/TAR.GZ y SQL.GZ con límites anti-bomba, base nueva, historial y adaptación automática de WordPress.
 
 ### Corregido
 
@@ -46,5 +47,6 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Las contraseñas SFTP/FTPS no se guardan y SSH interactivo rechaza autenticación por contraseña.
 - La cuarentena de malware sólo acepta hallazgos persistidos, vuelve a validar su ruta real y no sigue symlinks.
 - Las contraseñas del instalador WordPress se entregan por entrada estándar y no se persisten en Host ni aparecen en argumentos de procesos.
+- Los importadores rechazan rutas externas, enlaces y tipos especiales; el SQL usa una identidad limitada y las cargas temporales se eliminan al finalizar.
 
 [Sin publicar]: https://github.com/xpanel-sh/xpanel-host/commits/main

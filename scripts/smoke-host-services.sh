@@ -38,6 +38,10 @@ grep -q '^anonymous_enable=NO$' /etc/vsftpd.conf
 grep -q '^force_local_logins_ssl=YES$' /etc/vsftpd.conf
 clamscan --version | grep -q '^ClamAV '
 wp --info | grep -q '^WP-CLI root dir:'
+php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
+grep -q '^upload_max_filesize=2048M$' "/etc/php/$php_version/fpm/conf.d/99-xpanel-host-panel-uploads.ini"
+grep -q 'client_max_body_size 2050m;' /etc/nginx/sites-available/xpanel-host-panel.conf
+command -v zipinfo >/dev/null
 test -s /var/lib/clamav/daily.cvd || test -s /var/lib/clamav/daily.cld || test -s /var/lib/clamav/main.cvd || test -s /var/lib/clamav/main.cld
 
 if [[ -n "${XPANEL_SMOKE_MALWARE_ROOT:-}" && -n "${XPANEL_SMOKE_DOMAIN:-}" ]]; then

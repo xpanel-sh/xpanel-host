@@ -31,6 +31,7 @@ use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SiteAccessController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SiteMigrationController;
 use App\Http\Controllers\SiteOperationController;
 use App\Http\Controllers\SubdomainController;
 use App\Http\Controllers\TeamController;
@@ -132,6 +133,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/website/error-pages', [ErrorPageController::class, 'index'])->name('sites.error-pages.index');
             Route::get('/sites/{site}/website/wordpress', [WordPressController::class, 'index'])->name('sites.wordpress.index');
             Route::get('/sites/{site}/website/auto-installer', [WordPressController::class, 'catalog'])->name('sites.installer.index');
+            Route::get('/sites/{site}/website/migration', [SiteMigrationController::class, 'index'])->name('sites.migrations.index');
 
             // File manager chooser + real editor: registered before the generic
             // {section}/{module} wildcard below (same segment shape) so they win the match.
@@ -172,6 +174,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::delete('/sites/{site}/domains/redirects/{redirect}', [RedirectController::class, 'destroy'])->name('sites.redirects.destroy');
             Route::put('/sites/{site}/website/error-pages', [ErrorPageController::class, 'update'])->name('sites.error-pages.update');
             Route::post('/sites/{site}/website/wordpress', [WordPressController::class, 'store'])->middleware('throttle:3,1')->name('sites.wordpress.store');
+            Route::post('/sites/{site}/website/migration', [SiteMigrationController::class, 'store'])->middleware('throttle:3,1')->name('sites.migrations.store');
             Route::post('/sites/{site}/advanced/fix-file-ownership', [OwnershipController::class, 'repair'])->name('sites.ownership.repair');
             Route::post('/sites/{site}/advanced/cache-manager/purge', [CacheController::class, 'purge'])->name('sites.cache.purge');
             Route::put('/sites/{site}/advanced/folder-index-manager', [FolderIndexController::class, 'update'])->name('sites.folder-index.update');

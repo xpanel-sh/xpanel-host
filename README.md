@@ -176,7 +176,7 @@ En una MicroVM administrada por Core, cada alias también debe registrarse como 
 
 ### Módulos visibles que siguen en preparación
 
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, migración/constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
 Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio.
 
@@ -197,6 +197,16 @@ La acción de cuarentena sólo puede aplicarse a un hallazgo del mismo sitio. El
 Antes de publicar la instalación se crea un backup `pre_install`. WordPress se prepara en una carpeta temporal y sólo después de instalarse correctamente reemplaza el contenido web, conservando ACME y las páginas de error de Host. Si falla después del backup, Host intenta restaurarlo y marca cualquier limpieza manual pendiente. Las contraseñas de WordPress y MariaDB viajan por entrada estándar: la primera queda bajo control de WordPress y la segunda sólo en `wp-config.php`; ninguna se guarda en la base de XPanel Host.
 
 El instalador y cada actualización descargan el PHAR estable de WP-CLI junto con su SHA-512 publicado y rechazan el archivo si no coincide. La operación usa la versión PHP seleccionada para el sitio y su identidad Unix independiente.
+
+### Migración de sitios
+
+**Sitio web → Migrar sitio web** acepta archivos `.zip`, `.tar.gz` o `.tgz` de hasta 2 GiB comprimidos y 4 GiB extraídos. Rechaza rutas absolutas, `..`, enlaces, archivos especiales, más de 200 000 entradas y archivos que salgan del staging privado. Si el paquete sólo contiene una carpeta superior, importa automáticamente su contenido. ACME, páginas de error y sesiones administradas permanecen fuera del reemplazo.
+
+El respaldo de base debe ser `.sql.gz`. Host crea una base y usuario nuevos, importa con esa identidad limitada y nunca pisa una base existente. Para migraciones genéricas, el usuario coloca después esas credenciales en su aplicación. Para WordPress, Host actualiza `wp-config.php`, comprueba que la base contiene una instalación, sustituye URLs mediante WP-CLI respetando datos serializados, ajusta `home`/`siteurl` y valida checksums antes de publicar.
+
+Cada migración conserva historial, cantidad de archivos, bytes, base creada y token del backup `pre_migration`. Ante un error se intenta restaurar ese backup y retirar la base nueva; si el servidor impide completar el rollback, ambos recursos se conservan y el panel marca la limpieza pendiente. Los paquetes subidos se eliminan del staging al terminar.
+
+El panel configura Nginx y su PHP-FPM para cargas grandes. Cuando Host vive dentro de una MicroVM administrada por Core, el ingress exterior de Core/Traefik también debe permitir el tamaño y tiempo de carga elegidos; Host no puede ampliar por sí solo el límite del servidor padre.
 
 ### phpMyAdmin y MySQL remoto
 

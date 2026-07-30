@@ -77,6 +77,7 @@ class AuditMutations
             'sites.malware.store' => 'Ejecutó un escaneo de malware.',
             'sites.malware.quarantine' => 'Movió un hallazgo de malware a cuarentena.',
             'sites.wordpress.store' => 'Instaló WordPress en el sitio.',
+            'sites.migrations.store' => 'Importó una migración de archivos y base de datos.',
             'sites.databases.store' => 'Creó una base de datos.',
             'sites.databases.password' => 'Rotó la contraseña de una base de datos.',
             'sites.databases.destroy' => 'Eliminó una base de datos.',
