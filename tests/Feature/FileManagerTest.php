@@ -68,6 +68,34 @@ class FileManagerTest extends TestCase
             ->assertJson(['content' => '<?php echo "hi";']);
     }
 
+    public function test_ikode_creates_empty_files_through_the_create_endpoint_in_the_current_directory(): void
+    {
+        $template = file_get_contents(resource_path('views/sites/ikode.blade.php'));
+
+        $this->assertStringContainsString("await api('POST', '/create'", $template);
+        $this->assertStringContainsString('path: pending.parentPath', $template);
+        $this->assertStringContainsString('const current = state.currentPath', $template);
+        $this->assertStringContainsString("button.closest('#xpanel_ctx_menu')", $template);
+    }
+
+    public function test_create_endpoint_places_a_new_file_inside_the_requested_subdirectory(): void
+    {
+        $site = $this->site();
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->postJson(route('sites.files.api.mkdir', $site), [
+            'path' => '/assets',
+        ])->assertOk();
+
+        $this->actingAs($developer)->postJson(route('sites.files.api.create', $site), [
+            'path' => '/assets', 'name' => 'estilos.css', 'type' => 'file',
+        ])->assertOk();
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/assets']))
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'estilos.css', 'path' => '/assets/estilos.css']);
+    }
+
     public function test_write_creates_a_new_file_when_it_does_not_exist_yet(): void
     {
         $site = $this->site();

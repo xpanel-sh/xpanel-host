@@ -2170,18 +2170,21 @@
                 }
                 return `${stem}-${Date.now()}${suffix}`;
             };
-            const targetDirectory = () => {
-                if (state.ctxEntry?.is_dir) return state.ctxEntry.path;
-                if (state.ctxEntry) return dirname(state.ctxEntry.path);
-                if (state.ctxFromBlank) {
-                    return requireConcreteSiteTarget(isGlobalSitesRoot() ? currentVirtualSiteRoot() : '/');
+            const targetDirectory = (fromContextMenu = false) => {
+                if (fromContextMenu) {
+                    if (state.ctxEntry?.is_dir) return state.ctxEntry.path;
+                    if (state.ctxEntry) return dirname(state.ctxEntry.path);
+                    if (state.ctxFromBlank) {
+                        const contextTarget = state.ctxDirectory || state.currentPath || '/';
+                        return isGlobalSitesRoot() ? requireConcreteSiteTarget(contextTarget) : contextTarget;
+                    }
                 }
-                if (state.selected?.is_dir) return state.selected.path;
-                const fallback = state.currentPath || '/';
-                return isGlobalSitesRoot() ? requireConcreteSiteTarget(fallback) : fallback;
+
+                const current = state.currentPath || '/';
+                return isGlobalSitesRoot() ? requireConcreteSiteTarget(current) : current;
             };
-            const startInlineCreate = async (type) => {
-                const parentPath = targetDirectory();
+            const startInlineCreate = async (type, fromContextMenu = false) => {
+                const parentPath = targetDirectory(fromContextMenu);
                 state.pendingRename = null;
                 state.pendingCreate = { type, parentPath };
                 state.expanded.add(parentPath);
@@ -2202,7 +2205,12 @@
                     toast('Carpeta creada');
                     log(`Carpeta creada: ${newPath}`);
                 } else {
-                    await api('POST', '/write', { domain: config.domain, path: newPath, content: '' });
+                    await api('POST', '/create', {
+                        domain: config.domain,
+                        path: pending.parentPath,
+                        name,
+                        type: 'file',
+                    });
                     await loadDirectory(pending.parentPath);
                     const entry = getEntry(newPath) || { name, path: newPath, is_dir: false, size: 0 };
                     toast('Archivo creado');
@@ -2213,8 +2221,8 @@
                 state.pendingCreate = null;
                 renderTree();
             };
-            const newFile = () => startInlineCreate('file');
-            const newFolder = () => startInlineCreate('folder');
+            const newFile = (fromContextMenu = false) => startInlineCreate('file', fromContextMenu);
+            const newFolder = (fromContextMenu = false) => startInlineCreate('folder', fromContextMenu);
 
             const startInlineRename = () => {
                 const entry = state.selected || state.ctxEntry;
@@ -2477,7 +2485,7 @@
                     entry = row ? getEntry(row.dataset.path) : null;
                 }
                 state.ctxEntry = entry;
-                state.ctxDirectory = entry?.is_dir ? entry.path : (entry ? dirname(entry.path) : '/');
+                state.ctxDirectory = entry?.is_dir ? entry.path : (entry ? dirname(entry.path) : (state.currentPath || '/'));
                 state.ctxFromBlank = !entry;
                 if (entry) select(entry);
                 $$('[data-archive-only]').forEach((item) => {
@@ -2489,14 +2497,14 @@
                 menu.classList.remove('hidden');
             };
 
-            const action = async (name) => {
+            const action = async (name, fromContextMenu = false) => {
                 try {
                     if (name === 'open') await open(state.selected || state.ctxEntry);
                     if (name === 'save') await save();
                     if (name === 'download') download();
                     if (name === 'duplicate-tab') duplicateTab();
-                    if (name === 'new-file') newFile();
-                    if (name === 'new-folder') newFolder();
+                    if (name === 'new-file') await newFile(fromContextMenu);
+                    if (name === 'new-folder') await newFolder(fromContextMenu);
                     if (name === 'extract') await extractArchive(state.selected || state.ctxEntry);
                     if (name === 'refresh') await loadDirectory(state.currentPath);
                     if (name === 'rename') startInlineRename();
@@ -3014,7 +3022,9 @@
                 },
             };
 
-            $$('[data-fm-action]').forEach((button) => button.addEventListener('click', () => action(button.dataset.fmAction)));
+            $$('[data-fm-action]').forEach((button) => button.addEventListener('click', () => {
+                action(button.dataset.fmAction, Boolean(button.closest('#xpanel_ctx_menu')));
+            }));
             $$('[data-left-mode]').forEach((button) => button.addEventListener('click', () => switchLeftMode(button.dataset.leftMode)));
             $$('[data-layout-toggle]').forEach((button) => button.addEventListener('click', () => toggleLayoutPane(button.dataset.layoutToggle)));
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
