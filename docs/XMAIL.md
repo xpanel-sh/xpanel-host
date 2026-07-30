@@ -1,6 +1,6 @@
-# XMail: autenticación y migración desde Roundcube
+# XMail y Roundcube
 
-XMail será un cliente de correo por buzón, no una extensión de la sesión administrativa de XPanel Host.
+XMail es el cliente de correo integrado de XPanel Host. Funciona junto a Roundcube y no es una extensión de la sesión administrativa.
 
 ## Identidad
 
@@ -11,20 +11,11 @@ usuario@dominio.com
 contraseña del correo
 ```
 
-La autenticación se valida contra Dovecot. Una sesión de XMail queda vinculada a una sola cuenta y todas las operaciones IMAP/SMTP se ejecutan únicamente como esa cuenta. Cambiar de buzón exige cerrar sesión y autenticarse de nuevo.
+La autenticación se valida contra Dovecot. Una sesión queda vinculada a una sola cuenta y todas las operaciones IMAP/SMTP se ejecutan únicamente como esa cuenta. Cambiar de buzón exige cerrar sesión y autenticarse de nuevo.
 
-El propietario y los colaboradores de Host pueden crear cuentas, cambiar contraseñas y eliminarlas, pero su sesión del panel no concede acceso al contenido de los mensajes. Host almacena hashes no reversibles y no implementará un botón de suplantación administrativa.
+El propietario y los colaboradores de Host pueden crear cuentas, cambiar contraseñas y eliminarlas, pero su sesión del panel no concede acceso al contenido. Host almacena hashes no reversibles y no ofrece suplantación administrativa.
 
-## Sesiones
-
-- Cookie propia para XMail, separada de la sesión de Host.
-- Regeneración del identificador después del login.
-- Rate limiting por IP y dirección de correo.
-- Credencial del buzón cifrada sólo durante la sesión activa para conectar IMAP/SMTP.
-- Cierre de sesión elimina la credencial y revoca la sesión.
-- Protección CSRF y comprobación del buzón autenticado en todas las API.
-
-## Contrato del backend pendiente
+## Funciones disponibles
 
 ```text
 POST   /xmail/login
@@ -41,16 +32,36 @@ POST   /xmail/api/send
 GET    /xmail/api/attachment
 ```
 
-El backend se conectará a Dovecot por IMAP y a Postfix submission por SMTP. El HTML de mensajes se mostrará dentro de un iframe aislado después de sanitizar contenido activo y bloquear recursos remotos por defecto.
+El backend se conecta a Dovecot por IMAP local con TLS y a Postfix submission por SMTP autenticado con STARTTLS. Permite listar y administrar carpetas, paginar y leer mensajes, descargar adjuntos, marcar, mover, borrar y enviar o responder. El HTML se sanea en el servidor, se bloquean recursos remotos y se muestra en un `iframe` sin scripts.
 
-## Migración
+## Convivencia con Roundcube
 
 Roundcube y XMail utilizan el mismo Postfix, Dovecot y Maildir. No se copian ni migran mensajes:
 
 ```text
-Fase 1: Roundcube estable; XMail deshabilitado
-Fase 2: Roundcube estable; XMail beta por cuenta
-Fase 3: XMail predeterminado; Roundcube como respaldo
+Roundcube ─┐
+           ├── Postfix + Dovecot + Maildir (mismos buzones)
+XMail ─────┘
 ```
 
-`XPANEL_XMAIL_ENABLED` debe permanecer en `false` hasta completar el backend, las pruebas de aislamiento entre buzones y las pruebas físicas IMAP/SMTP en Linux.
+`XPANEL_XMAIL_ENABLED=true` publica XMail en `/xmail`. `XPANEL_ROUNDCUBE_ENABLED=true` mantiene Roundcube en el hostname configurado; ambas opciones pueden convivir.
+
+## Límites de seguridad
+
+- La cookie `xpanel_xmail_session` usa ruta `/xmail` y `SameSite=Strict`; no comparte la autenticación de Host.
+- La credencial IMAP/SMTP se cifra con `APP_KEY`, se elimina al cerrar sesión y nunca se escribe en logs ni en la base de cuentas.
+- El inicio de sesión se limita por combinación de IP y buzón, además de un límite global por IP.
+- El remitente SMTP siempre es el buzón autenticado; Postfix conserva además su restricción `sender_login_maps`.
+- Los nombres de carpeta, UID, destinatarios, tamaños y cabeceras se validan antes de llegar a IMAP o SMTP.
+- Los recursos remotos y el contenido activo de mensajes HTML quedan bloqueados.
+- Los cuerpos mayores a 10 MiB no se cargan en la vista y los adjuntos se limitan por `XPANEL_XMAIL_ATTACHMENT_MAX_BYTES` (50 MiB de forma predeterminada).
+
+## Verificación en el VDS
+
+La suite automatizada cubre sesión, autorización y contrato API. En el servidor Linux ejecuta además:
+
+```bash
+sudo bash scripts/smoke-host-services.sh
+```
+
+El smoke test comprueba PHP IMAP, las rutas XMail, Dovecot, Postfix y, si defines `XPANEL_SMOKE_MAIL_ACCOUNT` y `XPANEL_SMOKE_MAIL_PASSWORD`, una autenticación y entrega SMTP/IMAP real.

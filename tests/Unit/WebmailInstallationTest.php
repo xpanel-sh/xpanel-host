@@ -35,5 +35,20 @@ class WebmailInstallationTest extends TestCase
         $this->assertStringNotContainsString('client.mail.api', $view);
         $this->assertStringNotContainsString('account: state.account', $view);
         $this->assertStringContainsString("mailboxIdentity['email']", $view);
+        $this->assertStringContainsString("@extends('layouts.xmail')", $view);
+        $this->assertStringContainsString('/xmail/api/attachment', $view);
+    }
+
+    public function test_xmail_runtime_is_installed_and_physically_checked(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $smoke = file_get_contents(base_path('scripts/smoke-host-services.sh'));
+
+        $this->assertStringContainsString('php-imap', $installer);
+        $this->assertStringContainsString('SESSION_ENCRYPT true', $installer);
+        $this->assertStringContainsString("grep -qi '^imap$'", $smoke);
+        $this->assertStringContainsString('route:list --path=xmail', $smoke);
+        $this->assertStringContainsString('xpanel:xmail-smoke', $smoke);
+        $this->assertStringContainsString('--password-stdin --send', $smoke);
     }
 }

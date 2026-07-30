@@ -38,6 +38,7 @@ grep -q '^anonymous_enable=NO$' /etc/vsftpd.conf
 grep -q '^force_local_logins_ssl=YES$' /etc/vsftpd.conf
 clamscan --version | grep -q '^ClamAV '
 wp --info | grep -q '^WP-CLI root dir:'
+php -m | grep -qi '^imap$'
 php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
 grep -q '^upload_max_filesize=2048M$' "/etc/php/$php_version/fpm/conf.d/99-xpanel-host-panel-uploads.ini"
 grep -q 'client_max_body_size 2050m;' /etc/nginx/sites-available/xpanel-host-panel.conf
@@ -71,6 +72,11 @@ if [[ -n "${XPANEL_WEBMAIL_HOSTNAME:-}" ]]; then
   fi
 fi
 
+if [[ "${XPANEL_XMAIL_ENABLED:-true}" == "true" ]]; then
+  sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" route:list --path=xmail --json \
+    | grep -q 'xmail.api.send'
+fi
+
 echo "Testing isolated MariaDB database and user..."
 printf '%s\n' "$password" | "$HELPER" database-create "$database" "$username"
 mariadb --protocol=socket -u "$username" --password="$password" "$database" \
@@ -94,6 +100,9 @@ if [[ -n "${XPANEL_SMOKE_MAIL_ACCOUNT:-}" && -n "${XPANEL_SMOKE_MAIL_PASSWORD:-}
     --header "Subject: $marker" --body "$marker" --timeout 20 >/dev/null
   sleep 2
   doveadm search -u "$XPANEL_SMOKE_MAIL_ACCOUNT" HEADER Subject "$marker" | grep -q .
+  printf '%s' "$XPANEL_SMOKE_MAIL_PASSWORD" \
+    | sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:xmail-smoke \
+      "$XPANEL_SMOKE_MAIL_ACCOUNT" --password-stdin --send
 fi
 
 echo "XPanel Host physical service smoke test passed."

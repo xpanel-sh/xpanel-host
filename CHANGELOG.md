@@ -32,6 +32,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Migración ZIP/TAR.GZ y SQL.GZ con límites anti-bomba, base nueva, historial y adaptación automática de WordPress.
 - PageSpeed Insights móvil/escritorio e historial de diagnóstico técnico del sitio con pruebas locales reales.
 - Editor DNS Cloudflare para A/AAAA/CNAME/MX/TXT y control CDN con proxy y purga de caché.
+- XMail funcional junto a Roundcube: autenticación propia por buzón, carpetas, lectura, envío SMTP autenticado, adjuntos y acciones IMAP.
+- XMail funcional junto a Roundcube: autenticación propia por buzón, carpetas, lectura, envío SMTP autenticado, adjuntos y acciones IMAP.
 
 ### Corregido
 
@@ -48,6 +50,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - MySQL remoto rechaza comodines, CIDR y hostnames; las contraseñas viajan por entrada estándar y no se persisten en Host.
 - Las contraseñas SFTP/FTPS no se guardan y SSH interactivo rechaza autenticación por contraseña.
 - La cuarentena de malware sólo acepta hallazgos persistidos, vuelve a validar su ruta real y no sigue symlinks.
+- XMail usa una cookie restringida a `/xmail`, cifra la credencial temporal, limita intentos por IP y buzón y nunca hereda la sesión administrativa.
+- XMail usa una cookie restringida a `/xmail`, cifra la credencial temporal, limita intentos por IP y buzón y nunca hereda la sesión administrativa.
 - Las contraseñas del instalador WordPress se entregan por entrada estándar y no se persisten en Host ni aparecen en argumentos de procesos.
 - Los importadores rechazan rutas externas, enlaces y tipos especiales; el SQL usa una identidad limitada y las cargas temporales se eliminan al finalizar.
 - Los tokens DNS se verifican, cifran con `APP_KEY`, se ocultan del modelo y no permiten operar fuera del dominio del sitio.

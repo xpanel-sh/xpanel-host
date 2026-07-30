@@ -41,6 +41,7 @@ use App\Http\Controllers\SubdomainController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WebServerEngineController;
 use App\Http\Controllers\WordPressController;
+use App\Http\Controllers\XMailController;
 use App\Models\Site;
 use App\Models\User;
 use App\Support\Permissions;
@@ -50,6 +51,25 @@ Route::get('/setup', [SetupController::class, 'create'])->name('setup');
 Route::post('/setup', [SetupController::class, 'store']);
 
 Route::middleware('setup.complete')->group(function () {
+    Route::get('/xmail/login', [XMailController::class, 'login'])->name('xmail.login');
+    Route::post('/xmail/login', [XMailController::class, 'authenticate'])->middleware('throttle:xmail-login')->name('xmail.authenticate');
+    Route::middleware('xmail.auth')->group(function () {
+        Route::get('/xmail', [XMailController::class, 'index'])->name('xmail.index');
+        Route::post('/xmail/logout', [XMailController::class, 'logout'])->name('xmail.logout');
+        Route::prefix('/xmail/api')->name('xmail.api.')->group(function () {
+            Route::get('/folders', [XMailController::class, 'folders'])->name('folders');
+            Route::post('/folders', [XMailController::class, 'createFolder'])->name('folders.create');
+            Route::delete('/folders', [XMailController::class, 'deleteFolder'])->name('folders.destroy');
+            Route::get('/messages', [XMailController::class, 'messages'])->name('messages');
+            Route::get('/message', [XMailController::class, 'message'])->name('message');
+            Route::post('/flag', [XMailController::class, 'flag'])->name('flag');
+            Route::post('/move', [XMailController::class, 'move'])->name('move');
+            Route::delete('/message', [XMailController::class, 'deleteMessage'])->name('message.destroy');
+            Route::post('/send', [XMailController::class, 'send'])->middleware('throttle:30,1')->name('send');
+            Route::get('/attachment', [XMailController::class, 'attachment'])->name('attachment');
+        });
+    });
+
     Route::get('/login', [SessionController::class, 'create'])->name('login');
     Route::post('/login', [SessionController::class, 'store']);
 

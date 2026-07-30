@@ -66,17 +66,18 @@ class MailManagementTest extends TestCase
             ->assertSee('assets/css/styles.css', false);
     }
 
-    public function test_mail_index_links_roundcube_and_keeps_xmail_disabled(): void
+    public function test_mail_index_links_roundcube_and_xmail(): void
     {
         config()->set('xpanel.roundcube_enabled', true);
         config()->set('xpanel.webmail_hostname', 'mail.example.com');
         config()->set('xpanel.webmail_url', 'https://mail.example.com');
+        config()->set('xpanel.xmail_enabled', true);
 
         $this->actingAs($this->userWithRole('owner'))->get('/mail')
             ->assertOk()
             ->assertSee('https://mail.example.com', false)
             ->assertSee('Abrir Roundcube')
-            ->assertSee('XMail · En desarrollo');
+            ->assertSee('Abrir XMail');
     }
 
     public function test_mail_dns_modal_shows_records_and_verifies_public_dns_and_tls(): void

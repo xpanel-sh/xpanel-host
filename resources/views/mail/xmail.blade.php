@@ -1,3 +1,7 @@
+@extends('layouts.xmail')
+
+@section('title', 'XMail')
+
 @push('styles')
 <style>
 .xmail-app {
@@ -154,6 +158,7 @@
     $avatar       = asset('assets/media/avatars/300-1.png');
 @endphp
 
+@section('content')
 <div class="xmail-app" id="xmail_app">
 
     {{-- ── Sidebar ─────────────────────────────────────────────────────────────── --}}
@@ -173,7 +178,11 @@
             <span class="xmail-sidebar-text">New Mail</span>
         </button>
 
-        <div class="xmail-sidebar-section xmail-mail-section mt-7 text-sm text-secondary-foreground px-2">Mail</div>
+        <div class="xmail-sidebar-section xmail-mail-section mt-7 flex items-center px-2 text-sm text-secondary-foreground">
+            <span class="grow">Mail</span>
+            <button class="xmail-icon-btn" type="button" id="xmail_folder_create" title="Crear carpeta"><i class="ki-filled ki-plus"></i></button>
+            <button class="xmail-icon-btn" type="button" id="xmail_folder_delete" title="Eliminar carpeta"><i class="ki-filled ki-trash"></i></button>
+        </div>
         <nav class="mt-2 space-y-1" id="xmail_folder_nav" aria-label="Mail folders">
             {{-- filled by JS --}}
             <div class="xmail-skeleton h-8 w-full mb-1"></div>
@@ -182,14 +191,13 @@
         </nav>
 
         <div class="xmail-sidebar-bottom xmail-bottom-stack mt-auto space-y-1 pb-2">
-            <a class="xmail-folder flex w-full items-center gap-3 px-4" href="{{ url('/xmail/account') }}" title="Cuenta de correo">
-                <i class="ki-filled ki-setting-2 text-lg"></i>
-                <span class="xmail-sidebar-text grow font-medium">Email Accounts</span>
-            </a>
-            <a class="xmail-folder flex w-full items-center gap-3 px-4" href="{{ url('/xmail/logout') }}" title="Cerrar sesión">
-                <i class="ki-filled ki-home-3 text-lg"></i>
-                <span class="xmail-sidebar-text grow font-medium">Dashboard</span>
-            </a>
+            <form method="POST" action="{{ route('xmail.logout') }}">
+                @csrf
+                <button class="xmail-folder flex w-full items-center gap-3 px-4" type="submit" title="Cerrar sesión">
+                    <i class="ki-filled ki-exit-right text-lg"></i>
+                    <span class="xmail-sidebar-text grow text-start font-medium">Cerrar sesión</span>
+                </button>
+            </form>
         </div>
     </aside>
 
@@ -304,7 +312,7 @@
                             </div>
 
                             <div class="xmail-message-card mt-6 rounded-xl bg-muted">
-                                <iframe id="xmail_reader_iframe" class="xmail-reader-iframe" sandbox="allow-same-origin" title="Message body"></iframe>
+                                <iframe id="xmail_reader_iframe" class="xmail-reader-iframe" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Message body"></iframe>
                             </div>
 
                             {{-- Inline reply / forward compose --}}
@@ -396,6 +404,7 @@
 
 {{-- ── Toast ────────────────────────────────────────────────────────────────────── --}}
 <div class="xmail-toast" id="xmail_toast"></div>
+@endsection
 
 @push('scripts')
 <script>
@@ -412,6 +421,7 @@
         move     : '{{ url("/xmail/api/move") }}',
         delete   : '{{ url("/xmail/api/message") }}',
         send     : '{{ url("/xmail/api/send") }}',
+        attachment : '{{ url("/xmail/api/attachment") }}',
         folderCreate : '{{ url("/xmail/api/folders") }}',
         folderDelete : '{{ url("/xmail/api/folders") }}',
     };
@@ -542,6 +552,32 @@
         });
         showReaderEmpty();
         loadMessages();
+    }
+
+    async function createFolder() {
+        const name = prompt('Nombre de la nueva carpeta');
+        if (!name?.trim()) return;
+        try {
+            await post(BASE.folderCreate, { name: name.trim() });
+            await loadFolders();
+            toast('Carpeta creada');
+        } catch (e) { toast(e.message, true); }
+    }
+
+    async function deleteFolder() {
+        const systemFolders = ['inbox', 'sent', 'drafts', 'junk', 'trash'];
+        if (systemFolders.includes(state.folder.toLowerCase())) {
+            toast('Selecciona una carpeta personalizada', true);
+            return;
+        }
+        if (!confirm(`Eliminar la carpeta ${state.folder} y su contenido?`)) return;
+        try {
+            await api(BASE.folderDelete, { method: 'DELETE', body: JSON.stringify({ name: state.folder }) });
+            state.folder = 'INBOX';
+            await loadFolders();
+            await loadMessages();
+            toast('Carpeta eliminada');
+        } catch (e) { toast(e.message, true); }
     }
 
     // ── Message list ─────────────────────────────────────────────────────────────
@@ -676,11 +712,11 @@
         if (msg.attachments && msg.attachments.length) {
             attsWrap.classList.remove('hidden');
             attsDiv.innerHTML = msg.attachments.map(a => `
-                <div class="xmail-attachment flex items-center gap-3 px-4">
+                <a class="xmail-attachment flex items-center gap-3 px-4" href="${BASE.attachment}?folder=${encodeURIComponent(state.message.folder)}&uid=${state.message.uid}&part=${encodeURIComponent(a.part)}">
                     <i class="ki-filled ki-folder text-xl text-pink-500"></i>
                     <span class="min-w-0 grow truncate text-sm font-medium text-mono">${escapeHtml(a.filename || 'attachment')}</span>
                     <span class="text-sm text-secondary-foreground">${formatBytes(a.size)}</span>
-                </div>
+                </a>
             `).join('');
         } else {
             attsWrap.classList.add('hidden');
@@ -926,6 +962,8 @@
 
     // Refresh
     document.getElementById('xmail_refresh')?.addEventListener('click', () => loadMessages());
+    document.getElementById('xmail_folder_create')?.addEventListener('click', createFolder);
+    document.getElementById('xmail_folder_delete')?.addEventListener('click', deleteFolder);
 
     // Category filter
     document.querySelectorAll('[data-category]').forEach(btn => {

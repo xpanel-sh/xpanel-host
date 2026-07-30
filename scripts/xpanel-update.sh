@@ -76,6 +76,11 @@ if [[ -f "$database_file" ]]; then
   install -o "$site_user" -g "$site_group" -m 0600 "$database_file" "$backup_root/database.sqlite"
 fi
 
+set_env_var SESSION_ENCRYPT true
+if [[ -z "$(env_value XPANEL_XMAIL_ENABLED)" ]]; then
+  set_env_var XPANEL_XMAIL_ENABLED true
+fi
+
 missing_services=()
 for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync sshd vsftpd nft clamscan freshclam flock wp; do
   if ! command -v "$command_name" >/dev/null 2>&1; then

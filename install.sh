@@ -572,6 +572,8 @@ if [[ -n "$server_ipv4" ]] && php -r 'exit(filter_var($argv[1], FILTER_VALIDATE_
   set_env_var XPANEL_SERVER_IPV4 "$server_ipv4"
 fi
 set_env_var XPANEL_DKIM_SELECTOR "${XPANEL_DKIM_SELECTOR:-xpanel}"
+set_env_var XPANEL_XMAIL_ENABLED "${XPANEL_XMAIL_ENABLED:-true}"
+set_env_var SESSION_ENCRYPT true
 
 php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
 set_env_var XPANEL_PHP_VERSIONS "$php_version"

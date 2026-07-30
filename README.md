@@ -39,7 +39,7 @@ Servidor Linux o MicroVM
         ├── PHP-FPM / Apache / OpenLiteSpeed
         ├── MariaDB
         ├── Postfix + Dovecot + OpenDKIM
-        ├── Roundcube
+        ├── Roundcube + XMail
         └── XPanel Host + xpanel CLI
 ```
 
@@ -51,7 +51,7 @@ Servidor Linux o MicroVM
 | **Motores web** | Nginx inicial; Apache y OpenLiteSpeed instalables bajo demanda |
 | **SSL** | Let's Encrypt con Certbot, renovación y estado del certificado |
 | **Bases de datos** | Bases y usuarios MariaDB aislados por sitio, phpMyAdmin y accesos remotos limitados por IPv4 |
-| **Correo** | Postfix, Dovecot, Maildir, Roundcube, SPF, DKIM, DMARC y verificación DNS |
+| **Correo** | Postfix, Dovecot, Maildir, Roundcube y XMail, SPF, DKIM, DMARC y verificación DNS |
 | **Archivos** | Gestor de archivos confinado al espacio administrado |
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
 | **PHP y tareas** | Límites PHP por sitio, resumen seguro del runtime y tareas Cron administradas sin ejecución como root |
@@ -253,7 +253,7 @@ IMAP seguro         993 + TLS
 Maildir             /var/mail/vhosts/<dominio>/<usuario>/Maildir
 ```
 
-El instalador despliega Roundcube en `XPANEL_WEBMAIL_HOSTNAME` y lo conecta por loopback al mismo Dovecot/Postfix. Cada persona entra con su dirección completa y la contraseña creada en Host. Roundcube no mantiene buzones alternativos: todos los mensajes continúan en el Maildir de la cuenta.
+El instalador despliega Roundcube en `XPANEL_WEBMAIL_HOSTNAME` y XMail dentro del panel en `/xmail`; ambos se conectan por loopback al mismo Dovecot/Postfix. Cada persona entra con su dirección completa y la contraseña creada en Host. Ninguno mantiene buzones alternativos: todos los mensajes continúan en el Maildir de la cuenta.
 
 Antes de instalar crea:
 
@@ -296,7 +296,7 @@ cd /opt/xpanel-host
 sudo bash install.sh
 ```
 
-No crees `mail.example.com` como un sitio normal: el instalador reserva ese hostname para Roundcube. XMail tendrá autenticación propia por buzón y no reutilizará la sesión administrativa; su contrato y migración están descritos en `docs/XMAIL.md`.
+No crees `mail.example.com` como un sitio normal: el instalador reserva ese hostname para Roundcube. XMail está disponible en `/xmail`, usa autenticación propia por buzón y no reutiliza la sesión administrativa. Ambos clientes trabajan sobre el mismo Maildir sin duplicar mensajes; consulta `docs/XMAIL.md`.
 
 <a id="actualizaciones"></a>
 
@@ -359,7 +359,7 @@ sudo XPANEL_SMOKE_DOMAIN=www.example.com \
   bash scripts/smoke-host-services.sh
 ```
 
-La prueba comprueba Nginx y los motores opcionales instalados, MariaDB, Postfix, Dovecot, HTTPS, autenticación y una entrega SMTP → LMTP.
+La prueba comprueba Nginx y los motores opcionales instalados, MariaDB, Postfix, Dovecot, HTTPS, autenticación, una entrega SMTP → LMTP y el recorrido IMAP/SMTP propio de XMail.
 
 ## Instalación dentro de XPanel Core
 

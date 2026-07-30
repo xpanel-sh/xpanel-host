@@ -7,6 +7,7 @@
     $webmailHostname = config('xpanel.webmail_hostname');
     $webmailUrl = config('xpanel.webmail_url') ?: ($webmailHostname ? 'http://'.$webmailHostname : null);
     $roundcubeEnabled = config('xpanel.roundcube_enabled') && $webmailUrl;
+    $xmailEnabled = config('xpanel.xmail_enabled');
 @endphp
 
 @section('content')
@@ -32,9 +33,12 @@
                                     Roundcube no configurado
                                 </button>
                             @endif
-                            <button type="button" class="kt-btn kt-btn-outline opacity-50 cursor-not-allowed" disabled title="XMail se habilitará cuando su backend IMAP/SMTP esté terminado">
-                                XMail · En desarrollo
-                            </button>
+                            @if ($xmailEnabled)
+                                <a href="{{ route('xmail.login') }}" target="_blank" rel="noopener" class="kt-btn kt-btn-outline">
+                                    <i class="ki-filled ki-sms"></i>
+                                    Abrir XMail
+                                </a>
+                            @endif
                             @if ($canManage)
                                 <a href="{{ route('mail.create') }}" class="kt-btn kt-btn-primary">
                                     <i class="ki-filled ki-plus"></i>
@@ -142,6 +146,12 @@
                                                 DNS del correo
                                             </button>
                                             @if ($canManage)
+                                                @if ($xmailEnabled)
+                                                    <a href="{{ route('xmail.login', ['email' => $account->email]) }}" target="_blank" rel="noopener" class="kt-btn kt-btn-outline kt-btn-sm" title="XMail solicitará la contraseña de {{ $account->email }}">
+                                                        <i class="ki-filled ki-sms"></i>
+                                                        XMail
+                                                    </a>
+                                                @endif
                                                 @if ($roundcubeEnabled)
                                                     <a href="{{ $webmailUrl }}" target="_blank" rel="noopener" class="kt-btn kt-btn-outline kt-btn-sm" title="Inicia sesión como {{ $account->email }}">
                                                         <i class="ki-filled ki-exit-right-corner"></i>

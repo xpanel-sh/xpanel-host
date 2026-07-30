@@ -3,6 +3,8 @@
 use App\Http\Middleware\AuditMutations;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureSetupComplete;
+use App\Http\Middleware\EnsureXMailAuthenticated;
+use App\Http\Middleware\UseXMailSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,12 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [
-            AuditMutations::class,
-        ]);
+        $middleware->web(
+            prepend: [UseXMailSession::class],
+            append: [AuditMutations::class],
+        );
         $middleware->alias([
             'permission' => EnsurePermission::class,
             'setup.complete' => EnsureSetupComplete::class,
+            'xmail.auth' => EnsureXMailAuthenticated::class,
         ]);
         $middleware->redirectGuestsTo('/login');
     })
