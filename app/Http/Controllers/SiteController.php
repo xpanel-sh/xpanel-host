@@ -133,6 +133,12 @@ class SiteController extends Controller
         if ($site->parkedDomains()->exists()) {
             return back()->withErrors(['server' => 'Retira primero los dominios aparcados para no dejar alias huérfanos ni certificados inconsistentes.']);
         }
+        if ($site->gitRepository()->exists()) {
+            return back()->withErrors(['server' => 'Desconecta primero el repositorio Git para eliminar su caché privada del servidor.']);
+        }
+        if ($site->protectedDirectories()->exists()) {
+            return back()->withErrors(['server' => 'Elimina primero las protecciones de directorios para retirar sus archivos de autenticación.']);
+        }
         try {
             if ($site->ssl_status === 'active') {
                 $certificates->disable($site);

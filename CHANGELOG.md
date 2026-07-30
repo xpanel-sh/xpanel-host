@@ -22,6 +22,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Reparación confinada de propietarios y permisos del document root, sin seguir symlinks ni cruzar sistemas de archivos.
 - Analítica reciente sin tracking, calculada desde un log público separado por sitio y leído de forma confinada.
 - Purga segura de cachés conocidas, listado de carpetas configurable, protección Hotlink y reglas IP/CIDR en el gateway.
+- Despliegues manuales desde repositorios Git HTTPS públicos y autenticación Basic para directorios seleccionados.
 
 ### Corregido
 
@@ -34,5 +35,6 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 - Confinamiento del gestor de archivos al espacio administrado.
 - Validación de acciones privilegiadas y backends internos limitados a loopback.
+- SSH permanece cerrado mientras los sitios compartan usuario de servicio; no se generan llaves ni shells que atraviesen el aislamiento.
 
 [Sin publicar]: https://github.com/xpanel-sh/xpanel-host/commits/main

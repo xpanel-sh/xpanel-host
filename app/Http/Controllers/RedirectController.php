@@ -72,9 +72,13 @@ class RedirectController extends Controller
         $data = $request->validate([
             'source_path' => [
                 'required', 'string', 'max:255', 'regex:#^/[A-Za-z0-9._~/%-]*$#',
-                function (string $attribute, mixed $value, \Closure $fail): void {
+                function (string $attribute, mixed $value, \Closure $fail) use ($site): void {
                     if (str_starts_with((string) $value, '/.well-known/acme-challenge') || str_starts_with((string) $value, '/.xpanel-errors')) {
                         $fail('Esa ruta está reservada por SSL o por las páginas de error.');
+                    }
+                    $protectedPath = rtrim((string) $value, '/').'/';
+                    if ($site->protectedDirectories()->where('path', $protectedPath)->exists()) {
+                        $fail('Esa ruta ya está protegida con contraseña; elimina primero esa protección.');
                     }
                 },
                 Rule::unique('site_redirects')->where(fn ($query) => $query->where('site_id', $site->id)->where('match_type', $request->input('match_type')))->ignore($redirect?->id),

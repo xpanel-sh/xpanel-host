@@ -177,18 +177,19 @@ CONF;
     {
         $socket = '/run/php/php'.$site->php_version.'-fpm-'.$site->domain.'.sock';
         $autoindex = $this->directoryListing($site) ? 'on' : 'off';
+        $serverNames = implode(' ', $this->domainNames($site));
 
         return <<<CONF
 server {
     listen 127.0.0.1:8081;
-    server_name {$site->domain};
+    server_name {$serverNames};
     root {$site->document_root};
     index index.php index.html;
     set_real_ip_from 127.0.0.1;
     real_ip_header X-Forwarded-For;
 
-    access_log /var/log/nginx/{$site->domain}-access.log;
-    error_log /var/log/nginx/{$site->domain}-error.log;
+    access_log /var/log/nginx/{$site->domain}-backend-access.log;
+    error_log /var/log/nginx/{$site->domain}-backend-error.log;
 
     location / {
         autoindex {$autoindex};
@@ -212,18 +213,19 @@ CONF;
     private function renderNginxStatic(Site $site): string
     {
         $autoindex = $this->directoryListing($site) ? 'on' : 'off';
+        $serverNames = implode(' ', $this->domainNames($site));
 
         return <<<CONF
 server {
     listen 127.0.0.1:8081;
-    server_name {$site->domain};
+    server_name {$serverNames};
     root {$site->document_root};
     index index.html;
     set_real_ip_from 127.0.0.1;
     real_ip_header X-Forwarded-For;
 
-    access_log /var/log/nginx/{$site->domain}-access.log;
-    error_log /var/log/nginx/{$site->domain}-error.log;
+    access_log /var/log/nginx/{$site->domain}-backend-access.log;
+    error_log /var/log/nginx/{$site->domain}-backend-error.log;
 
     location / {
         autoindex {$autoindex};
@@ -235,10 +237,12 @@ CONF;
 
     private function renderNginxSuspended(Site $site): string
     {
+        $serverNames = implode(' ', $this->domainNames($site));
+
         return <<<CONF
 server {
     listen 127.0.0.1:8081;
-    server_name {$site->domain};
+    server_name {$serverNames};
     root {$site->document_root};
 
     location ^~ /.well-known/acme-challenge/ {
@@ -416,6 +420,7 @@ CONF;
         $redirects = $this->renderGatewayRedirects($site);
         $errorPages = $this->renderGatewayErrorPages($site);
         $hotlink = $this->renderHotlinkLocation($site);
+        $protected = $this->renderProtectedLocations($site);
 
         return <<<CONF
 server {
@@ -431,7 +436,7 @@ server {
         try_files \$uri =404;
     }
 
-{$redirects}{$errorPages}{$hotlink}
+{$redirects}{$errorPages}{$protected}{$hotlink}
 
     location / {
         proxy_intercept_errors on;
@@ -453,6 +458,7 @@ CONF;
         $serverNames = implode(' ', $domainNames ?? $this->domainNames($site));
         $autoindex = $this->directoryListing($site) ? 'on' : 'off';
         $hotlink = $this->renderHotlinkLocation($site);
+        $protected = $this->renderProtectedLocations($site);
         $accessRules = $this->renderAccessRules($site);
         $handler = $site->type === 'static'
             ? <<<CONF
@@ -491,6 +497,7 @@ server {
     }
 
 {$redirects}{$errorPages}
+{$protected}
 {$hotlink}
 {$handler}
 }
@@ -596,6 +603,38 @@ CONF;
         }
 
         return $lines."\n";
+    }
+
+    private function renderProtectedLocations(Site $site): string
+    {
+        if (! Schema::hasTable('protected_directories')) {
+            return '';
+        }
+        $port = match ($site->web_server) {
+            'nginx' => 8081,
+            'apache' => 8082,
+            default => 8083,
+        };
+
+        return $site->protectedDirectories()->where('enabled', true)->orderByDesc('path')->get()->map(function ($rule) use ($site, $port): string {
+            $withoutSlash = rtrim($rule->path, '/');
+            $passwordFile = '/etc/xpanel-host/auth/'.$site->domain.'/'.$rule->id;
+
+            return <<<CONF
+    location = {$withoutSlash} { return 301 {$rule->path}; }
+    location ^~ {$rule->path} {
+        auth_basic "{$rule->realm}";
+        auth_basic_user_file {$passwordFile};
+        proxy_intercept_errors on;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_pass http://127.0.0.1:{$port};
+    }
+
+CONF;
+        })->implode('');
     }
 
     private function renderPhpPool(Site $site): string

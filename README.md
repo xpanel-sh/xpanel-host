@@ -176,12 +176,16 @@ No existe una contraseña predeterminada. Después de crear el primer propietari
 - **Avanzado → Caché** limpia únicamente ubicaciones conocidas de Laravel, WordPress y cachés convencionales; no elimina sesiones ni archivos subidos.
 - **Avanzado → Protección Hotlink** protege extensiones elegidas y permite referentes adicionales.
 - **Avanzado → Administrador de IP** trabaja en modo blocklist o allowlist con IPv4, IPv6 y CIDR. ACME permanece permitido para no romper renovaciones.
+- **Avanzado → Git** despliega ramas de repositorios HTTPS públicos de GitHub, GitLab o Bitbucket. Antes de reemplazar archivos crea un backup `pre_deploy`; publica desde una caché privada, rechaza symlinks y conserva `.env`, ACME, páginas de error y sesiones.
+- **Avanzado → Directorios protegidos** aplica HTTP Basic antes del backend; las contraseñas se almacenan únicamente como hashes bcrypt legibles por Nginx.
 
 En una MicroVM administrada por Core, cada alias también debe registrarse como dominio de entrada en Core/Traefik. Host configura el servicio interno, pero no modifica automáticamente el enrutamiento del servidor padre.
 
 ### Módulos visibles que siguen en preparación
 
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, malware, instaladores/migración/constructor web, FTP, phpMyAdmin, MySQL remoto, SSH, editor DNS autoritativo, despliegue Git y directorios con contraseña. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, malware, instaladores/migración/constructor web, FTP, phpMyAdmin, MySQL remoto, SSH y editor DNS autoritativo. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+
+SSH permanece desactivado intencionalmente: la arquitectura actual utiliza un usuario Linux de servicio compartido. Antes de entregar llaves se migrará a usuarios Unix distintos por sitio y SFTP confinado; exponer ahora `authorized_keys` del usuario compartido rompería el aislamiento entre dominios.
 
 ### Subdominios
 

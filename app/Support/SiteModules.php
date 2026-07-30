@@ -140,6 +140,8 @@ class SiteModules
             $section === 'advanced' && $key === 'folder-index-manager' => route('sites.folder-index.index', $site),
             $section === 'advanced' && $key === 'hotlink-protection' => route('sites.hotlink.index', $site),
             $section === 'advanced' && $key === 'ip-manager' => route('sites.ip-rules.index', $site),
+            $section === 'advanced' && $key === 'git' => route('sites.git.index', $site),
+            $section === 'advanced' && $key === 'password-protect-directories' => route('sites.protected-directories.index', $site),
             default => route('sites.module', [$site, $section, $key]),
         };
     }
@@ -165,6 +167,8 @@ class SiteModules
             request()->routeIs('sites.folder-index.*') => 'folder-index-manager',
             request()->routeIs('sites.hotlink.*') => 'hotlink-protection',
             request()->routeIs('sites.ip-rules.*') => 'ip-manager',
+            request()->routeIs('sites.git.*') => 'git',
+            request()->routeIs('sites.protected-directories.*') => 'password-protect-directories',
             default => null,
         };
     }
@@ -177,7 +181,8 @@ class SiteModules
             'website.error-pages', 'files.file-manager', 'files.backups', 'database.mysql-databases',
             'advanced.php-configuration', 'advanced.cron-jobs', 'advanced.php-info',
             'advanced.cache-manager', 'advanced.ip-manager', 'advanced.hotlink-protection',
-            'advanced.folder-index-manager', 'advanced.fix-file-ownership', 'advanced.activity-log',
+            'advanced.folder-index-manager', 'advanced.git', 'advanced.password-protect-directories',
+            'advanced.fix-file-ownership', 'advanced.activity-log',
         ], true);
     }
 }

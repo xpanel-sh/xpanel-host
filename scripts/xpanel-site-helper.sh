@@ -91,7 +91,7 @@ site_action() {
 
   if [[ "$engine" == "nginx" ]]; then
     rm -f "/etc/nginx/sites-enabled/xpanel-$domain.conf" "/etc/nginx/sites-available/xpanel-$domain.conf"
-    rm -f "/etc/nginx/conf.d/xpanel-backend-$domain.conf"
+    install -o root -g root -m 0644 "$vhost_source" "/etc/nginx/conf.d/xpanel-backend-$domain.conf"
   elif [[ "$engine" == "apache" ]]; then
     install -o root -g root -m 0644 "$vhost_source" "/etc/apache2/sites-available/xpanel-$domain.conf"
     a2ensite "xpanel-$domain.conf" >/dev/null
@@ -224,6 +224,72 @@ cache_purge() {
     find -P "$target" -xdev -mindepth 1 -delete
   done
   printf 'files=%s\nbytes=%s\n' "$files" "$bytes"
+}
+
+git_deploy() {
+  local domain="$2" document_root="$3" repository_url="$4" branch="$5"
+  valid_domain "$domain" || fail "Invalid Git domain."
+  valid_document_root "$document_root" || fail "Invalid Git document root."
+  [[ "$repository_url" =~ ^https://(github\.com|gitlab\.com|bitbucket\.org)/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\.git)?$ ]] || fail "Unsupported Git repository URL."
+  [[ "$branch" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$ && "$branch" != *..* && "$branch" != */ && "$branch" != *'@{'* ]] || fail "Invalid Git branch."
+  local repositories_root="/var/lib/xpanel-host/git" repository="$repositories_root/$domain" staging lock
+  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0750 "$repositories_root"
+  lock="/run/lock/xpanel-git-$domain.lock"
+  exec 9>"$lock"
+  flock -n 9 || fail "Another deployment is already running for this site."
+  if [[ ! -d "$repository/.git" ]]; then
+    [[ ! -e "$repository" ]] || fail "Invalid existing Git cache."
+    runuser -u "$SITE_USER" -- git clone --no-checkout -- "$repository_url" "$repository"
+  else
+    [[ "$(runuser -u "$SITE_USER" -- git -C "$repository" remote get-url origin)" == "$repository_url" ]] || fail "The connected repository URL changed unexpectedly."
+  fi
+  runuser -u "$SITE_USER" -- git -C "$repository" fetch --prune origin "$branch"
+  staging="$(mktemp -d "$repositories_root/.deploy-$domain.XXXXXX")"
+  trap 'rm -rf -- "$staging"' RETURN
+  chown "$SITE_USER:$SITE_GROUP" "$staging"
+  runuser -u "$SITE_USER" -- git -C "$repository" archive --format=tar FETCH_HEAD | tar --no-same-owner -C "$staging" -xf -
+  if find -P "$staging" -type l -print -quit | grep -q .; then
+    fail "Deployments containing symbolic links are not allowed."
+  fi
+  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0750 "$document_root"
+  rsync -a --delete \
+    --exclude='.env' --exclude='.well-known/' --exclude='.xpanel-errors/' \
+    --exclude='storage/logs/' --exclude='storage/framework/sessions/' \
+    "$staging/" "$document_root/"
+  chown -R --no-dereference "$SITE_USER:$SITE_GROUP" "$document_root"
+  printf 'commit=%s\n' "$(runuser -u "$SITE_USER" -- git -C "$repository" rev-parse FETCH_HEAD)"
+}
+
+git_remove() {
+  local domain="$2" target
+  valid_domain "$domain" || fail "Invalid Git domain."
+  target="/var/lib/xpanel-host/git/$domain"
+  [[ "$target" == /var/lib/xpanel-host/git/* ]] || fail "Invalid Git cache target."
+  rm -rf -- "$target"
+}
+
+auth_sync() {
+  local domain="$2" source_root target_root id source
+  valid_domain "$domain" || fail "Invalid auth domain."
+  source_root="$ROOT/storage/app/auth/$domain"
+  target_root="/etc/xpanel-host/auth/$domain"
+  install -d -o root -g "$SITE_GROUP" -m 0750 /etc/xpanel-host/auth "$target_root"
+  local enabled=()
+  while IFS= read -r id; do
+    [[ -z "$id" ]] && continue
+    [[ "$id" =~ ^[1-9][0-9]*$ ]] || fail "Invalid protected directory id."
+    source="$source_root/$id"
+    [[ -f "$source" && ! -L "$source" ]] || fail "Staged password file not found."
+    [[ "$(wc -l < "$source")" -eq 1 ]] || fail "Invalid staged password file."
+    grep -Eq '^[A-Za-z0-9._-]{3,64}:\$2[ayb]\$[0-9]{2}\$[./A-Za-z0-9]{53}$' "$source" || fail "Invalid staged password hash."
+    install -o root -g "$SITE_GROUP" -m 0640 "$source" "$target_root/$id"
+    enabled+=("$id")
+  done
+  for source in "$target_root"/*; do
+    [[ -e "$source" ]] || continue
+    id="$(basename "$source")"
+    [[ " ${enabled[*]} " == *" $id "* ]] || rm -f -- "$source"
+  done
 }
 
 engine_status() {
@@ -585,6 +651,9 @@ case "$ACTION" in
   ownership-fix) ownership_fix "$@" ;;
   access-log-read) access_log_read "$@" ;;
   cache-purge) cache_purge "$@" ;;
+  git-deploy) git_deploy "$@" ;;
+  git-remove) git_remove "$@" ;;
+  auth-sync) auth_sync "$@" ;;
   ssl-issue|ssl-delete) ssl_action "$@" ;;
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;

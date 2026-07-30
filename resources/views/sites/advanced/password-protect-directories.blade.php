@@ -1,21 +1,13 @@
 @extends('layouts.client')
 
+@section('title', 'Directorios protegidos - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Avanzado',
-        'title' => 'Proteger directorios',
-        'description' => 'Agrega autenticacion basica a carpetas del sitio.',
-        'actions' => [
-            ['label' => 'Proteger carpeta', 'icon' => 'ki-lock', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Carpetas', 'value' => '0', 'icon' => 'ki-folder'],
-            ['label' => 'Usuarios', 'value' => '0', 'icon' => 'ki-user'],
-            ['label' => 'Estado', 'value' => 'Sin reglas', 'icon' => 'ki-information'],
-        ],
-        'cards' => [
-            ['title' => 'Protecciones', 'body' => 'Aqui apareceran carpetas protegidas por usuario y clave.'],
-            ['title' => 'Alcance', 'body' => 'Cada regla se aplicara dentro del root del sitio seleccionado.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Avanzado / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">Directorios protegidos</h1><p class="mt-1 text-sm text-secondary-foreground">Autenticación HTTP Basic aplicada en el gateway antes de ejecutar PHP o contactar el backend.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Nueva protección</h2></div><div class="kt-card-content p-5"><form method="post" action="{{ route('sites.protected-directories.store', $site) }}" class="grid gap-4 md:grid-cols-2">@csrf<label class="grid gap-2 text-sm"><span>Ruta del sitio</span><input class="kt-input font-mono" name="path" value="{{ old('path') }}" placeholder="/admin" required></label><label class="grid gap-2 text-sm"><span>Mensaje de acceso</span><input class="kt-input" name="realm" value="{{ old('realm', 'Área protegida') }}" required></label><label class="grid gap-2 text-sm"><span>Usuario</span><input class="kt-input" name="username" value="{{ old('username') }}" autocomplete="off" required></label><label class="grid gap-2 text-sm"><span>Contraseña</span><input class="kt-input" type="password" name="password" minlength="16" autocomplete="new-password" required></label><p class="text-xs text-secondary-foreground md:col-span-2">La contraseña se convierte inmediatamente a bcrypt. El panel no puede recuperarla ni mostrarla después.</p><button class="kt-btn kt-btn-primary w-fit">Proteger directorio</button></form></div></section>@endif
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Protecciones ({{ $rules->count() }})</h2></div><div class="divide-y divide-border">@forelse($rules as $rule)<div class="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between"><div><code class="font-semibold">{{ $rule->path }}</code><div class="mt-1 text-xs text-secondary-foreground">Usuario {{ $rule->username }} · {{ $rule->realm }}</div></div>@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<form method="post" action="{{ route('sites.protected-directories.destroy', [$site, $rule]) }}" onsubmit="return confirm('¿Quitar la autenticación de este directorio?')">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline">Eliminar</button></form>@endif</div>@empty<div class="p-8 text-center text-secondary-foreground">No hay directorios protegidos.</div>@endforelse</div></section>
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

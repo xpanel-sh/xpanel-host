@@ -94,6 +94,11 @@ class Site extends Model
         return $this->hasOne(SiteWebSetting::class);
     }
 
+    public function gitRepository(): HasOne
+    {
+        return $this->hasOne(SiteGitRepository::class);
+    }
+
     public function cronJobs(): HasMany
     {
         return $this->hasMany(SiteCronJob::class)->orderBy('id');
@@ -117,6 +122,11 @@ class Site extends Model
     public function parkedDomains(): HasMany
     {
         return $this->hasMany(Domain::class)->where('type', 'alias')->orderBy('domain');
+    }
+
+    public function protectedDirectories(): HasMany
+    {
+        return $this->hasMany(ProtectedDirectory::class)->orderBy('path');
     }
 
     public function parent(): BelongsTo
