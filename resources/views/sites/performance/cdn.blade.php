@@ -1,21 +1,18 @@
 @extends('layouts.client')
 
+@section('title', 'CDN - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Rendimiento',
-        'title' => 'CDN',
-        'description' => 'Configura distribucion de contenido y cache perimetral para este sitio.',
-        'actions' => [
-            ['label' => 'Configurar CDN', 'icon' => 'ki-setting-2', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Estado', 'value' => 'Inactivo', 'icon' => 'ki-cloud'],
-            ['label' => 'Cache', 'value' => 'Default', 'icon' => 'ki-archive'],
-            ['label' => 'Purgas', 'value' => '0', 'icon' => 'ki-trash'],
-        ],
-        'cards' => [
-            ['title' => 'Reglas de cache', 'body' => 'Define TTL, purga y excepciones por ruta.'],
-            ['title' => 'Origen', 'body' => 'El origen sera el contenedor o servidor activo del dominio.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Rendimiento / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">CDN de Cloudflare</h1><p class="mt-1 text-sm text-secondary-foreground">Activa el proxy en los registros raíz del sitio y purga su caché desde Host.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  @if($providerError)<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $providerError }}</div>@endif
+  @if(!$connection)<section class="kt-card"><div class="kt-card-content p-5"><p class="text-sm text-secondary-foreground">Primero conecta la zona y un API Token de Cloudflare.</p><a class="kt-btn kt-btn-primary mt-4" href="{{ route('sites.dns.index', $site) }}">Abrir Editor DNS</a></div></section>
+  @elseif($status)
+  <div class="grid gap-5 md:grid-cols-3"><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Estado</div><div class="mt-2 text-2xl font-semibold {{ $status['enabled'] ? 'text-success' : 'text-warning' }}">{{ $status['enabled'] ? 'Activo' : 'DNS solamente' }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Zona</div><div class="mt-2 font-semibold">{{ $connection->zone_name }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Registros raíz</div><div class="mt-2 text-2xl font-semibold">{{ count($status['records']) }}</div></div></div></div>
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Proxy CDN</h2></div><div class="kt-card-content p-5"><div class="grid gap-2">@forelse($status['records'] as $record)<div class="flex justify-between rounded-lg border border-border p-3 text-sm"><span>{{ $record['type'] }} · {{ $record['content'] }}</span><span>{{ ($record['proxied']??false) ? 'Proxied' : 'DNS only' }}</span></div>@empty<div class="text-sm text-warning">Crea primero un registro A, AAAA o CNAME para {{ $site->domain }} en el Editor DNS.</div>@endforelse</div>@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<div class="mt-5 flex flex-wrap gap-2"><form method="post" action="{{ route('sites.cdn.update', $site) }}">@csrf @method('put')<input type="hidden" name="enabled" value="{{ $status['enabled'] ? 0 : 1 }}"><button class="kt-btn kt-btn-primary" @disabled($status['records']===[])>{{ $status['enabled'] ? 'Desactivar proxy' : 'Activar CDN' }}</button></form><form method="post" action="{{ route('sites.cdn.purge', $site) }}" onsubmit="return confirm('¿Purgar toda la caché de esta zona Cloudflare?')">@csrf<button class="kt-btn kt-btn-outline">Purgar caché</button></form></div>@endif</div></section>
+  <div class="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">La purga completa afecta toda la zona Cloudflare, incluidos otros subdominios dentro de ella. Requiere permiso <strong>Cache Purge</strong>.</div>
+  @endif
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

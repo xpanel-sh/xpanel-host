@@ -152,6 +152,8 @@ class SiteModules
             $section === 'security' && $key === 'malware-scanner' => route('sites.malware.index', $site),
             $section === 'performance' && $key === 'page-speed' => route('sites.pagespeed.index', $site),
             $section === 'performance' && $key === 'ai-troubleshooter' => route('sites.diagnostics.index', $site),
+            $section === 'performance' && $key === 'cdn' => route('sites.cdn.index', $site),
+            $section === 'advanced' && $key === 'dns-zone-editor' => route('sites.dns.index', $site),
             default => route('sites.module', [$site, $section, $key]),
         };
     }
@@ -189,6 +191,8 @@ class SiteModules
             request()->routeIs('sites.malware.*') => 'malware-scanner',
             request()->routeIs('sites.pagespeed.*') => 'page-speed',
             request()->routeIs('sites.diagnostics.*') => 'ai-troubleshooter',
+            request()->routeIs('sites.cdn.*') => 'cdn',
+            request()->routeIs('sites.dns.*') => 'dns-zone-editor',
             default => null,
         };
     }
@@ -197,11 +201,12 @@ class SiteModules
     {
         return in_array($section.'.'.$key, [
             'server.summary', 'server.usage', 'server.external', 'analytics.analytics',
-            'performance.ai-troubleshooter', 'performance.page-speed',
+            'performance.ai-troubleshooter', 'performance.page-speed', 'performance.cdn',
             'security.ssl', 'security.malware-scanner', 'domains.subdomains', 'domains.parked-domains', 'domains.redirects',
             'website.wordpress', 'website.auto-installer', 'website.migration', 'website.error-pages', 'files.file-manager', 'files.backups', 'files.ftp', 'database.mysql-databases',
             'database.phpmyadmin', 'database.remote-mysql',
             'advanced.php-configuration', 'advanced.cron-jobs', 'advanced.php-info',
+            'advanced.dns-zone-editor',
             'advanced.cache-manager', 'advanced.ip-manager', 'advanced.hotlink-protection',
             'advanced.folder-index-manager', 'advanced.git', 'advanced.password-protect-directories',
             'advanced.fix-file-ownership', 'advanced.activity-log', 'advanced.ssh-access',

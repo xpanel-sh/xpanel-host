@@ -151,6 +151,11 @@ class Site extends Model
         return $this->hasMany(SiteDiagnostic::class)->latest();
     }
 
+    public function dnsConnection(): HasOne
+    {
+        return $this->hasOne(DnsProviderConnection::class);
+    }
+
     public function gitRepository(): HasOne
     {
         return $this->hasOne(SiteGitRepository::class);

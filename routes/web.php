@@ -4,10 +4,12 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CacheController;
+use App\Http\Controllers\CdnController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
+use App\Http\Controllers\DnsZoneController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\ErrorPageController;
 use App\Http\Controllers\FileManagerController;
@@ -151,6 +153,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/security/malware-scanner', [MalwareScanController::class, 'index'])->name('sites.malware.index');
             Route::get('/sites/{site}/performance/page-speed', [PageSpeedController::class, 'index'])->name('sites.pagespeed.index');
             Route::get('/sites/{site}/performance/ai-troubleshooter', [SiteDiagnosticController::class, 'index'])->name('sites.diagnostics.index');
+            Route::get('/sites/{site}/performance/cdn', [CdnController::class, 'index'])->name('sites.cdn.index');
+            Route::get('/sites/{site}/advanced/dns-zone-editor', [DnsZoneController::class, 'index'])->name('sites.dns.index');
             Route::prefix('/sites/{site}/files/manager/api')->name('sites.files.api.')->group(function () {
                 Route::get('/list', [FileManagerController::class, 'list'])->name('list');
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
@@ -181,6 +185,13 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/website/migration', [SiteMigrationController::class, 'store'])->middleware('throttle:3,1')->name('sites.migrations.store');
             Route::post('/sites/{site}/performance/page-speed', [PageSpeedController::class, 'store'])->middleware('throttle:4,10')->name('sites.pagespeed.store');
             Route::post('/sites/{site}/performance/ai-troubleshooter', [SiteDiagnosticController::class, 'store'])->middleware('throttle:10,1')->name('sites.diagnostics.store');
+            Route::put('/sites/{site}/performance/cdn', [CdnController::class, 'update'])->name('sites.cdn.update');
+            Route::post('/sites/{site}/performance/cdn/purge', [CdnController::class, 'purge'])->middleware('throttle:5,1')->name('sites.cdn.purge');
+            Route::post('/sites/{site}/advanced/dns-zone-editor/connect', [DnsZoneController::class, 'connect'])->middleware('throttle:5,1')->name('sites.dns.connect');
+            Route::delete('/sites/{site}/advanced/dns-zone-editor/connect', [DnsZoneController::class, 'disconnect'])->name('sites.dns.disconnect');
+            Route::post('/sites/{site}/advanced/dns-zone-editor/records', [DnsZoneController::class, 'store'])->name('sites.dns.records.store');
+            Route::put('/sites/{site}/advanced/dns-zone-editor/records/{record}', [DnsZoneController::class, 'update'])->where('record', '[a-f0-9]{32}')->name('sites.dns.records.update');
+            Route::delete('/sites/{site}/advanced/dns-zone-editor/records/{record}', [DnsZoneController::class, 'destroy'])->where('record', '[a-f0-9]{32}')->name('sites.dns.records.destroy');
             Route::post('/sites/{site}/advanced/fix-file-ownership', [OwnershipController::class, 'repair'])->name('sites.ownership.repair');
             Route::post('/sites/{site}/advanced/cache-manager/purge', [CacheController::class, 'purge'])->name('sites.cache.purge');
             Route::put('/sites/{site}/advanced/folder-index-manager', [FolderIndexController::class, 'update'])->name('sites.folder-index.update');

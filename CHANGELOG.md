@@ -31,6 +31,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Instalación WordPress mediante WP-CLI verificado, base exclusiva, backup previo y rollback ante fallos.
 - Migración ZIP/TAR.GZ y SQL.GZ con límites anti-bomba, base nueva, historial y adaptación automática de WordPress.
 - PageSpeed Insights móvil/escritorio e historial de diagnóstico técnico del sitio con pruebas locales reales.
+- Editor DNS Cloudflare para A/AAAA/CNAME/MX/TXT y control CDN con proxy y purga de caché.
 
 ### Corregido
 
@@ -49,5 +50,6 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - La cuarentena de malware sólo acepta hallazgos persistidos, vuelve a validar su ruta real y no sigue symlinks.
 - Las contraseñas del instalador WordPress se entregan por entrada estándar y no se persisten en Host ni aparecen en argumentos de procesos.
 - Los importadores rechazan rutas externas, enlaces y tipos especiales; el SQL usa una identidad limitada y las cargas temporales se eliminan al finalizar.
+- Los tokens DNS se verifican, cifran con `APP_KEY`, se ocultan del modelo y no permiten operar fuera del dominio del sitio.
 
 [Sin publicar]: https://github.com/xpanel-sh/xpanel-host/commits/main

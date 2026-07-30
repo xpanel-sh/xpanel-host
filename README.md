@@ -176,7 +176,7 @@ En una MicroVM administrada por Core, cada alias también debe registrarse como 
 
 ### Módulos visibles que siguen en preparación
 
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: CDN, constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: constructor web. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
 Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio.
 
@@ -213,6 +213,14 @@ El panel configura Nginx y su PHP-FPM para cargas grandes. Cuando Host vive dent
 **Rendimiento → PageSpeed** consulta la [API oficial PageSpeed Insights v5](https://developers.google.com/speed/docs/insights/v5/get-started) con la URL pública derivada del sitio; el usuario no puede proporcionar destinos arbitrarios. Conserva mediciones móvil/escritorio, puntuaciones Lighthouse, FCP, LCP, TBT, CLS, Speed Index y las oportunidades principales. Los fallos o límites de cuota quedan registrados como fallos, nunca como puntuaciones ficticias. La API admite consultas sin clave; para uso frecuente configura `PAGESPEED_API_KEY`.
 
 **Rendimiento → Diagnóstico del sitio** ejecuta comprobaciones deterministas dentro del Host: document root, propietario Unix, gateway Nginx, backend elegido, PHP-FPM/LSPHP, respuesta HTTP y HTTPS local, resolución DNS, uso de disco, estado SSL registrado, último malware y existencia de backup. Cada resultado queda como correcto, aviso o fallo con historial. No envía archivos ni logs a servicios de IA.
+
+### DNS y CDN mediante Cloudflare
+
+La primera integración de **Avanzado → Editor DNS** es Cloudflare. El usuario crea un [API Token limitado](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) a la zona con `Zone DNS Edit`, copia el Zone ID y Host verifica ambos contra la API. El token se cifra mediante el cast `encrypted` de Laravel y `APP_KEY`; nunca se vuelve a mostrar ni se guarda como texto legible. No se admite Global API Key.
+
+El editor consulta registros reales y permite crear, actualizar o eliminar A, AAAA, CNAME, MX y TXT. Aunque el token tenga acceso a toda la zona, Host filtra y vuelve a verificar que cada nombre pertenezca al dominio del sitio o a uno de sus subdominios; esto incluye nombres de correo como `_dmarc` y `selector._domainkey`. Los identificadores enviados manualmente no permiten modificar registros de otro dominio ni tipos estructurales como NS.
+
+**Rendimiento → CDN** reutiliza la conexión para cambiar `proxied` en los registros A/AAAA/CNAME del dominio exacto, siguiendo la [API DNS de Cloudflare](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/list/). La purga completa usa el endpoint oficial de [purga de caché](https://developers.cloudflare.com/api/go/resources/cache/methods/purge/) y requiere el permiso adicional `Cache Purge`; afecta a toda la zona, por lo que el panel lo indica antes de ejecutarla. Desconectar elimina el token cifrado de Host, pero no modifica registros remotos.
 
 ### phpMyAdmin y MySQL remoto
 
