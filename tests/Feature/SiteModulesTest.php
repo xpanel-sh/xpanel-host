@@ -87,7 +87,7 @@ class SiteModulesTest extends TestCase
         $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
             $mock->shouldReceive('run')->once()->with([
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-restart',
-                $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root,
+                $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root, $site->systemUser(),
             ]);
         });
         $developer = User::factory()->create(['role_id' => Role::where('slug', 'developer')->firstOrFail()->id]);

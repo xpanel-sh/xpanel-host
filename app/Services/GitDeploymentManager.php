@@ -20,7 +20,7 @@ class GitDeploymentManager
         try {
             $output = $this->commands->run([
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'git-deploy',
-                $site->domain, $site->document_root, $repository->repository_url, $repository->branch,
+                $site->domain, $site->document_root, $repository->repository_url, $repository->branch, $site->systemUser(),
             ], timeout: 1800);
             if (! preg_match('/^commit=([a-f0-9]{40})$/m', $output, $matches)) {
                 throw new \RuntimeException('El helper no devolvió el commit desplegado.');

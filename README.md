@@ -178,7 +178,7 @@ En una MicroVM administrada por Core, cada alias también debe registrarse como 
 
 El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, malware, instaladores/migración/constructor web, FTP, SSH y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
-SSH permanece desactivado intencionalmente: la arquitectura actual utiliza un usuario Linux de servicio compartido. Antes de entregar llaves se migrará a usuarios Unix distintos por sitio y SFTP confinado; exponer ahora `authorized_keys` del usuario compartido rompería el aislamiento entre dominios.
+Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio. SSH y SFTP permanecen desactivados hasta completar la administración de credenciales y el confinamiento de sesión encima de este aislamiento.
 
 ### phpMyAdmin y MySQL remoto
 

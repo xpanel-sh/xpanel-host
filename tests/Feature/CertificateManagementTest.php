@@ -66,7 +66,7 @@ class CertificateManagementTest extends TestCase
         $runner = Mockery::mock(ServerCommandRunner::class);
         $runner->shouldReceive('run')->once()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ssl-issue',
-            'secure.example.com', 'nginx', '/var/www/secure.example.com', 'admin@example.com',
+            'secure.example.com', 'nginx', '/var/www/secure.example.com', 'admin@example.com', $site->systemUser(),
         ])->andReturn("not_after=2026-10-27T12:00:00Z\nissuer=CN=R13,O=Let's Encrypt");
         $runner->shouldReceive('run')->once()->with(Mockery::on(fn (array $command) => $command[3] === 'apply'))->andReturn('');
         $this->app->instance(ServerCommandRunner::class, $runner);

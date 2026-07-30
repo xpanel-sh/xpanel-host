@@ -36,7 +36,7 @@ class ErrorPageProvisioner
         }
         $this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'error-pages-sync',
-            $site->domain, $site->document_root,
+            $site->domain, $site->document_root, $site->systemUser(),
         ], $pages->pluck('status_code')->implode("\n").($pages->isEmpty() ? '' : "\n"));
     }
 }

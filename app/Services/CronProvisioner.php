@@ -17,7 +17,7 @@ class CronProvisioner
         }
 
         $lines = $site->cronJobs()->where('enabled', true)->get()->map(
-            fn ($job) => $job->expression.' '.config('xpanel.site_user', 'www-data').' cd -- '.escapeshellarg($site->document_root).' && '.$job->command.' >> '.escapeshellarg('/var/log/xpanel-host/'.$site->domain.'-cron.log').' 2>&1'
+            fn ($job) => $job->expression.' '.$site->systemUser().' cd -- '.escapeshellarg($site->document_root).' && '.$job->command.' >> '.escapeshellarg('/var/log/xpanel-host/'.$site->domain.'-cron.log').' 2>&1'
         );
         $contents = "SHELL=/bin/bash\nPATH=/usr/local/bin:/usr/bin:/bin\n".$lines->implode("\n")."\n";
         if (file_put_contents($path, $contents, LOCK_EX) === false) {
@@ -27,7 +27,7 @@ class CronProvisioner
         if (config('xpanel.apply_system_changes')) {
             $this->commands->run([
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'cron-sync',
-                $site->domain, $site->document_root,
+                $site->domain, $site->document_root, $site->systemUser(),
             ]);
         }
 

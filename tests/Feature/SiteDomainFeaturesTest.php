@@ -107,7 +107,7 @@ class SiteDomainFeaturesTest extends TestCase
         $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
             $mock->shouldReceive('run')->once()->with([
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ownership-fix',
-                $site->domain, $site->document_root,
+                $site->domain, $site->document_root, $site->systemUser(),
             ], null, 1800)->andReturn("files=12\ndirectories=3");
         });
 
@@ -123,7 +123,7 @@ class SiteDomainFeaturesTest extends TestCase
         $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
             $mock->shouldReceive('run')->once()->with([
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ssl-issue',
-                $site->domain, $site->web_server, $site->document_root, 'admin@example.com',
+                $site->domain, $site->web_server, $site->document_root, 'admin@example.com', $site->systemUser(),
             ], "alias.example.net\n")->andReturn("not_after=2026-10-20T00:00:00Z\nissuer=Test CA");
             $mock->shouldReceive('run')->once();
         });

@@ -640,8 +640,8 @@ CONF;
     private function renderPhpPool(Site $site): string
     {
         $socket = '/run/php/php'.$site->php_version.'-fpm-'.$site->domain.'.sock';
-        $user = (string) config('xpanel.site_user', 'www-data');
-        $group = (string) config('xpanel.site_group', 'www-data');
+        $user = $site->systemUser();
+        $group = $user;
         $settings = Schema::hasTable('site_php_settings') ? $site->phpSettings : null;
         $memoryLimit = $settings?->memory_limit ?? '256M';
         $uploadLimit = $settings?->upload_max_filesize ?? '64M';
@@ -654,7 +654,7 @@ CONF;
 user = {$user}
 group = {$group}
 listen = {$socket}
-listen.owner = {$user}
+listen.owner = www-data
 listen.group = {$group}
 listen.mode = 0660
 pm = ondemand

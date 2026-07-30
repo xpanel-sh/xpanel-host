@@ -14,6 +14,7 @@ fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
 valid_document_root() { [[ "$1" =~ ^/(var|srv)/www/[A-Za-z0-9._/-]+$ && "$1" != *".."* ]]; }
 valid_identifier() { [[ "$1" =~ ^[a-z0-9_]{1,64}$ ]]; }
+valid_site_identity() { [[ "$1" =~ ^xps[a-z0-9]{9,29}$ ]]; }
 valid_ipv4() { [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && php -r 'exit(filter_var($argv[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? 0 : 1);' "$1"; }
 valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; }
 
@@ -34,13 +35,29 @@ reload_web_server() {
   systemctl reload nginx
 }
 
+ensure_site_identity() {
+  local site_user="$1" document_root="$2"
+  valid_site_identity "$site_user" || fail "Invalid site Unix identity."
+  valid_document_root "$document_root" || fail "Invalid identity document root."
+  getent group "$site_user" >/dev/null || groupadd --system "$site_user"
+  if ! id "$site_user" >/dev/null 2>&1; then
+    useradd --system --gid "$site_user" --home-dir "$document_root" --shell /usr/sbin/nologin "$site_user"
+  fi
+  [[ "$(id -gn "$site_user")" == "$site_user" ]] || fail "Site user has an unexpected primary group."
+  usermod -a -G "$site_user" www-data
+  if id lsadm >/dev/null 2>&1; then usermod -a -G "$site_user" lsadm; fi
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
+  chown -R "$site_user:$site_user" "$document_root"
+}
+
 site_action() {
-  local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6"
+  local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   valid_domain "$domain" || fail "Invalid site domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   [[ "$type" == "php" || "$type" == "static" ]] || fail "Invalid site type."
   [[ "$php_version" =~ ^8\.[1-4]$ ]] || fail "Invalid PHP version."
   valid_document_root "$document_root" || fail "Document root must be under /var/www or /srv/www."
+  valid_site_identity "$site_user" || fail "Invalid site Unix identity."
 
   local vhost_source="$ROOT/storage/app/vhosts/$domain.conf"
   local gateway_source="$ROOT/storage/app/gateways/$domain.conf"
@@ -68,7 +85,7 @@ site_action() {
 
   [[ -f "$vhost_source" ]] || fail "Staged virtual host not found."
   [[ -f "$gateway_source" ]] || fail "Staged gateway route not found."
-  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0755 "$document_root"
+  ensure_site_identity "$site_user" "$document_root"
   if [[ "$type" == "php" ]]; then
     if [[ "$engine" != "openlitespeed" ]]; then
       [[ -f "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
@@ -80,13 +97,13 @@ site_action() {
     fi
     if [[ ! -e "$document_root/index.php" && ! -e "$document_root/index.html" ]]; then
       printf '%s\n' '<?php echo "XPanel Host: sitio listo"; ?>' > "$document_root/index.php"
-      chown "$SITE_USER:$SITE_GROUP" "$document_root/index.php"
+      chown "$site_user:$site_user" "$document_root/index.php"
     fi
   else
     rm -f "$pool"
     if [[ ! -e "$document_root/index.html" ]]; then
       printf '%s\n' '<!doctype html><html lang="es"><meta charset="utf-8"><title>Sitio listo</title><h1>XPanel Host: sitio listo</h1></html>' > "$document_root/index.html"
-      chown "$SITE_USER:$SITE_GROUP" "$document_root/index.html"
+      chown "$site_user:$site_user" "$document_root/index.html"
     fi
   fi
 
@@ -111,12 +128,13 @@ site_action() {
 }
 
 site_restart() {
-  local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6"
+  local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   valid_domain "$domain" || fail "Invalid site domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   [[ "$type" == "php" || "$type" == "static" ]] || fail "Invalid site type."
   [[ "$php_version" =~ ^8\.[1-5]$ ]] || fail "Invalid PHP version."
   valid_document_root "$document_root" || fail "Invalid document root."
+  valid_site_identity "$site_user" || fail "Invalid site Unix identity."
   if [[ "$type" == "php" && "$engine" != "openlitespeed" ]]; then
     "php-fpm$php_version" -t
     systemctl reload "php$php_version-fpm"
@@ -125,14 +143,14 @@ site_restart() {
 }
 
 cron_sync() {
-  local domain="$2" document_root="$3"
+  local domain="$2" document_root="$3" site_user="$4"
   valid_domain "$domain" || fail "Invalid cron domain."
   valid_document_root "$document_root" || fail "Invalid cron document root."
   local source="$ROOT/storage/app/cron/$domain"
   local target="/etc/cron.d/xpanel-$domain"
   local log="/var/log/xpanel-host/$domain-cron.log"
   [[ -f "$source" && ! -L "$source" ]] || fail "Staged cron configuration not found."
-  [[ "$SITE_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail "Invalid configured cron user."
+  valid_site_identity "$site_user" || fail "Invalid site cron user."
   [[ "$(head -n1 "$source")" == "SHELL=/bin/bash" ]] || fail "Invalid staged cron header."
   [[ "$(sed -n '2p' "$source")" == "PATH=/usr/local/bin:/usr/bin:/bin" ]] || fail "Invalid staged cron path."
   grep -q $'\r' "$source" && fail "Invalid bytes in staged cron configuration."
@@ -144,13 +162,13 @@ cron_sync() {
     for field in "$minute" "$hour" "$month_day" "$month" "$week_day"; do
       [[ "$field" =~ ^[0-9*,/-]+$ ]] || fail "Invalid staged cron expression."
     done
-    expected_prefix="$SITE_USER cd -- '$document_root' && "
+    expected_prefix="$site_user cd -- '$document_root' && "
     expected_suffix=" >> '/var/log/xpanel-host/$domain-cron.log' 2>&1"
     [[ "$command" == "$expected_prefix"* && "$command" == *"$expected_suffix" ]] || fail "Invalid staged cron command."
   done < "$source"
-  install -d -o root -g "$SITE_GROUP" -m 0750 /var/log/xpanel-host
+  install -d -o root -g "$site_user" -m 0750 /var/log/xpanel-host
   touch "$log"
-  chown "$SITE_USER:$SITE_GROUP" "$log"
+  chown "$site_user:$site_user" "$log"
   chmod 0640 "$log"
   if [[ "$(wc -l < "$source")" -le 2 ]]; then
     rm -f -- "$target"
@@ -161,12 +179,13 @@ cron_sync() {
 }
 
 error_pages_sync() {
-  local domain="$2" document_root="$3"
+  local domain="$2" document_root="$3" site_user="$4"
   valid_domain "$domain" || fail "Invalid error page domain."
   valid_document_root "$document_root" || fail "Invalid error page document root."
+  valid_site_identity "$site_user" || fail "Invalid error page site user."
   local source_root="$ROOT/storage/app/error-pages/$domain"
   local target_root="$document_root/.xpanel-errors"
-  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0755 "$target_root"
+  install -d -o "$site_user" -g "$site_user" -m 0755 "$target_root"
   local enabled=() code source
   while IFS= read -r code; do
     [[ -z "$code" ]] && continue
@@ -174,7 +193,7 @@ error_pages_sync() {
     source="$source_root/$code.html"
     [[ -f "$source" && ! -L "$source" ]] || fail "Staged error page not found."
     [[ "$(stat -c %s "$source")" -le 200000 ]] || fail "Staged error page is too large."
-    install -o "$SITE_USER" -g "$SITE_GROUP" -m 0644 "$source" "$target_root/$code.html"
+    install -o "$site_user" -g "$site_user" -m 0644 "$source" "$target_root/$code.html"
     enabled+=("$code")
   done
   for code in 403 404 500 502 503; do
@@ -183,11 +202,12 @@ error_pages_sync() {
 }
 
 ownership_fix() {
-  local domain="$2" document_root="$3"
+  local domain="$2" document_root="$3" site_user="$4"
   valid_domain "$domain" || fail "Invalid ownership domain."
   valid_document_root "$document_root" || fail "Invalid ownership document root."
+  valid_site_identity "$site_user" || fail "Invalid ownership site user."
   [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
-  chown -R --no-dereference "$SITE_USER:$SITE_GROUP" "$document_root"
+  chown -R --no-dereference "$site_user:$site_user" "$document_root"
   find -P "$document_root" -xdev -type d -exec chmod u+rwx,go-w,go+rx {} +
   find -P "$document_root" -xdev -type f -exec chmod u+rw,go-w {} +
   printf 'files=%s\n' "$(find -P "$document_root" -xdev -type f -printf . | wc -c)"
@@ -228,37 +248,38 @@ cache_purge() {
 }
 
 git_deploy() {
-  local domain="$2" document_root="$3" repository_url="$4" branch="$5"
+  local domain="$2" document_root="$3" repository_url="$4" branch="$5" site_user="$6"
   valid_domain "$domain" || fail "Invalid Git domain."
   valid_document_root "$document_root" || fail "Invalid Git document root."
+  valid_site_identity "$site_user" || fail "Invalid Git site user."
   [[ "$repository_url" =~ ^https://(github\.com|gitlab\.com|bitbucket\.org)/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\.git)?$ ]] || fail "Unsupported Git repository URL."
   [[ "$branch" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$ && "$branch" != *..* && "$branch" != */ && "$branch" != *'@{'* ]] || fail "Invalid Git branch."
   local repositories_root="/var/lib/xpanel-host/git" repository="$repositories_root/$domain" staging lock
-  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0750 "$repositories_root"
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$repositories_root"
   lock="/run/lock/xpanel-git-$domain.lock"
   exec 9>"$lock"
   flock -n 9 || fail "Another deployment is already running for this site."
   if [[ ! -d "$repository/.git" ]]; then
     [[ ! -e "$repository" ]] || fail "Invalid existing Git cache."
-    runuser -u "$SITE_USER" -- git clone --no-checkout -- "$repository_url" "$repository"
+    runuser -u "$site_user" -- git clone --no-checkout -- "$repository_url" "$repository"
   else
-    [[ "$(runuser -u "$SITE_USER" -- git -C "$repository" remote get-url origin)" == "$repository_url" ]] || fail "The connected repository URL changed unexpectedly."
+    [[ "$(runuser -u "$site_user" -- git -C "$repository" remote get-url origin)" == "$repository_url" ]] || fail "The connected repository URL changed unexpectedly."
   fi
-  runuser -u "$SITE_USER" -- git -C "$repository" fetch --prune origin "$branch"
+  runuser -u "$site_user" -- git -C "$repository" fetch --prune origin "$branch"
   staging="$(mktemp -d "$repositories_root/.deploy-$domain.XXXXXX")"
   trap 'rm -rf -- "$staging"' RETURN
-  chown "$SITE_USER:$SITE_GROUP" "$staging"
-  runuser -u "$SITE_USER" -- git -C "$repository" archive --format=tar FETCH_HEAD | tar --no-same-owner -C "$staging" -xf -
+  chown "$site_user:$site_user" "$staging"
+  runuser -u "$site_user" -- git -C "$repository" archive --format=tar FETCH_HEAD | tar --no-same-owner -C "$staging" -xf -
   if find -P "$staging" -type l -print -quit | grep -q .; then
     fail "Deployments containing symbolic links are not allowed."
   fi
-  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0750 "$document_root"
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   rsync -a --delete \
     --exclude='.env' --exclude='.well-known/' --exclude='.xpanel-errors/' \
     --exclude='storage/logs/' --exclude='storage/framework/sessions/' \
     "$staging/" "$document_root/"
-  chown -R --no-dereference "$SITE_USER:$SITE_GROUP" "$document_root"
-  printf 'commit=%s\n' "$(runuser -u "$SITE_USER" -- git -C "$repository" rev-parse FETCH_HEAD)"
+  chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  printf 'commit=%s\n' "$(runuser -u "$site_user" -- git -C "$repository" rev-parse FETCH_HEAD)"
 }
 
 git_remove() {
@@ -377,10 +398,11 @@ engine_install() {
 }
 
 ssl_action() {
-  local domain="$2" engine="$3" document_root="$4"
+  local domain="$2" engine="$3" document_root="$4" site_user="${6:-}"
   valid_domain "$domain" || fail "Invalid certificate domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   valid_document_root "$document_root" || fail "Invalid ACME webroot."
+  valid_site_identity "$site_user" || fail "Invalid certificate site user."
 
   if [[ "$ACTION" == "ssl-delete" ]]; then
     local configured_mail_hostname=""
@@ -407,7 +429,7 @@ ssl_action() {
     [[ "$alias" != "$domain" ]] || fail "Duplicate certificate domain."
     certificate_domains+=(-d "$alias")
   done
-  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0755 "$document_root/.well-known/acme-challenge"
+  install -d -o "$site_user" -g "$site_user" -m 0755 "$document_root/.well-known/acme-challenge"
   certbot certonly --non-interactive --agree-tos --no-eff-email \
     --expand --webroot -w "$document_root" --cert-name "$domain" "${certificate_domains[@]}" -m "$email"
 
@@ -688,10 +710,11 @@ backup_create() {
 }
 
 backup_restore() {
-  local domain="$2" document_root="$3" token="$4"
+  local domain="$2" document_root="$3" token="$4" site_user="$5"
   valid_domain "$domain" || fail "Invalid restore domain."
   valid_document_root "$document_root" || fail "Invalid restore document root."
   valid_backup_token "$token" || fail "Invalid restore token."
+  valid_site_identity "$site_user" || fail "Invalid restore site user."
   local package="$BACKUP_ROOT/$domain/$token/backup.tar.gz"
   [[ -f "$package" && ! -L "$package" ]] || fail "Backup package not found."
   archive_is_safe "$package" || fail "Backup package contains unsafe paths."
@@ -713,10 +736,10 @@ backup_restore() {
   done
 
   tar --no-same-owner -C "$staging" -xzf "$temporary/files.tar.gz"
-  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0755 "$document_root"
+  install -d -o "$site_user" -g "$site_user" -m 0755 "$document_root"
   find "$document_root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
   cp -a "$staging/." "$document_root/"
-  chown -R "$SITE_USER:$SITE_GROUP" "$document_root"
+  chown -R "$site_user:$site_user" "$document_root"
 
   for database in "${BACKUP_DATABASES[@]}"; do
     mariadb --protocol=socket -e "DROP DATABASE IF EXISTS \`$database\`; CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"

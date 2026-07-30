@@ -45,6 +45,7 @@ class SiteProvisioner
             $site->type,
             $site->php_version,
             $site->document_root,
+            $site->systemUser(),
         ]);
     }
 
@@ -67,6 +68,7 @@ class SiteProvisioner
             $site->type,
             $site->php_version,
             $site->document_root,
+            $site->systemUser(),
         ]);
     }
 
@@ -84,7 +86,7 @@ class SiteProvisioner
 
         $this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'site-restart',
-            $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root,
+            $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root, $site->systemUser(),
         ]);
     }
 }

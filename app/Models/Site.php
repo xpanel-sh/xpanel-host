@@ -9,9 +9,31 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 
-#[Fillable(['parent_site_id', 'domain', 'document_root', 'php_version', 'type', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
+#[Fillable(['parent_site_id', 'domain', 'document_root', 'system_user', 'php_version', 'type', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
 class Site extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (Site $site): void {
+            if ($site->system_user === null) {
+                $site->forceFill(['system_user' => 'xps'.base_convert((string) $site->id, 10, 36).substr(hash('sha256', $site->domain), 0, 8)])->saveQuietly();
+            }
+        });
+    }
+
+    public function systemUser(): string
+    {
+        $user = $this->system_user;
+        if ($user === null && is_string($this->domain) && $this->domain !== '') {
+            $user = 'xps'.base_convert((string) ($this->id ?? 0), 10, 36).substr(hash('sha256', $this->domain), 0, 8);
+        }
+        if (! is_string($user) || ! preg_match('/^xps[a-z0-9]{9,29}$/', $user)) {
+            throw new \RuntimeException('El sitio no tiene una identidad Unix válida.');
+        }
+
+        return $user;
+    }
+
     protected function casts(): array
     {
         return [

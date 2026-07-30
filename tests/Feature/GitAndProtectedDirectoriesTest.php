@@ -65,7 +65,7 @@ class GitAndProtectedDirectoriesTest extends TestCase
         $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
             $mock->shouldReceive('run')->once()->with([
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'git-deploy',
-                $site->domain, $site->document_root, 'https://github.com/xpanel-sh/example.git', 'release/1.0',
+                $site->domain, $site->document_root, 'https://github.com/xpanel-sh/example.git', 'release/1.0', $site->systemUser(),
             ], null, 1800)->andReturn('commit=0123456789abcdef0123456789abcdef01234567');
         });
 
@@ -116,7 +116,7 @@ class GitAndProtectedDirectoriesTest extends TestCase
             ], "1\n");
             $mock->shouldReceive('run')->once()->with([
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'apply',
-                $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root,
+                $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root, $site->systemUser(),
             ]);
         });
 

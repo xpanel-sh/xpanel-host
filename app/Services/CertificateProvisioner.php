@@ -28,7 +28,7 @@ class CertificateProvisioner
 
         $command = [
             'sudo', '-n', (string) config('xpanel.site_helper'), 'ssl-issue',
-            $site->domain, $site->web_server, $site->document_root, $email,
+            $site->domain, $site->web_server, $site->document_root, $email, $site->systemUser(),
         ];
         $aliases = $site->parkedDomains()->pluck('domain')->all();
         $output = $aliases === []
@@ -70,7 +70,7 @@ class CertificateProvisioner
             if (config('xpanel.apply_system_changes') && config('xpanel.management_mode') !== 'core') {
                 $this->commands->run([
                     'sudo', '-n', (string) config('xpanel.site_helper'), 'ssl-delete',
-                    $site->domain, $site->web_server, $site->document_root,
+                    $site->domain, $site->web_server, $site->document_root, '-', $site->systemUser(),
                 ]);
             }
         } catch (\Throwable $exception) {

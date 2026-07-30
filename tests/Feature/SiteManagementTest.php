@@ -43,6 +43,19 @@ class SiteManagementTest extends TestCase
         $this->assertFileExists(storage_path('app/gateways/cliente.example.com.conf'));
     }
 
+    public function test_each_site_receives_a_stable_distinct_unix_identity(): void
+    {
+        $first = Site::create(['domain' => 'one.example.com', 'document_root' => '/var/www/one.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+        $second = Site::create(['domain' => 'two.example.com', 'document_root' => '/var/www/two.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+
+        $this->assertMatchesRegularExpression('/^xps[a-z0-9]{9,29}$/', $first->systemUser());
+        $this->assertNotSame($first->systemUser(), $second->systemUser());
+        $this->assertSame($first->systemUser(), $first->fresh()->systemUser());
+        $path = app(VirtualHostGenerator::class)->writePhpPool($first);
+        $pool = file_get_contents($path);
+        $this->assertStringContainsString('user = '.$first->systemUser(), $pool);
+    }
+
     public function test_a_site_defaults_to_the_installs_configured_web_server(): void
     {
         config(['xpanel.web_server' => 'apache']);

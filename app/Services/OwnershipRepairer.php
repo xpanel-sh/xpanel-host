@@ -14,7 +14,7 @@ class OwnershipRepairer
         if (config('xpanel.apply_system_changes')) {
             $output = $this->commands->run([
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'ownership-fix',
-                $site->domain, $site->document_root,
+                $site->domain, $site->document_root, $site->systemUser(),
             ], timeout: 1800);
 
             return ['files' => $this->value($output, 'files'), 'directories' => $this->value($output, 'directories')];

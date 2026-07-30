@@ -25,6 +25,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Despliegues manuales desde repositorios Git HTTPS públicos y autenticación Basic para directorios seleccionados.
 - phpMyAdmin con autenticación por cookies, root bloqueado y servidor MariaDB fijo en loopback.
 - Acceso MariaDB remoto por base e IPv4 exacta, con identidades limitadas y allowlist nftables persistente.
+- Identidad Unix estable por sitio aplicada a PHP-FPM, Cron, Git, restauraciones, ACME y reparación de propietarios.
 
 ### Corregido
 

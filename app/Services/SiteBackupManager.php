@@ -107,7 +107,7 @@ class SiteBackupManager
                 if (config('xpanel.apply_system_changes')) {
                     $this->commands->run([
                         'sudo', '-n', (string) config('xpanel.site_helper'), 'backup-restore',
-                        $site->domain, $site->document_root, $backup->token,
+                        $site->domain, $site->document_root, $backup->token, $site->systemUser(),
                     ], implode("\n", $databaseNames).($databaseNames === [] ? '' : "\n"), 1800);
                 } else {
                     $this->restoreLocalPackage($site->localRoot(), $this->packagePath($site, $backup));
