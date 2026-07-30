@@ -39,7 +39,7 @@ install_base_dependencies() {
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
     certbot python3-certbot-nginx \
     mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks \
-    clamav clamav-freshclam
+    clamav clamav-freshclam bubblewrap
 }
 
 configure_malware_scanner() {
@@ -316,6 +316,12 @@ configure_site_helper() {
   printf '%s ALL=(root) NOPASSWD: %s *\n' "${XPANEL_SITE_USER:-www-data}" "$helper" > "$sudoers_file"
   chmod 0440 "$sudoers_file"
   visudo -cf "$sudoers_file" >/dev/null
+
+  # Any site with a real shell (ssh_enabled or web_terminal_enabled) gets
+  # this as its ForceCommand, so it must be world-executable regardless of
+  # whether the web terminal feature is on for any particular site.
+  chown root:root "$ROOT/scripts/xpanel-terminal-jail.sh"
+  chmod 0755 "$ROOT/scripts/xpanel-terminal-jail.sh"
 
   set_env_var XPANEL_APPLY_SYSTEM_CHANGES true
   set_env_var XPANEL_SITE_HELPER "$helper"

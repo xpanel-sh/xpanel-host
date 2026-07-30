@@ -1043,6 +1043,41 @@ access_sync() {
     rm -f "$terminal_keys_file"
   fi
 
+  # Jail manifest: a shell must only ever reach this site's own document root
+  # plus its own subdomains' roots (see SiteAccessProvisioner::stageJailRoots),
+  # never any other, unrelated site on the box. xpanel-terminal-jail.sh reads
+  # this list to build its bwrap sandbox. Cross-membership below is what lets
+  # a parent site and its own subdomains — each with their own distinct Unix
+  # identity — actually read/write each other's files once jailed together;
+  # setgid so files created afterwards keep inheriting that shared group.
+  # Same directory the SFTP chroot mountpoint below lives in (created again,
+  # same root:root 0755, further down this function) — created here too
+  # since the manifest file has to exist before that point runs.
+  local jail_root_dir="/var/lib/xpanel-host/jails/$site_user"
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails
+  install -d -o root -g root -m 0755 "$jail_root_dir"
+  local roots_source="$ROOT/storage/app/access/$site_user/jail-roots"
+  local roots_manifest="$jail_root_dir/roots.list"
+  local roots_temp
+  roots_temp="$(mktemp)"
+  if [[ -f "$roots_source" && ! -L "$roots_source" ]]; then
+    local member_user member_root
+    while IFS=' ' read -r member_user member_root; do
+      [[ -z "$member_user" ]] && continue
+      valid_site_identity "$member_user" || fail "Invalid jail member user."
+      valid_document_root "$member_root" || fail "Invalid jail member document root."
+      echo "$member_root" >> "$roots_temp"
+      if [[ "$member_user" != "$site_user" ]] && getent group "$member_user" >/dev/null; then
+        usermod -a -G "$member_user" "$site_user"
+        if [[ -d "$member_root" && ! -L "$member_root" ]]; then
+          chmod g+rwXs "$member_root"
+        fi
+      fi
+    done < "$roots_source"
+  fi
+  install -o root -g "$site_user" -m 0640 "$roots_temp" "$roots_manifest"
+  rm -f "$roots_temp"
+
   local jail="/var/lib/xpanel-host/jails/$site_user"
   local mountpoint_path="$jail/site"
   install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails "$jail"
@@ -1089,6 +1124,7 @@ Match User $site_user
     PasswordAuthentication no
     AuthenticationMethods publickey
     AuthorizedKeysFile /var/lib/xpanel-host/ssh/%u/authorized_keys /var/lib/xpanel-host/ssh/%u/authorized_keys.terminal
+    ForceCommand $ROOT/scripts/xpanel-terminal-jail.sh
     AllowTcpForwarding no
     X11Forwarding no
     PermitTunnel no
