@@ -45,7 +45,7 @@ reload_web_server() {
 }
 
 panel_access_apply() {
-  local mode="$2" value="$3" port="${4:-8080}"
+  local mode="$2" value="$3" port="${4:-80}"
   local panel_host panel_listen panel_url php_version
   php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
   [[ -S "/run/php/php$php_version-fpm.sock" ]] || fail "PHP-FPM socket is not available."
@@ -59,7 +59,7 @@ panel_access_apply() {
       ;;
     ip)
       valid_ipv4 "$value" || fail "Invalid panel IPv4 address."
-      [[ "$port" =~ ^[0-9]{2,5}$ ]] && (( port >= 1024 && port <= 65535 )) || fail "Invalid panel port."
+      [[ "$port" =~ ^[0-9]{2,5}$ ]] && (( port == 80 || (port >= 1024 && port <= 65535) )) || fail "Invalid panel port."
       panel_host="_"
       panel_listen="$port default_server"
       panel_url="http://$value:$port"

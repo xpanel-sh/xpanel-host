@@ -70,7 +70,7 @@ Para la primera instalación se recomienda un VDS limpio con:
 - Al menos 2 GB de RAM; utiliza más memoria si activas Apache, OpenLiteSpeed o varias cuentas PHP.
 - Puertos 22, 80 y 443 permitidos.
 - Puertos 25, 587 y 993 si utilizarás correo.
-- El puerto 8080 permitido para el acceso inicial por IP. Puedes cerrarlo después de configurar un dominio.
+- El puerto HTTP 80 permitido para el acceso inicial por IP y la verificación posterior del dominio.
 
 No publiques los puertos internos 8082, 8083, 7080 u 8088. Host limita los backends opcionales a loopback.
 
@@ -85,7 +85,7 @@ cd /opt/xpanel-host
 bash install.sh
 ```
 
-El instalador no hace preguntas: configura el acceso inicial por `IP:8080`, instala dependencias, servicios, migraciones y la CLI global, crea el primer administrador y muestra la URL, correo y contraseña al finalizar. No solicita dominio, Gmail, correo ACME, SSL ni variables `XPANEL_*`.
+El instalador no hace preguntas: configura el acceso inicial por `IP:80`, instala dependencias, servicios, migraciones y la CLI global, crea el primer administrador y muestra la URL, correo y contraseña al finalizar. No solicita dominio, Gmail, correo ACME, SSL ni variables `XPANEL_*`.
 
 ### Acceso inicial y dominio del panel
 
@@ -98,7 +98,7 @@ example.com A IP_DEL_SERVIDOR
 El panel queda disponible inmediatamente en:
 
 ```text
-http://IP_DEL_SERVIDOR:8080/login
+http://IP_DEL_SERVIDOR:80/login
 ```
 
 Después entra en **Ajustes → Acceso al panel**, escribe el dominio o subdominio, verifica su registro A y aplica el cambio. Host redirige a la nueva dirección; desde la misma pantalla puedes instalar el certificado SSL. El DNS y SSL de correo siguen siendo posteriores e independientes.

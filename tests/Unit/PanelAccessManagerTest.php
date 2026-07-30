@@ -44,15 +44,15 @@ class PanelAccessManagerTest extends TestCase
     {
         config([
             'xpanel.server_ipv4' => '203.0.113.10',
-            'xpanel.panel_port' => 8080,
+            'xpanel.panel_port' => 80,
             'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh',
         ]);
         $commands = Mockery::mock(ServerCommandRunner::class);
         $commands->shouldReceive('run')->once()->with([
-            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'panel-access-apply', 'ip', '203.0.113.10', '8080',
-        ])->andReturn('url=http://203.0.113.10:8080');
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'panel-access-apply', 'ip', '203.0.113.10', '80',
+        ])->andReturn('url=http://203.0.113.10:80');
 
         $manager = new PanelAccessManager($commands, Mockery::mock(SystemDnsResolver::class));
-        $this->assertSame('http://203.0.113.10:8080', $manager->useIp());
+        $this->assertSame('http://203.0.113.10:80', $manager->useIp());
     }
 }

@@ -166,7 +166,7 @@ configure_management_context() {
   local mode="${XPANEL_MANAGEMENT_MODE:-standalone}"
   local panel_domain="${XPANEL_PANEL_DOMAIN:-}"
   local access_mode="${XPANEL_PANEL_ACCESS_MODE:-}"
-  local panel_port="${XPANEL_PANEL_PORT:-8080}"
+  local panel_port="${XPANEL_PANEL_PORT:-80}"
   local server_ipv4="${XPANEL_SERVER_IPV4:-$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')}"
   case "$mode" in
     standalone|core) ;;
@@ -189,8 +189,8 @@ configure_management_context() {
 
   set_env_var XPANEL_MANAGEMENT_MODE "$mode"
   if [[ "$mode" == "standalone" && "$access_mode" == "ip" ]]; then
-    [[ "$panel_port" =~ ^[0-9]{2,5}$ ]] && (( panel_port >= 1024 && panel_port <= 65535 )) || {
-      echo "XPANEL_PANEL_PORT must be between 1024 and 65535." >&2
+    [[ "$panel_port" =~ ^[0-9]{2,5}$ ]] && (( panel_port == 80 || (panel_port >= 1024 && panel_port <= 65535) )) || {
+      echo "XPANEL_PANEL_PORT must be 80 or between 1024 and 65535." >&2
       exit 1
     }
     [[ -n "$server_ipv4" ]] || { echo "Could not detect the server IPv4 address." >&2; exit 1; }
@@ -535,7 +535,7 @@ configure_panel_vhost() {
     panel_listen="80"
   else
     panel_host="_"
-    panel_listen="${XPANEL_PANEL_PORT:-8080} default_server"
+    panel_listen="${XPANEL_PANEL_PORT:-80} default_server"
   fi
   set_env_var XPANEL_PHP_VERSIONS "$php_version"
   a2dissite xpanel-host-panel.conf >/dev/null 2>&1 || true

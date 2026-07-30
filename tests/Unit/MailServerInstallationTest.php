@@ -48,7 +48,7 @@ class MailServerInstallationTest extends TestCase
         $installer = file_get_contents(base_path('install.sh'));
         $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
 
-        $this->assertStringContainsString('XPANEL_PANEL_PORT:-8080', $installer);
+        $this->assertStringContainsString('XPANEL_PANEL_PORT:-80', $installer);
         $this->assertStringContainsString('xpanel:admin-bootstrap --status-only', $installer);
         $this->assertStringContainsString('install_cli', $installer);
         $this->assertStringContainsString('if ! install_cli', $installer);

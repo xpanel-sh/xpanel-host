@@ -24,7 +24,7 @@ class PanelAccessManager
     public function useIp(): string
     {
         $ip = (string) config('xpanel.server_ipv4');
-        $port = (int) config('xpanel.panel_port', 8080);
+        $port = (int) config('xpanel.panel_port', 80);
         if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             throw new RuntimeException('No se detectó una IPv4 pública válida para el servidor.');
         }
