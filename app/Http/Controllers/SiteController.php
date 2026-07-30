@@ -132,6 +132,9 @@ class SiteController extends Controller
         if ($site->databases()->exists()) {
             return back()->withErrors(['server' => 'Elimina primero las bases de datos del sitio para no dejar datos huérfanos en MariaDB.']);
         }
+        if ($site->backups()->exists()) {
+            return back()->withErrors(['server' => 'Elimina primero los backups del sitio para no perder puntos de recuperación ni dejar archivos huérfanos.']);
+        }
         try {
             if ($site->ssl_status === 'active') {
                 $certificates->disable($site);

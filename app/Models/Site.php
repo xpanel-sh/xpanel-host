@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 
 #[Fillable(['parent_site_id', 'domain', 'document_root', 'php_version', 'type', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
@@ -66,6 +67,21 @@ class Site extends Model
     public function databases(): HasMany
     {
         return $this->hasMany(SiteDatabase::class);
+    }
+
+    public function backups(): HasMany
+    {
+        return $this->hasMany(SiteBackup::class)->latest();
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class)->latest('created_at');
+    }
+
+    public function backupPolicy(): HasOne
+    {
+        return $this->hasOne(BackupPolicy::class);
     }
 
     public function parent(): BelongsTo

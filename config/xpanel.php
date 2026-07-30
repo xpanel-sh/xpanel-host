@@ -29,6 +29,7 @@ return [
     'site_helper' => env('XPANEL_SITE_HELPER', base_path('scripts/xpanel-site-helper.sh')),
     'site_user' => env('XPANEL_SITE_USER', 'www-data'),
     'site_group' => env('XPANEL_SITE_GROUP', 'www-data'),
+    'backup_root' => env('XPANEL_BACKUP_ROOT'),
     'acme_email' => env('XPANEL_ACME_EMAIL'),
     'mail_hostname' => env('XPANEL_MAIL_HOSTNAME'),
     'webmail_hostname' => env('XPANEL_WEBMAIL_HOSTNAME', env('XPANEL_MAIL_HOSTNAME')),

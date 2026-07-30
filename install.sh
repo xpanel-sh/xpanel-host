@@ -28,7 +28,7 @@ install_base_dependencies() {
   echo "postfix postfix/mailname string ${XPANEL_MAIL_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}" | debconf-set-selections
   echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates curl git unzip xz-utils sudo composer \
+    ca-certificates curl git unzip xz-utils tar gzip sudo composer \
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
     certbot python3-certbot-nginx \
     mariadb-server postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks
@@ -206,6 +206,42 @@ configure_site_helper() {
   set_env_var XPANEL_SITE_HELPER "$helper"
   set_env_var XPANEL_SITE_USER "${XPANEL_SITE_USER:-www-data}"
   set_env_var XPANEL_SITE_GROUP "${XPANEL_SITE_GROUP:-www-data}"
+}
+
+configure_backup_runtime() {
+  local backup_root="/var/lib/xpanel-host/backups"
+  local php_binary
+  php_binary="$(command -v php)"
+  install -d -o root -g "${XPANEL_SITE_GROUP:-www-data}" -m 0750 /var/lib/xpanel-host "$backup_root"
+  set_env_var XPANEL_BACKUP_ROOT "$backup_root"
+
+  cat > /etc/systemd/system/xpanel-host-scheduler.service <<EOF
+[Unit]
+Description=XPanel Host scheduled tasks
+After=network.target mariadb.service
+
+[Service]
+Type=oneshot
+User=${XPANEL_SITE_USER:-www-data}
+Group=${XPANEL_SITE_GROUP:-www-data}
+WorkingDirectory=$ROOT
+ExecStart=$php_binary $ROOT/artisan schedule:run --no-interaction
+EOF
+
+  cat > /etc/systemd/system/xpanel-host-scheduler.timer <<'EOF'
+[Unit]
+Description=Run XPanel Host scheduler every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now xpanel-host-scheduler.timer
 }
 
 configure_database_server() {
@@ -488,6 +524,7 @@ php "$ROOT/artisan" storage:link >/dev/null 2>&1 || true
 
 chown -R "${XPANEL_SITE_USER:-www-data}:${XPANEL_SITE_GROUP:-www-data}" "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
 configure_site_helper
+configure_backup_runtime
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:sites-sync
 configure_database_server
 configure_mail_server

@@ -8,11 +8,13 @@ CONFIGURED_SITE_USER="$(grep '^XPANEL_SITE_USER=' "$ROOT/.env" 2>/dev/null | tai
 CONFIGURED_SITE_GROUP="$(grep '^XPANEL_SITE_GROUP=' "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
 SITE_USER="${CONFIGURED_SITE_USER:-www-data}"
 SITE_GROUP="${CONFIGURED_SITE_GROUP:-www-data}"
+BACKUP_ROOT="/var/lib/xpanel-host/backups"
 
 fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
 valid_document_root() { [[ "$1" =~ ^/(var|srv)/www/[A-Za-z0-9._/-]+$ && "$1" != *".."* ]]; }
 valid_identifier() { [[ "$1" =~ ^[a-z0-9_]{1,64}$ ]]; }
+valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; }
 
 [[ "$(id -u)" == "0" ]] || fail "xpanel-site-helper must run as root."
 getent passwd "$SITE_USER" >/dev/null || fail "Configured site user does not exist."
@@ -351,6 +353,106 @@ mail_remove_domain() {
   rm -rf -- "$dkim_domain"
 }
 
+read_backup_databases() {
+  BACKUP_DATABASES=()
+  while IFS= read -r database; do
+    [[ -z "$database" ]] && continue
+    valid_identifier "$database" || fail "Invalid database in backup request."
+    BACKUP_DATABASES+=("$database")
+  done
+}
+
+archive_is_safe() {
+  local archive="$1"
+  tar -tzf "$archive" | awk '
+    /^\// { bad=1 }
+    /(^|\/)\.\.($|\/)/ { bad=1 }
+    END { exit bad ? 1 : 0 }
+  '
+}
+
+backup_create() {
+  local domain="$2" document_root="$3" token="$4"
+  valid_domain "$domain" || fail "Invalid backup domain."
+  valid_document_root "$document_root" || fail "Invalid backup document root."
+  valid_backup_token "$token" || fail "Invalid backup token."
+  [[ -d "$document_root" ]] || fail "Site document root does not exist."
+  read_backup_databases
+
+  local domain_root="$BACKUP_ROOT/$domain"
+  local final_root="$domain_root/$token"
+  [[ ! -e "$final_root" ]] || fail "Backup token already exists."
+  install -d -o root -g "$SITE_GROUP" -m 0750 "$BACKUP_ROOT" "$domain_root"
+  local temporary
+  temporary="$(mktemp -d "$domain_root/.create-$token.XXXXXX")"
+  trap 'rm -rf -- "$temporary"' RETURN
+  install -d -o root -g "$SITE_GROUP" -m 0750 "$temporary/databases"
+
+  tar --one-file-system --numeric-owner -C "$document_root" -czf "$temporary/files.tar.gz" .
+  local database
+  for database in "${BACKUP_DATABASES[@]}"; do
+    mariadb-dump --protocol=socket --single-transaction --quick --skip-lock-tables --databases "$database" \
+      | gzip -9 > "$temporary/databases/$database.sql.gz"
+  done
+  {
+    printf 'format=1\n'
+    printf 'domain=%s\n' "$domain"
+    printf 'created_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'databases=%s\n' "${#BACKUP_DATABASES[@]}"
+  } > "$temporary/manifest.txt"
+
+  tar -C "$temporary" -czf "$temporary/package.tar.gz" manifest.txt files.tar.gz databases
+  install -d -o root -g "$SITE_GROUP" -m 0750 "$final_root"
+  install -o root -g "$SITE_GROUP" -m 0640 "$temporary/package.tar.gz" "$final_root/backup.tar.gz"
+  printf 'size=%s\n' "$(stat -c %s "$final_root/backup.tar.gz")"
+}
+
+backup_restore() {
+  local domain="$2" document_root="$3" token="$4"
+  valid_domain "$domain" || fail "Invalid restore domain."
+  valid_document_root "$document_root" || fail "Invalid restore document root."
+  valid_backup_token "$token" || fail "Invalid restore token."
+  local package="$BACKUP_ROOT/$domain/$token/backup.tar.gz"
+  [[ -f "$package" && ! -L "$package" ]] || fail "Backup package not found."
+  archive_is_safe "$package" || fail "Backup package contains unsafe paths."
+  read_backup_databases
+
+  local temporary staging
+  temporary="$(mktemp -d "$BACKUP_ROOT/$domain/.restore-$token.XXXXXX")"
+  staging="$(mktemp -d "$(dirname "$document_root")/.xpanel-restore.XXXXXX")"
+  trap 'rm -rf -- "$temporary" "$staging"' RETURN
+  tar --no-same-owner -C "$temporary" -xzf "$package"
+  [[ -f "$temporary/files.tar.gz" && ! -L "$temporary/files.tar.gz" ]] || fail "Backup does not contain site files."
+  archive_is_safe "$temporary/files.tar.gz" || fail "Site archive contains unsafe paths."
+
+  local database
+  for database in "${BACKUP_DATABASES[@]}"; do
+    [[ -f "$temporary/databases/$database.sql.gz" && ! -L "$temporary/databases/$database.sql.gz" ]] \
+      || fail "Backup does not contain database $database."
+    gzip -t "$temporary/databases/$database.sql.gz"
+  done
+
+  tar --no-same-owner -C "$staging" -xzf "$temporary/files.tar.gz"
+  install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0755 "$document_root"
+  find "$document_root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+  cp -a "$staging/." "$document_root/"
+  chown -R "$SITE_USER:$SITE_GROUP" "$document_root"
+
+  for database in "${BACKUP_DATABASES[@]}"; do
+    mariadb --protocol=socket -e "DROP DATABASE IF EXISTS \`$database\`; CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    gzip -dc "$temporary/databases/$database.sql.gz" | mariadb --protocol=socket
+  done
+}
+
+backup_delete() {
+  local domain="$2" token="$3"
+  valid_domain "$domain" || fail "Invalid backup domain."
+  valid_backup_token "$token" || fail "Invalid backup token."
+  local target="$BACKUP_ROOT/$domain/$token"
+  [[ "$target" == "$BACKUP_ROOT/$domain/"* ]] || fail "Invalid backup deletion target."
+  rm -rf -- "$target"
+}
+
 case "$ACTION" in
   apply|remove) site_action "$@" ;;
   ssl-issue|ssl-delete) ssl_action "$@" ;;
@@ -360,6 +462,9 @@ case "$ACTION" in
   mail-sync) mail_sync ;;
   mail-remove) mail_remove "$@" ;;
   mail-remove-domain) mail_remove_domain "$@" ;;
+  backup-create) backup_create "$@" ;;
+  backup-restore) backup_restore "$@" ;;
+  backup-delete) backup_delete "$@" ;;
   reload-services)
     nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
     apache2ctl configtest >/dev/null 2>&1 && systemctl reload apache2 || true

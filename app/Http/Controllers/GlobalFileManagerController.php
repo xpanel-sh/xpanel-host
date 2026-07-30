@@ -7,6 +7,7 @@ use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -18,7 +19,7 @@ class GlobalFileManagerController extends Controller
 {
     use ResolvesSandboxedPath;
 
-    public function ikode(): \Illuminate\View\View
+    public function ikode(): View
     {
         return view('sites.ikode', ['site' => null]);
     }

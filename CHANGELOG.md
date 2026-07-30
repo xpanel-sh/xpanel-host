@@ -12,6 +12,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Correo con Postfix, Dovecot, OpenDKIM, Roundcube y asistencia de registros DNS.
 - Propietarios, colaboradores, roles y permisos.
 - Instalador, actualizador y operación mediante XPanel CLI.
+- Backups manuales y programados de archivos y bases MariaDB, con retención, descarga y restauración protegida por un punto de seguridad previo.
+- Registro de actividad por sitio sin almacenar contraseñas ni contenido de formularios.
 
 ### Seguridad
 

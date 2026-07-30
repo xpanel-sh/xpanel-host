@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
@@ -102,6 +104,8 @@ Route::middleware('setup.complete')->group(function () {
             // {section}/{module} wildcard below (same segment shape) so they win the match.
             Route::get('/sites/{site}/files/manager', [FileManagerController::class, 'index'])->name('sites.files.index');
             Route::get('/sites/{site}/files/manager/ikode', [FileManagerController::class, 'ikode'])->name('sites.files.ikode');
+            Route::get('/sites/{site}/files/backups', [BackupController::class, 'index'])->name('sites.backups.index');
+            Route::get('/sites/{site}/advanced/activity-log', [ActivityLogController::class, 'index'])->name('sites.activity.index');
             Route::prefix('/sites/{site}/files/manager/api')->name('sites.files.api.')->group(function () {
                 Route::get('/list', [FileManagerController::class, 'list'])->name('list');
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
@@ -114,6 +118,11 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/{section}/{module}', [SiteController::class, 'module'])->name('sites.module');
         });
         Route::middleware('permission:'.Permissions::SITES_MANAGE)->group(function () {
+            Route::post('/sites/{site}/files/backups', [BackupController::class, 'store'])->name('sites.backups.store');
+            Route::put('/sites/{site}/files/backups/policy', [BackupController::class, 'policy'])->name('sites.backups.policy');
+            Route::get('/sites/{site}/files/backups/{siteBackup}/download', [BackupController::class, 'download'])->name('sites.backups.download');
+            Route::post('/sites/{site}/files/backups/{siteBackup}/restore', [BackupController::class, 'restore'])->name('sites.backups.restore');
+            Route::delete('/sites/{site}/files/backups/{siteBackup}', [BackupController::class, 'destroy'])->name('sites.backups.destroy');
             Route::post('/sites/{site}/security/ssl', [CertificateController::class, 'issue'])->name('sites.ssl.issue');
             Route::delete('/sites/{site}/security/ssl', [CertificateController::class, 'destroy'])->name('sites.ssl.destroy');
             Route::post('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'store'])->name('sites.databases.store');

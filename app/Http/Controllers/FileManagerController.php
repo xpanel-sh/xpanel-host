@@ -7,6 +7,7 @@ use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -14,12 +15,12 @@ class FileManagerController extends Controller
 {
     use ResolvesSandboxedPath;
 
-    public function index(Site $site): \Illuminate\View\View
+    public function index(Site $site): View
     {
         return view('sites.files.manager', ['site' => $site]);
     }
 
-    public function ikode(Site $site): \Illuminate\View\View
+    public function ikode(Site $site): View
     {
         return view('sites.ikode', ['site' => $site]);
     }

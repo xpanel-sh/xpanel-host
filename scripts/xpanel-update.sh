@@ -13,6 +13,49 @@ env_value() {
   grep -E "^${key}=" "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true
 }
 
+set_env_var() {
+  local key="$1" value="$2"
+  if grep -q "^${key}=" "$ROOT/.env" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$ROOT/.env"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ROOT/.env"
+  fi
+}
+
+configure_backup_runtime() {
+  local runtime_root="/var/lib/xpanel-host/backups"
+  local php_binary
+  php_binary="$(command -v php)"
+  install -d -o root -g "$site_group" -m 0750 /var/lib/xpanel-host "$runtime_root"
+  set_env_var XPANEL_BACKUP_ROOT "$runtime_root"
+  cat > /etc/systemd/system/xpanel-host-scheduler.service <<EOF
+[Unit]
+Description=XPanel Host scheduled tasks
+After=network.target mariadb.service
+
+[Service]
+Type=oneshot
+User=$site_user
+Group=$site_group
+WorkingDirectory=$ROOT
+ExecStart=$php_binary $ROOT/artisan schedule:run --no-interaction
+EOF
+  cat > /etc/systemd/system/xpanel-host-scheduler.timer <<'EOF'
+[Unit]
+Description=Run XPanel Host scheduler every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now xpanel-host-scheduler.timer
+}
+
 site_user="$(env_value XPANEL_SITE_USER)"
 site_group="$(env_value XPANEL_SITE_GROUP)"
 site_user="${site_user:-www-data}"
@@ -34,7 +77,7 @@ if [[ -f "$database_file" ]]; then
 fi
 
 missing_services=()
-for command_name in nginx certbot mariadb postfix doveconf opendkim composer node npm; do
+for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     missing_services+=("$command_name")
   fi
@@ -75,6 +118,7 @@ npm --prefix "$ROOT" run build
 
 chown -R "$site_user:$site_group" "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
 sudo -u "$site_user" php "$ROOT/artisan" migrate --force
+configure_backup_runtime
 sudo -u "$site_user" php "$ROOT/artisan" optimize:clear
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:sites-sync
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:mail-sync

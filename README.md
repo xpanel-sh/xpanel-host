@@ -53,6 +53,7 @@ Servidor Linux o MicroVM
 | **Bases de datos** | Bases y usuarios MariaDB aislados por sitio |
 | **Correo** | Postfix, Dovecot, Maildir, Roundcube, SPF, DKIM, DMARC y verificación DNS |
 | **Archivos** | Gestor de archivos confinado al espacio administrado |
+| **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
 | **Acceso** | Propietario, equipo, roles y permisos |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
 | **Despliegue** | Standalone o dentro de una MicroVM administrada por Core |
@@ -272,6 +273,8 @@ sudo xpanel update
 Si una versión añade un servicio que todavía no existe en el servidor, el actualizador ejecuta el instalador idempotente. El instalador también proporciona Node.js 22 LTS desde los binarios oficiales y verifica su checksum antes de compilar el panel.
 
 Los respaldos automáticos de actualización no sustituyen una copia externa de `/var/www`, `/var/mail/vhosts`, `/etc/letsencrypt` y las bases MariaDB.
+
+Los backups por sitio se gestionan desde **Sitio → Archivos → Backups**. En producción se guardan en `/var/lib/xpanel-host/backups`, fuera del document root, con lectura restringida. La restauración exige escribir el dominio y crea primero una copia `pre_restore`. Configura además una copia externa: la retención local no protege frente a una pérdida completa del servidor.
 
 Cuando Roundcube está habilitado, una actualización ejecutada con `sudo` también verifica/reinstala la versión fijada del webmail sin reemplazar su base SQLite, configuración, sesiones temporales ni logs persistentes.
 
