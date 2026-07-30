@@ -89,6 +89,11 @@ class Site extends Model
         return $this->hasOne(SitePhpSetting::class);
     }
 
+    public function webSettings(): HasOne
+    {
+        return $this->hasOne(SiteWebSetting::class);
+    }
+
     public function cronJobs(): HasMany
     {
         return $this->hasMany(SiteCronJob::class)->orderBy('id');
@@ -102,6 +107,11 @@ class Site extends Model
     public function errorPages(): HasMany
     {
         return $this->hasMany(SiteErrorPage::class)->orderBy('status_code');
+    }
+
+    public function ipRules(): HasMany
+    {
+        return $this->hasMany(SiteIpRule::class)->orderBy('address');
     }
 
     public function parkedDomains(): HasMany

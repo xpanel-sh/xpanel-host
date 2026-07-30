@@ -280,7 +280,7 @@
                                                             <i class="ki-filled {{ $item['icon'] }} text-lg text-primary"></i>
                                                         </div>
                                                         <div class="min-w-0">
-                                                            <div class="text-sm font-semibold text-mono">{{ $item['label'] }}</div>
+                                                            <div class="flex items-center gap-2"><div class="text-sm font-semibold text-mono">{{ $item['label'] }}</div>@unless(\App\Support\SiteModules::isReady($sectionKey, $key))<span class="kt-badge kt-badge-sm kt-badge-outline">En preparación</span>@endunless</div>
                                                             <div class="mt-1 text-xs text-secondary-foreground">{{ $item['description'] }}</div>
                                                         </div>
                                                     </div>
@@ -292,7 +292,7 @@
                                                             <i class="ki-filled {{ $item['icon'] }} text-lg text-primary"></i>
                                                         </div>
                                                         <div class="min-w-0">
-                                                            <div class="text-sm font-semibold text-mono">{{ $item['label'] }}</div>
+                                                            <div class="flex items-center gap-2"><div class="text-sm font-semibold text-mono">{{ $item['label'] }}</div>@unless(\App\Support\SiteModules::isReady($sectionKey, $key))<span class="kt-badge kt-badge-sm kt-badge-outline">En preparación</span>@endunless</div>
                                                             <div class="mt-1 text-xs text-secondary-foreground">{{ $item['description'] }}</div>
                                                         </div>
                                                     </div>

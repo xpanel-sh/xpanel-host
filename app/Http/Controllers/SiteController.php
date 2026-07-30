@@ -49,11 +49,6 @@ class SiteController extends Controller
         ]);
     }
 
-    public function analytics(Site $site): View
-    {
-        return view('sites.analytics.index', ['site' => $site]);
-    }
-
     public function create(): View
     {
         return view('sites.create', [

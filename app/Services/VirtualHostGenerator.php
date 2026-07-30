@@ -117,6 +117,7 @@ CONF);
     {
         $socket = '/run/php/php'.$site->php_version.'-fpm-'.$site->domain.'.sock';
         $aliases = $this->apacheAliases($site);
+        $indexes = $this->directoryListing($site) ? '+Indexes' : '-Indexes';
 
         return <<<CONF
 <VirtualHost 127.0.0.1:8082>
@@ -129,6 +130,7 @@ CONF);
     </FilesMatch>
 
     <Directory {$site->document_root}>
+        Options {$indexes}
         AllowOverride All
         Require all granted
     </Directory>
@@ -142,6 +144,7 @@ CONF;
     private function renderApacheStatic(Site $site): string
     {
         $aliases = $this->apacheAliases($site);
+        $indexes = $this->directoryListing($site) ? '+Indexes' : '-Indexes';
 
         return <<<CONF
 <VirtualHost 127.0.0.1:8082>
@@ -150,6 +153,7 @@ CONF;
     DocumentRoot {$site->document_root}
 
     <Directory {$site->document_root}>
+        Options {$indexes}
         AllowOverride All
         Require all granted
     </Directory>
@@ -172,6 +176,7 @@ CONF;
     private function renderNginxPhp(Site $site): string
     {
         $socket = '/run/php/php'.$site->php_version.'-fpm-'.$site->domain.'.sock';
+        $autoindex = $this->directoryListing($site) ? 'on' : 'off';
 
         return <<<CONF
 server {
@@ -186,6 +191,7 @@ server {
     error_log /var/log/nginx/{$site->domain}-error.log;
 
     location / {
+        autoindex {$autoindex};
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
@@ -205,6 +211,8 @@ CONF;
 
     private function renderNginxStatic(Site $site): string
     {
+        $autoindex = $this->directoryListing($site) ? 'on' : 'off';
+
         return <<<CONF
 server {
     listen 127.0.0.1:8081;
@@ -218,6 +226,7 @@ server {
     error_log /var/log/nginx/{$site->domain}-error.log;
 
     location / {
+        autoindex {$autoindex};
         try_files \$uri \$uri/ =404;
     }
 }
@@ -266,6 +275,7 @@ CONF;
         $executionTime = $settings?->max_execution_time ?? 60;
         $displayErrors = $settings?->display_errors ? 'On' : 'Off';
         $domainNames = implode(',', $this->domainNames($site));
+        $autoindex = $this->directoryListing($site) ? 1 : 0;
 
         return <<<CONF
 docRoot                   {$site->document_root}
@@ -275,6 +285,7 @@ enableGzip                1
 index  {
     useServer               0
     indexFiles              index.php, index.html
+    autoIndex               {$autoindex}
 }
 
 errorlog /var/log/xpanel-host/{$site->domain}-ols-error.log {
@@ -337,13 +348,18 @@ CONF;
         if ($site->https_redirect && $site->status === 'active') {
             $secureNames = $this->domainNames($site, true);
             $serverNames = implode(' ', $secureNames);
+            $accessRules = $this->renderAccessRules($site);
             $http = <<<CONF
 server {
     listen 80;
     server_name {$serverNames};
     root {$site->document_root};
+    access_log /var/log/nginx/{$site->domain}-access.log;
+    error_log /var/log/nginx/{$site->domain}-error.log;
+{$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
+        allow all;
         try_files \$uri =404;
     }
 
@@ -369,6 +385,7 @@ CONF;
             ? "\n    ssl_certificate /etc/letsencrypt/live/{$site->domain}/fullchain.pem;\n    ssl_certificate_key /etc/letsencrypt/live/{$site->domain}/privkey.pem;\n    ssl_protocols TLSv1.2 TLSv1.3;"
             : '';
         $serverNames = implode(' ', $domainNames ?? $this->domainNames($site));
+        $accessRules = $this->renderAccessRules($site);
 
         if ($site->status !== 'active') {
             return <<<CONF
@@ -376,8 +393,12 @@ server {
     {$listen}{$certificate}
     server_name {$serverNames};
     root {$site->document_root};
+    access_log /var/log/nginx/{$site->domain}-access.log;
+    error_log /var/log/nginx/{$site->domain}-error.log;
+{$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
+        allow all;
         try_files \$uri =404;
     }
 
@@ -394,18 +415,23 @@ CONF;
         $port = $site->web_server === 'apache' ? 8082 : 8083;
         $redirects = $this->renderGatewayRedirects($site);
         $errorPages = $this->renderGatewayErrorPages($site);
+        $hotlink = $this->renderHotlinkLocation($site);
 
         return <<<CONF
 server {
     {$listen}{$certificate}
     server_name {$serverNames};
     root {$site->document_root};
+    access_log /var/log/nginx/{$site->domain}-access.log;
+    error_log /var/log/nginx/{$site->domain}-error.log;
+{$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
+        allow all;
         try_files \$uri =404;
     }
 
-{$redirects}{$errorPages}
+{$redirects}{$errorPages}{$hotlink}
 
     location / {
         proxy_intercept_errors on;
@@ -425,14 +451,19 @@ CONF;
         $redirects = $this->renderGatewayRedirects($site);
         $errorPages = $this->renderGatewayErrorPages($site);
         $serverNames = implode(' ', $domainNames ?? $this->domainNames($site));
+        $autoindex = $this->directoryListing($site) ? 'on' : 'off';
+        $hotlink = $this->renderHotlinkLocation($site);
+        $accessRules = $this->renderAccessRules($site);
         $handler = $site->type === 'static'
-            ? <<<'CONF'
+            ? <<<CONF
     location / {
-        try_files $uri $uri/ =404;
+        autoindex {$autoindex};
+        try_files \$uri \$uri/ =404;
     }
 CONF
             : <<<CONF
     location / {
+        autoindex {$autoindex};
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
@@ -450,12 +481,17 @@ server {
     server_name {$serverNames};
     root {$site->document_root};
     index index.php index.html;
+    access_log /var/log/nginx/{$site->domain}-access.log;
+    error_log /var/log/nginx/{$site->domain}-error.log;
+{$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
+        allow all;
         try_files \$uri =404;
     }
 
 {$redirects}{$errorPages}
+{$hotlink}
 {$handler}
 }
 CONF;
@@ -507,6 +543,59 @@ CONF;
 
             return "    error_page {$page->status_code} {$uri};\n    location = {$uri} { internal; }\n\n";
         })->implode('');
+    }
+
+    private function directoryListing(Site $site): bool
+    {
+        return Schema::hasTable('site_web_settings') && (bool) $site->webSettings?->directory_listing;
+    }
+
+    private function renderHotlinkLocation(Site $site): string
+    {
+        if (! Schema::hasTable('site_web_settings')) {
+            return '';
+        }
+        $settings = $site->webSettings;
+        if (! $settings?->hotlink_protection) {
+            return '';
+        }
+
+        $extensions = implode('|', $settings->hotlink_extensions ?: ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+        $referrers = implode(' ', array_merge(['none', 'blocked', 'server_names'], $settings->hotlink_allowed_referrers ?: []));
+        $serve = $site->web_server === 'nginx'
+            ? '        try_files $uri =404;'
+            : '        proxy_set_header Host $host;'."\n"
+                .'        proxy_set_header X-Real-IP $remote_addr;'."\n"
+                .'        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;'."\n"
+                .'        proxy_set_header X-Forwarded-Proto $scheme;'."\n"
+                .'        proxy_pass http://127.0.0.1:'.($site->web_server === 'apache' ? '8082' : '8083').';';
+
+        return <<<CONF
+    location ~* \.({$extensions})$ {
+        valid_referers {$referrers};
+        if (\$invalid_referer) { return 403; }
+{$serve}
+    }
+
+CONF;
+    }
+
+    private function renderAccessRules(Site $site): string
+    {
+        if (! Schema::hasTable('site_ip_rules')) {
+            return '';
+        }
+        $rules = $site->ipRules()->where('enabled', true)->get();
+        if ($rules->isEmpty()) {
+            return '';
+        }
+        $action = $rules->first()->action;
+        $lines = $rules->where('action', $action)->map(fn ($rule) => "    {$action} {$rule->address};")->implode("\n");
+        if ($action === 'allow') {
+            $lines .= "\n    deny all;";
+        }
+
+        return $lines."\n";
     }
 
     private function renderPhpPool(Site $site): string

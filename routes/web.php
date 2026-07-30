@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\CacheController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\DatabaseController;
@@ -9,7 +11,10 @@ use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\ErrorPageController;
 use App\Http\Controllers\FileManagerController;
+use App\Http\Controllers\FolderIndexController;
 use App\Http\Controllers\GlobalFileManagerController;
+use App\Http\Controllers\HotlinkController;
+use App\Http\Controllers\IpRuleController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\MailDnsController;
 use App\Http\Controllers\OwnershipController;
@@ -104,7 +109,11 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}', [SiteController::class, 'show'])->name('sites.show');
 
             // Flat "Analisis" section: a single page, no sub-module segment.
-            Route::get('/sites/{site}/analytics', [SiteController::class, 'analytics'])->name('sites.analytics');
+            Route::get('/sites/{site}/analytics', AnalyticsController::class)->name('sites.analytics');
+            Route::get('/sites/{site}/advanced/cache-manager', [CacheController::class, 'index'])->name('sites.cache.index');
+            Route::get('/sites/{site}/advanced/folder-index-manager', [FolderIndexController::class, 'index'])->name('sites.folder-index.index');
+            Route::get('/sites/{site}/advanced/hotlink-protection', [HotlinkController::class, 'index'])->name('sites.hotlink.index');
+            Route::get('/sites/{site}/advanced/ip-manager', [IpRuleController::class, 'index'])->name('sites.ip-rules.index');
             Route::get('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'index'])->name('sites.databases.index');
             Route::get('/sites/{site}/domains/subdomains', [SubdomainController::class, 'index'])->name('sites.subdomains.index');
             Route::get('/sites/{site}/domains/parked-domains', [ParkedDomainController::class, 'index'])->name('sites.parked-domains.index');
@@ -144,6 +153,11 @@ Route::middleware('setup.complete')->group(function () {
             Route::delete('/sites/{site}/domains/redirects/{redirect}', [RedirectController::class, 'destroy'])->name('sites.redirects.destroy');
             Route::put('/sites/{site}/website/error-pages', [ErrorPageController::class, 'update'])->name('sites.error-pages.update');
             Route::post('/sites/{site}/advanced/fix-file-ownership', [OwnershipController::class, 'repair'])->name('sites.ownership.repair');
+            Route::post('/sites/{site}/advanced/cache-manager/purge', [CacheController::class, 'purge'])->name('sites.cache.purge');
+            Route::put('/sites/{site}/advanced/folder-index-manager', [FolderIndexController::class, 'update'])->name('sites.folder-index.update');
+            Route::put('/sites/{site}/advanced/hotlink-protection', [HotlinkController::class, 'update'])->name('sites.hotlink.update');
+            Route::post('/sites/{site}/advanced/ip-manager', [IpRuleController::class, 'store'])->name('sites.ip-rules.store');
+            Route::delete('/sites/{site}/advanced/ip-manager/{ipRule}', [IpRuleController::class, 'destroy'])->name('sites.ip-rules.destroy');
             Route::put('/sites/{site}/files/backups/policy', [BackupController::class, 'policy'])->name('sites.backups.policy');
             Route::get('/sites/{site}/files/backups/{siteBackup}/download', [BackupController::class, 'download'])->name('sites.backups.download');
             Route::post('/sites/{site}/files/backups/{siteBackup}/restore', [BackupController::class, 'restore'])->name('sites.backups.restore');

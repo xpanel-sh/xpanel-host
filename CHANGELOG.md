@@ -20,6 +20,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Dominios aparcados compartidos entre los tres motores, incluidos como nombres SAN al reemitir certificados locales.
 - Redirecciones exactas o por prefijo en el gateway público y páginas HTML propias para errores 403/404/500/502/503.
 - Reparación confinada de propietarios y permisos del document root, sin seguir symlinks ni cruzar sistemas de archivos.
+- Analítica reciente sin tracking, calculada desde un log público separado por sitio y leído de forma confinada.
+- Purga segura de cachés conocidas, listado de carpetas configurable, protección Hotlink y reglas IP/CIDR en el gateway.
 
 ### Corregido
 

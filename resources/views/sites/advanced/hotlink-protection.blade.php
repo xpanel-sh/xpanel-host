@@ -1,21 +1,13 @@
 @extends('layouts.client')
 
+@section('title', 'Protección Hotlink - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Avanzado',
-        'title' => 'Hotlink protection',
-        'description' => 'Evita que otros dominios consuman recursos estaticos del sitio.',
-        'actions' => [
-            ['label' => 'Activar proteccion', 'icon' => 'ki-shield-tick', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Estado', 'value' => 'Inactivo', 'icon' => 'ki-shield'],
-            ['label' => 'Dominios permitidos', 'value' => '1', 'icon' => 'ki-click'],
-            ['label' => 'Recursos', 'value' => 'Imagenes', 'icon' => 'ki-picture'],
-        ],
-        'cards' => [
-            ['title' => 'Proteccion de recursos', 'body' => 'Controla imagenes, videos y descargas enlazadas desde terceros.'],
-            ['title' => 'Dominios permitidos', 'body' => 'El dominio principal siempre quedara permitido.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Avanzado / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">Protección Hotlink</h1><p class="mt-1 text-sm text-secondary-foreground">Impide que páginas de terceros incrusten tus recursos y consuman transferencia del servidor.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  <div class="grid gap-5 md:grid-cols-3"><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Estado</div><div class="mt-2 text-xl font-semibold text-mono">{{ $settings->hotlink_protection ? 'Activa' : 'Inactiva' }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Extensiones</div><div class="mt-2 text-xl font-semibold text-mono">{{ count($settings->hotlink_extensions ?? []) }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Referentes extra</div><div class="mt-2 text-xl font-semibold text-mono">{{ count($settings->hotlink_allowed_referrers ?? []) }}</div></div></div></div>
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Regla del sitio</h2></div><div class="kt-card-content p-5">@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<form method="post" action="{{ route('sites.hotlink.update', $site) }}" class="grid gap-5">@csrf @method('PUT')<label class="flex gap-2"><input type="checkbox" name="enabled" value="1" @checked($settings->hotlink_protection)> Activar protección</label><fieldset><legend class="mb-2 text-sm font-medium text-mono">Tipos protegidos</legend><div class="flex flex-wrap gap-3">@foreach($extensions as $extension)<label class="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><input type="checkbox" name="extensions[]" value="{{ $extension }}" @checked(in_array($extension, old('extensions', $settings->hotlink_extensions ?? ['jpg','jpeg','png','gif','webp']), true))> .{{ $extension }}</label>@endforeach</div></fieldset><label class="grid gap-2 text-sm"><span class="font-medium text-mono">Dominios referentes adicionales (uno por línea)</span><textarea class="kt-textarea min-h-32 font-mono" name="allowed_referrers" placeholder="cdn.example.com&#10;*.trusted.example">{{ old('allowed_referrers', implode("\n", $settings->hotlink_allowed_referrers ?? [])) }}</textarea></label><p class="text-xs text-secondary-foreground">El dominio principal, sus alias, las peticiones directas sin Referer y los clientes que ocultan el Referer permanecen permitidos.</p><button class="kt-btn kt-btn-primary w-fit">Guardar y aplicar</button></form>@endif</div></section>
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

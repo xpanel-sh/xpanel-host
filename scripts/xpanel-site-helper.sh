@@ -193,6 +193,39 @@ ownership_fix() {
   printf 'directories=%s\n' "$(find -P "$document_root" -xdev -type d -printf . | wc -c)"
 }
 
+access_log_read() {
+  local domain="$2" engine="$3" log
+  valid_domain "$domain" || fail "Invalid log domain."
+  case "$engine" in
+    nginx|apache|openlitespeed) log="/var/log/nginx/$domain-access.log" ;;
+    *) fail "Invalid log engine." ;;
+  esac
+  [[ -f "$log" && ! -L "$log" ]] || exit 0
+  tail -n 10000 -- "$log"
+}
+
+cache_purge() {
+  local domain="$2" document_root="$3"
+  valid_domain "$domain" || fail "Invalid cache domain."
+  valid_document_root "$document_root" || fail "Invalid cache document root."
+  [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
+  local files=0 bytes=0 target count size
+  local targets=(
+    "storage/framework/cache/data" "storage/framework/views" "bootstrap/cache"
+    "wp-content/cache" "var/cache" "tmp/cache"
+  )
+  for target in "${targets[@]}"; do
+    target="$document_root/$target"
+    [[ -d "$target" && ! -L "$target" ]] || continue
+    count="$(find -P "$target" -xdev -type f -printf . | wc -c)"
+    size="$(find -P "$target" -xdev -type f -printf '%s\n' | awk '{total += $1} END {print total + 0}')"
+    files=$((files + count))
+    bytes=$((bytes + size))
+    find -P "$target" -xdev -mindepth 1 -delete
+  done
+  printf 'files=%s\nbytes=%s\n' "$files" "$bytes"
+}
+
 engine_status() {
   local engine="$2" installed=false version=""
   case "$engine" in
@@ -550,6 +583,8 @@ case "$ACTION" in
   cron-sync) cron_sync "$@" ;;
   error-pages-sync) error_pages_sync "$@" ;;
   ownership-fix) ownership_fix "$@" ;;
+  access-log-read) access_log_read "$@" ;;
+  cache-purge) cache_purge "$@" ;;
   ssl-issue|ssl-delete) ssl_action "$@" ;;
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;

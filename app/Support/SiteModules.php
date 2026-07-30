@@ -136,6 +136,10 @@ class SiteModules
             $section === 'advanced' && $key === 'php-configuration' => route('sites.php.configuration', $site),
             $section === 'advanced' && $key === 'php-info' => route('sites.php.info', $site),
             $section === 'advanced' && $key === 'cron-jobs' => route('sites.cron.index', $site),
+            $section === 'advanced' && $key === 'cache-manager' => route('sites.cache.index', $site),
+            $section === 'advanced' && $key === 'folder-index-manager' => route('sites.folder-index.index', $site),
+            $section === 'advanced' && $key === 'hotlink-protection' => route('sites.hotlink.index', $site),
+            $section === 'advanced' && $key === 'ip-manager' => route('sites.ip-rules.index', $site),
             default => route('sites.module', [$site, $section, $key]),
         };
     }
@@ -157,7 +161,23 @@ class SiteModules
             request()->routeIs('sites.redirects.*') => 'redirects',
             request()->routeIs('sites.error-pages.*') => 'error-pages',
             request()->routeIs('sites.ownership.*') => 'fix-file-ownership',
+            request()->routeIs('sites.cache.*') => 'cache-manager',
+            request()->routeIs('sites.folder-index.*') => 'folder-index-manager',
+            request()->routeIs('sites.hotlink.*') => 'hotlink-protection',
+            request()->routeIs('sites.ip-rules.*') => 'ip-manager',
             default => null,
         };
+    }
+
+    public static function isReady(string $section, string $key): bool
+    {
+        return in_array($section.'.'.$key, [
+            'server.summary', 'server.usage', 'server.external', 'analytics.analytics',
+            'security.ssl', 'domains.subdomains', 'domains.parked-domains', 'domains.redirects',
+            'website.error-pages', 'files.file-manager', 'files.backups', 'database.mysql-databases',
+            'advanced.php-configuration', 'advanced.cron-jobs', 'advanced.php-info',
+            'advanced.cache-manager', 'advanced.ip-manager', 'advanced.hotlink-protection',
+            'advanced.folder-index-manager', 'advanced.fix-file-ownership', 'advanced.activity-log',
+        ], true);
     }
 }

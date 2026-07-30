@@ -9,6 +9,9 @@
         <main class="grow" role="content">
             <div class="kt-container-fluid">
                 <div class="grid gap-5 lg:gap-7.5">
+                    @if(request()->routeIs('sites.module') && !\App\Support\SiteModules::isReady((string) request()->route('section'), (string) request()->route('module')))
+                        <div class="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">Esta vista conserva el diseño previsto, pero su operación de servidor todavía está en preparación. Los botones sin backend permanecen desactivados.</div>
+                    @endif
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div class="min-w-0">
                             <div class="flex items-center gap-2">

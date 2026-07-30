@@ -1,21 +1,15 @@
 @extends('layouts.client')
 
+@section('title', 'Administrador de IP - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Avanzado',
-        'title' => 'IP manager',
-        'description' => 'Permite o bloquea IPs para proteger rutas y accesos del sitio.',
-        'actions' => [
-            ['label' => 'Nueva regla', 'icon' => 'ki-plus', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Reglas', 'value' => '0', 'icon' => 'ki-router'],
-            ['label' => 'Bloqueadas', 'value' => '0', 'icon' => 'ki-cross'],
-            ['label' => 'Permitidas', 'value' => '0', 'icon' => 'ki-check'],
-        ],
-        'cards' => [
-            ['title' => 'Listas de acceso', 'body' => 'Controla allowlist y blocklist por IP o rango CIDR.'],
-            ['title' => 'Auditoria', 'body' => 'Las coincidencias de reglas se podran revisar desde el historial.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div><div class="text-sm text-secondary-foreground">Avanzado / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">Administrador de IP</h1><p class="mt-1 text-sm text-secondary-foreground">Allowlist o blocklist IPv4/IPv6 aplicada por Nginx antes de entregar la petición al sitio.</p></div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  <div class="grid gap-5 md:grid-cols-3"><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Modo</div><div class="mt-2 text-xl font-semibold text-mono">{{ $rules->first()?->action === 'allow' ? 'Allowlist' : ($rules->isNotEmpty() ? 'Blocklist' : 'Sin reglas') }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Reglas</div><div class="mt-2 text-xl font-semibold text-mono">{{ $rules->count() }}</div></div></div><div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">ACME</div><div class="mt-2 text-xl font-semibold text-mono">Siempre permitido</div></div></div></div>
+  @if(config('xpanel.management_mode') === 'core')<div class="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">En modo Core, Nginx puede ver la IP privada de Traefik en lugar de la IP visitante. No actives una allowlist hasta comprobar la cadena de proxy de tu instalación.</div>@endif
+  @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Nueva regla</h2></div><div class="kt-card-content p-5"><form method="post" action="{{ route('sites.ip-rules.store', $site) }}" class="grid gap-4 md:grid-cols-[180px_1fr_auto] md:items-end">@csrf<label class="grid gap-2 text-sm"><span>Acción</span><select class="kt-select" name="action"><option value="deny">Bloquear</option><option value="allow">Permitir</option></select></label><label class="grid gap-2 text-sm"><span>IP o CIDR</span><input class="kt-input font-mono" name="address" value="{{ old('address') }}" placeholder="203.0.113.25 o 2001:db8::/32" required></label><button class="kt-btn kt-btn-primary">Agregar</button></form><p class="mt-3 text-xs text-secondary-foreground">No se mezclan modos: blocklist bloquea las direcciones indicadas; allowlist bloquea todo excepto las indicadas. Elimina las reglas existentes para cambiar de modo.</p></div></section>@endif
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Reglas configuradas</h2></div><div class="divide-y divide-border">@forelse($rules as $rule)<div class="flex items-center justify-between gap-4 px-5 py-3"><div><code class="text-sm">{{ $rule->address }}</code><span class="ml-3 kt-badge kt-badge-outline">{{ $rule->action === 'allow' ? 'Permitir' : 'Bloquear' }}</span></div>@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<form method="post" action="{{ route('sites.ip-rules.destroy', [$site, $rule]) }}" onsubmit="return confirm('¿Eliminar esta regla IP?')">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline">Eliminar</button></form>@endif</div>@empty<div class="p-8 text-center text-secondary-foreground">No hay restricciones IP.</div>@endforelse</div></section>
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

@@ -55,6 +55,7 @@ Servidor Linux o MicroVM
 | **Archivos** | Gestor de archivos confinado al espacio administrado |
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
 | **PHP y tareas** | Límites PHP por sitio, resumen seguro del runtime y tareas Cron administradas sin ejecución como root |
+| **Tráfico y seguridad** | Analítica desde logs, caché, listado de carpetas, protección Hotlink y reglas IPv4/IPv6 por sitio |
 | **Acceso** | Propietario, equipo, roles y permisos |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
 | **Despliegue** | Standalone o dentro de una MicroVM administrada por Core |
@@ -171,8 +172,16 @@ No existe una contraseña predeterminada. Después de crear el primer propietari
 - **Dominios → Redirecciones** crea reglas exactas o por prefijo con códigos 301, 302, 307 o 308. Se aplican en el Nginx público y por ello funcionan con cualquiera de los motores internos.
 - **Sitio web → Páginas de error** administra HTML estático para 403, 404, 500, 502 y 503. Los archivos quedan dentro de `.xpanel-errors` y no ejecutan PHP.
 - **Avanzado → Corregir propietarios** restaura el usuario/grupo de servicio sin seguir enlaces simbólicos, cruzar montajes ni convertir archivos privados en públicos.
+- **Análisis** resume solicitudes, IPs únicas, transferencia, errores y rutas desde las últimas 10 000 entradas del log del gateway, sin insertar rastreadores en las páginas.
+- **Avanzado → Caché** limpia únicamente ubicaciones conocidas de Laravel, WordPress y cachés convencionales; no elimina sesiones ni archivos subidos.
+- **Avanzado → Protección Hotlink** protege extensiones elegidas y permite referentes adicionales.
+- **Avanzado → Administrador de IP** trabaja en modo blocklist o allowlist con IPv4, IPv6 y CIDR. ACME permanece permitido para no romper renovaciones.
 
 En una MicroVM administrada por Core, cada alias también debe registrarse como dominio de entrada en Core/Traefik. Host configura el servicio interno, pero no modifica automáticamente el enrutamiento del servidor padre.
+
+### Módulos visibles que siguen en preparación
+
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, malware, instaladores/migración/constructor web, FTP, phpMyAdmin, MySQL remoto, SSH, editor DNS autoritativo, despliegue Git y directorios con contraseña. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
 ### Subdominios
 
