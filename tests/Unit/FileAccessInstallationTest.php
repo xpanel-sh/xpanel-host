@@ -27,4 +27,13 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('X11Forwarding no', $helper);
         $this->assertStringContainsString('Match all', $helper);
     }
+
+    public function test_panel_receives_scoped_write_acl_for_each_site_root(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('setfacl -R -m u:www-data:rwX "$document_root"', $helper);
+        $this->assertStringContainsString('d:u:www-data:rwx', $helper);
+        $this->assertStringContainsString('grant_panel_file_access "$document_root"', $helper);
+    }
 }

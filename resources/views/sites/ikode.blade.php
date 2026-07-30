@@ -1342,7 +1342,7 @@
             };
 
             const api = async (method, endpoint, body = null, signal = null) => {
-                const options = { method, headers: { 'X-CSRF-TOKEN': CSRF, Accept: 'application/json' } };
+                const options = { method, headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' } };
                 if (signal) options.signal = signal;
                 if (body instanceof FormData) {
                     options.body = body;
@@ -2295,6 +2295,7 @@
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', `${config.baseUrl}/upload`);
                 xhr.setRequestHeader('X-CSRF-TOKEN', CSRF);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
                 xhr.setRequestHeader('Accept', 'application/json');
                 xhr.upload.onprogress = (event) => {
                     if (!event.lengthComputable) return;

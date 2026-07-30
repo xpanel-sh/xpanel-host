@@ -4,12 +4,14 @@
 
 @section('content')
 <div class="grow lg:ms-(--sidebar-width) mt-(--header-height) p-5 lg:p-8">
-    <div class="max-w-5xl mx-auto flex flex-col gap-6">
+    <div class="max-w-6xl mx-auto flex flex-col gap-6">
         <div>
             <div class="text-sm text-secondary-foreground">Ajustes / Acceso al panel</div>
             <h1 class="text-2xl font-semibold text-mono">Dirección de administración</h1>
             <p class="mt-1 text-sm text-secondary-foreground">Cambia entre el acceso directo por IP y un dominio propio verificado.</p>
         </div>
+
+        @include('settings._navigation')
 
         @if ($errors->any())
             <div class="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>
@@ -45,7 +47,6 @@
             @if ($mode !== 'ip')
                 <form method="post" action="{{ route('settings.panel-access.ip') }}">@csrf @method('PUT')<button class="kt-btn kt-btn-outline">Volver a http://{{ $serverIp }}:{{ $port }}</button></form>
             @endif
-            <a class="kt-btn kt-btn-outline" href="{{ route('settings.web-servers.index') }}">Motores web</a>
         </div>
 
         <div class="rounded-xl border border-warning/20 bg-warning/10 p-5 text-sm">

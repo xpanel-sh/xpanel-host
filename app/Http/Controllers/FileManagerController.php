@@ -76,8 +76,9 @@ class FileManagerController extends Controller
         $path = $this->resolve($site, $data['path']);
         abort_if(is_dir($path), 422, 'No se puede escribir sobre una carpeta.');
         abort_unless(is_dir(dirname($path)), 404, 'La carpeta destino no existe.');
+        abort_unless(is_writable(file_exists($path) ? $path : dirname($path)), 422, 'El panel no tiene permiso de escritura en esta ruta. Ejecuta la sincronización de sitios.');
 
-        file_put_contents($path, $data['content']);
+        abort_if(@file_put_contents($path, $data['content']) === false, 500, 'No se pudo guardar el archivo.');
 
         return response()->json(['status' => 'saved']);
     }
@@ -96,11 +97,12 @@ class FileManagerController extends Controller
 
         $target = $dir.DIRECTORY_SEPARATOR.$data['name'];
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
+        abort_unless(is_writable($dir), 422, 'El panel no tiene permiso de escritura en esta carpeta. Ejecuta la sincronización de sitios.');
 
         if ($data['type'] === 'dir') {
-            mkdir($target, 0755);
+            abort_unless(@mkdir($target, 0755), 500, 'No se pudo crear la carpeta.');
         } else {
-            file_put_contents($target, '');
+            abort_if(@file_put_contents($target, '') === false, 500, 'No se pudo crear el archivo.');
         }
 
         return response()->json(['status' => 'created']);
@@ -114,8 +116,9 @@ class FileManagerController extends Controller
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
+        abort_unless(is_writable(dirname($target)), 422, 'El panel no tiene permiso de escritura en esta carpeta. Ejecuta la sincronización de sitios.');
 
-        mkdir($target, 0755);
+        abort_unless(@mkdir($target, 0755), 500, 'No se pudo crear la carpeta.');
 
         return response()->json(['status' => 'created']);
     }
@@ -134,8 +137,9 @@ class FileManagerController extends Controller
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
+        abort_unless(is_writable(dirname($path)) && is_writable(dirname($target)), 422, 'El panel no tiene permiso para mover este elemento. Ejecuta la sincronización de sitios.');
 
-        rename($path, $target);
+        abort_unless(@rename($path, $target), 500, 'No se pudo mover o renombrar el elemento.');
 
         return response()->json(['status' => 'renamed']);
     }
@@ -144,6 +148,7 @@ class FileManagerController extends Controller
     {
         $path = $this->resolve($site, $request->input('path', ''), mustExist: true);
         abort_if(rtrim($path, '/\\') === rtrim($site->localRoot(), '/\\'), 422, 'No se puede eliminar la raiz del sitio.');
+        abort_unless(is_writable(dirname($path)), 422, 'El panel no tiene permiso para eliminar este elemento. Ejecuta la sincronización de sitios.');
 
         is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
 
@@ -156,6 +161,7 @@ class FileManagerController extends Controller
 
         $dir = $this->resolve($site, $request->input('path', '/'), mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta destino no es una carpeta.');
+        abort_unless(is_writable($dir), 422, 'El panel no tiene permiso para subir archivos aquí. Ejecuta la sincronización de sitios.');
 
         $file = $request->file('file');
         $name = $file->getClientOriginalName();

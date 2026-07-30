@@ -40,6 +40,11 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- Las operaciones de sitios y SSL ya no interrumpen su propia respuesta HTTP al recargar PHP-FPM; la recarga se ejecuta de forma diferida.
+- La sincronización de sitios repara dominios principales ausentes en el portafolio de Dominios.
+- El editor iKode puede crear, guardar, mover y subir archivos mediante ACL confinadas al document root de cada sitio.
+- WordPress verifica el núcleo oficial antes de configurarlo, funciona sin terminal interactivo e instala después el idioma seleccionado.
+- Las vistas de Ajustes comparten navegación y estructura visual.
 - Un fallo auxiliar de instalación de la CLI ya no impide mostrar la URL y el estado final del panel.
 - El helper privilegiado se versiona como ejecutable para que el instalador no ensucie el árbol Git ni bloquee `git pull`/`xpanel update`.
 - Primera instalación completamente no interactiva por `IP:80`, sin solicitar dominio/correo ni intentar certificados del panel o webmail.

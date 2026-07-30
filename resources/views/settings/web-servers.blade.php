@@ -11,6 +11,8 @@
             <p class="mt-1 text-sm text-secondary-foreground">Host comienza ligero con Nginx. Instala motores adicionales únicamente cuando un sitio los necesite.</p>
         </div>
 
+        @include('settings._navigation')
+
         @if (session('status'))
             <div class="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>
         @endif

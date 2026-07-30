@@ -212,6 +212,11 @@ class SiteManagementTest extends TestCase
 
         $this->assertFileExists($generator->vhostPath($site));
         $this->assertFileExists($generator->gatewayPath($site));
+        $this->assertDatabaseHas('domains', [
+            'domain' => 'sync.example.com',
+            'site_id' => $site->id,
+            'type' => 'primary',
+        ]);
     }
 
     public function test_viewer_role_can_list_but_not_create_sites(): void

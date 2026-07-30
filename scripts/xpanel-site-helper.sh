@@ -44,6 +44,22 @@ reload_web_server() {
   systemctl reload nginx
 }
 
+# Reloading the same PHP-FPM service that is currently serving the panel can
+# terminate the HTTP request before Laravel sends its redirect. Schedule the
+# graceful reload outside the request instead.
+defer_service_reload() {
+  local service="$1"
+  systemd-run --quiet --collect --on-active=2s /bin/systemctl reload "$service"
+}
+
+grant_panel_file_access() {
+  local document_root="$1"
+  valid_document_root "$document_root" || fail "Invalid panel file-access root."
+  [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root is unavailable."
+  setfacl -R -m u:www-data:rwX "$document_root"
+  find -P "$document_root" -xdev -type d -exec setfacl -m d:u:www-data:rwx {} +
+}
+
 panel_access_apply() {
   local mode="$2" value="$3" port="${4:-80}"
   local panel_host panel_listen panel_url php_version
@@ -138,6 +154,7 @@ ensure_site_identity() {
   if id lsadm >/dev/null 2>&1; then usermod -a -G "$site_user" lsadm; fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   chown -R "$site_user:$site_user" "$document_root"
+  grant_panel_file_access "$document_root"
   local ancestor
   ancestor="$(dirname "$document_root")"
   while [[ "$ancestor" == /var/www/* || "$ancestor" == /srv/www/* ]]; do
@@ -176,6 +193,7 @@ site_action() {
     rm -f "/etc/nginx/sites-enabled/xpanel-gateway-$domain.conf" "/etc/nginx/sites-available/xpanel-gateway-$domain.conf"
     rm -f "$pool"
     reload_web_server "$engine"
+    defer_service_reload "php$php_version-fpm"
     return
   fi
 
@@ -187,7 +205,7 @@ site_action() {
       [[ -f "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
       install -o root -g root -m 0644 "$pool_source" "$pool"
       "php-fpm$php_version" -t
-      systemctl reload "php$php_version-fpm"
+      defer_service_reload "php$php_version-fpm"
     else
       rm -f "$pool"
     fi
@@ -233,7 +251,7 @@ site_restart() {
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
   if [[ "$type" == "php" && "$engine" != "openlitespeed" ]]; then
     "php-fpm$php_version" -t
-    systemctl reload "php$php_version-fpm"
+    defer_service_reload "php$php_version-fpm"
   fi
   reload_web_server "$engine"
 }
@@ -306,6 +324,7 @@ ownership_fix() {
   chown -R --no-dereference "$site_user:$site_user" "$document_root"
   find -P "$document_root" -xdev -type d -exec chmod u+rwx,go-w,go+rx {} +
   find -P "$document_root" -xdev -type f -exec chmod u+rw,go-w {} +
+  grant_panel_file_access "$document_root"
   printf 'files=%s\n' "$(find -P "$document_root" -xdev -type f -printf . | wc -c)"
   printf 'directories=%s\n' "$(find -P "$document_root" -xdev -type d -printf . | wc -c)"
 }
@@ -387,24 +406,30 @@ wordpress_install() {
   exec 9>"/run/lock/xpanel-app-$domain.lock"
   flock -n 9 || fail "Another application operation is already running for this site."
 
-  local staging cache_root
+  local staging cache_root wordpress_version
   staging="$(mktemp -d "$(dirname "$document_root")/.xpanel-wordpress.XXXXXX")"
   trap 'rm -rf -- "$staging"' RETURN
   cache_root="/var/lib/xpanel-host/wp-cli-cache/$site_user"
   install -d -o "$site_user" -g "$site_user" -m 0750 "$cache_root"
   chown "$site_user:$site_user" "$staging"
-  runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp core download --path="$staging" --locale="$locale" --force --quiet
-  printf '%s\n' "$database_password" | runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp config create \
+  local -a wp=(runuser -u "$site_user" -- env TERM=dumb WP_CLI_COLOR=0 PAGER=cat WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp)
+  "${wp[@]}" core download --path="$staging" --locale=en_US --force --quiet
+  wordpress_version="$("${wp[@]}" core version --path="$staging" --quiet)"
+  "${wp[@]}" core verify-checksums --path="$staging" --version="$wordpress_version" --locale=en_US --quiet
+  printf '%s\n' "$database_password" | "${wp[@]}" config create \
     --path="$staging" --dbname="$database" --dbuser="$database_user" --dbhost=127.0.0.1 --dbcharset=utf8mb4 --prompt=dbpass --quiet
-  printf '%s\n' "$admin_password" | runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp core install \
-    --path="$staging" --url="$url" --title="$title" --admin_user="$admin_user" --admin_email="$admin_email" --prompt=admin_password --skip-email --quiet
+  printf '%s\n' "$admin_password" | "${wp[@]}" core install \
+    --path="$staging" --url="$url" --title="$title" --admin_user="$admin_user" --admin_email="$admin_email" --locale="$locale" --prompt=admin_password --skip-email --quiet
   database_password=""
   admin_password=""
-  runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp core verify-checksums --path="$staging" --locale="$locale" --quiet
+  if [[ "$locale" != en_US ]]; then
+    "${wp[@]}" language core install "$locale" --path="$staging" --activate --quiet
+  fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$staging/" "$document_root/"
   chown -R --no-dereference "$site_user:$site_user" "$document_root"
-  printf 'version=%s\n' "$(runuser -u "$site_user" -- "/usr/bin/php$php_version" /usr/local/bin/wp core version --path="$document_root" --quiet)"
+  grant_panel_file_access "$document_root"
+  printf 'version=%s\n' "$wordpress_version"
 }
 
 migration_input_path() {
@@ -518,6 +543,7 @@ site_migrate() {
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$content_root/" "$document_root/"
   chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  grant_panel_file_access "$document_root"
   printf 'files=%s\nbytes=%s\n' "$files" "$bytes"
   [[ -z "$version" ]] || printf 'version=%s\n' "$version"
 }
@@ -660,6 +686,7 @@ git_deploy() {
     --exclude='storage/logs/' --exclude='storage/framework/sessions/' \
     "$staging/" "$document_root/"
   chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  grant_panel_file_access "$document_root"
   printf 'commit=%s\n' "$(runuser -u "$site_user" -- git -C "$repository" rev-parse FETCH_HEAD)"
 }
 
@@ -1247,6 +1274,7 @@ backup_restore() {
   find "$document_root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
   cp -a "$staging/." "$document_root/"
   chown -R "$site_user:$site_user" "$document_root"
+  grant_panel_file_access "$document_root"
 
   for database in "${BACKUP_DATABASES[@]}"; do
     mariadb --protocol=socket -e "DROP DATABASE IF EXISTS \`$database\`; CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"

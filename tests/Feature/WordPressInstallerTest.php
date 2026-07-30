@@ -21,6 +21,19 @@ class WordPressInstallerTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_privileged_installer_verifies_core_before_configuration_and_uses_a_noninteractive_terminal(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+        $verify = strpos($helper, 'core verify-checksums --path="$staging" --version="$wordpress_version" --locale=en_US');
+        $configure = strpos($helper, 'config create \\');
+
+        $this->assertStringContainsString('TERM=dumb WP_CLI_COLOR=0 PAGER=cat', $helper);
+        $this->assertStringContainsString('language core install "$locale"', $helper);
+        $this->assertNotFalse($verify);
+        $this->assertNotFalse($configure);
+        $this->assertLessThan($configure, $verify);
+    }
+
     private function site(): Site
     {
         return Site::create(['domain' => 'wp.example.com', 'document_root' => '/var/www/wp.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active', 'ssl_status' => 'active']);

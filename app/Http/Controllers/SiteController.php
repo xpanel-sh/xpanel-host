@@ -170,7 +170,10 @@ class SiteController extends Controller
      */
     private function linkDomain(Site $site): void
     {
-        Domain::where('site_id', $site->id)->where('domain', '!=', $site->domain)->update(['site_id' => null]);
+        Domain::where('site_id', $site->id)
+            ->whereIn('type', ['primary', 'subdomain'])
+            ->where('domain', '!=', $site->domain)
+            ->update(['site_id' => null]);
         Domain::updateOrCreate(['domain' => $site->domain], [
             'site_id' => $site->id,
             'type' => $site->parent_site_id === null ? 'primary' : 'subdomain',
