@@ -39,6 +39,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- Primera instalación completamente no interactiva por `IP:8080`, sin solicitar dominio/correo ni intentar certificados del panel o webmail.
 - Instalación obligatoria y comprobación de la CLI global durante el despliegue de Host.
 - Instalación inicial con sólo el dominio del panel; el correo ACME y el DNS de webmail quedan opcionales y no bloquean el proceso.
 - Inicio de OpenDKIM en Ubuntu y Debian mediante un PID y directorio de ejecución compatibles con su unidad systemd.

@@ -54,5 +54,7 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('CLI global: xpanel', $installer);
         $this->assertStringContainsString('panel-access-apply', $helper);
         $this->assertStringContainsString('Nginx rejected the new panel address; the previous configuration was restored.', $helper);
+        $this->assertStringNotContainsString('read -r -p', $installer);
+        $this->assertStringNotContainsString('enable-webmail-ssl.sh', $installer);
     }
 }

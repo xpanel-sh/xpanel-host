@@ -85,7 +85,7 @@ cd /opt/xpanel-host
 bash install.sh
 ```
 
-El instalador pregunta solamente cómo quieres entrar al panel: por `IP:8080` (recomendado) o mediante un dominio ya apuntado. Después instala dependencias, servicios, migraciones y la CLI global, crea el primer administrador y muestra la URL, correo y contraseña al finalizar. No necesitas preparar variables `XPANEL_*`.
+El instalador no hace preguntas: configura el acceso inicial por `IP:8080`, instala dependencias, servicios, migraciones y la CLI global, crea el primer administrador y muestra la URL, correo y contraseña al finalizar. No solicita dominio, Gmail, correo ACME, SSL ni variables `XPANEL_*`.
 
 ### Acceso inicial y dominio del panel
 
@@ -95,7 +95,7 @@ Antes de ejecutar este comando, crea el registro DNS:
 example.com A IP_DEL_SERVIDOR
 ```
 
-Si eliges dominio durante la instalación, Host lo registra como dirección del panel pero deja el SSL pendiente de verificación. Si eliges IP, el panel queda disponible inmediatamente en:
+El panel queda disponible inmediatamente en:
 
 ```text
 http://IP_DEL_SERVIDOR:8080/login

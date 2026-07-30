@@ -174,25 +174,8 @@ configure_management_context() {
   esac
 
   if [[ "$mode" == "standalone" && "${XPANEL_ACCESS_CONFIGURED:-}" != "true" ]]; then
-    if [[ -t 0 ]]; then
-      echo
-      echo "Acceso inicial al panel:"
-      echo "  1) IP del servidor y puerto $panel_port (recomendado)"
-      echo "  2) Dominio o subdominio ya apuntado al servidor"
-      read -r -p "Selecciona [1]: " access_choice
-      case "${access_choice:-1}" in
-        2)
-          access_mode="domain"
-          read -r -p "Dominio o subdominio del panel: " panel_domain
-          ;;
-        *)
-          access_mode="ip"
-          panel_domain=""
-          ;;
-      esac
-    else
-      access_mode="${access_mode:-ip}"
-    fi
+    access_mode="ip"
+    panel_domain=""
   fi
   if [[ -z "$access_mode" ]]; then
     if [[ -n "$panel_domain" ]]; then access_mode="domain"; else access_mode="ip"; fi
