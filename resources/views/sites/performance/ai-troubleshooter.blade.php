@@ -1,21 +1,14 @@
 @extends('layouts.client')
 
+@section('title', 'Diagnóstico - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Rendimiento',
-        'title' => 'AI troubleshooter',
-        'description' => 'Diagnostico asistido para errores de carga, lentitud y configuracion del sitio.',
-        'actions' => [
-            ['label' => 'Analizar sitio', 'icon' => 'ki-artificial-intelligence', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Incidencias', 'value' => '0', 'icon' => 'ki-warning'],
-            ['label' => 'Salud', 'value' => 'Normal', 'icon' => 'ki-pulse'],
-            ['label' => 'Ultimo analisis', 'value' => 'Nunca', 'icon' => 'ki-time'],
-        ],
-        'cards' => [
-            ['title' => 'Revision automatica', 'body' => 'El agente podra revisar logs, configuracion y archivos comunes del sitio.'],
-            ['title' => 'Sugerencias', 'body' => 'Aqui apareceran recomendaciones accionables para corregir problemas.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><div class="text-sm text-secondary-foreground">Rendimiento / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">Diagnóstico del sitio</h1><p class="mt-1 text-sm text-secondary-foreground">Comprueba configuración, identidad Unix, runtime, gateway, DNS, HTTP/HTTPS, disco, malware y backups.</p></div>@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<form method="post" action="{{ route('sites.diagnostics.store', $site) }}">@csrf<button class="kt-btn kt-btn-primary">Ejecutar diagnóstico</button></form>@endif</div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  @if($latest)<section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Resultado {{ $latest->created_at->format('Y-m-d H:i') }}</h2></div><div class="kt-card-content p-5 grid gap-3">@foreach($latest->checks ?? [] as $check)<div class="flex items-start gap-3 rounded-lg border border-border p-3"><span class="mt-0.5 size-2.5 shrink-0 rounded-full {{ $check['status']==='pass' ? 'bg-success' : ($check['status']==='warning' ? 'bg-warning' : 'bg-danger') }}"></span><div><div class="text-sm font-semibold">{{ str_replace('-', ' ', ucfirst($check['id'])) }}</div><div class="text-sm text-secondary-foreground">{{ $check['message'] }}</div></div></div>@endforeach</div></section>@endif
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Historial</h2></div><div class="kt-card-content p-5 overflow-x-auto">@if($diagnostics->isEmpty())<p class="text-sm text-secondary-foreground">Sin diagnósticos.</p>@else<table class="kt-table"><thead><tr><th>Fecha</th><th>Estado</th><th>Correctos</th><th>Avisos</th><th>Fallos</th><th>Detalle</th></tr></thead><tbody>@foreach($diagnostics as $diagnostic)<tr><td>{{ $diagnostic->created_at->format('Y-m-d H:i') }}</td><td>{{ $diagnostic->status }}</td><td>{{ collect($diagnostic->checks)->where('status','pass')->count() }}</td><td>{{ collect($diagnostic->checks)->where('status','warning')->count() }}</td><td>{{ collect($diagnostic->checks)->where('status','fail')->count() }}</td><td class="text-sm text-danger">{{ $diagnostic->error }}</td></tr>@endforeach</tbody></table>@endif</div></section>
+  <div class="text-xs text-secondary-foreground">Este diagnóstico es determinista y muestra pruebas reales; no envía archivos ni logs del sitio a un servicio de IA.</div>
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

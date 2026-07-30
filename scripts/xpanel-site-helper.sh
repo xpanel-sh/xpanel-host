@@ -432,6 +432,79 @@ site_migrate() {
   [[ -z "$version" ]] || printf 'version=%s\n' "$version"
 }
 
+diagnostic_check() {
+  local id="$1" status="$2" message="$3"
+  [[ "$id" =~ ^[a-z0-9-]{2,40}$ && ( "$status" == pass || "$status" == warning || "$status" == fail ) ]] || fail "Invalid diagnostic result."
+  printf 'check=%s\t%s\t%s\n' "$id" "$status" "$(printf %s "$message" | base64 -w0)"
+}
+
+site_diagnose() {
+  local domain="$2" document_root="$3" site_user="$4" engine="$5" type="$6" php_version="$7" expected_ipv4="$8"
+  valid_domain "$domain" || fail "Invalid diagnostic domain."
+  valid_document_root "$document_root" || fail "Invalid diagnostic document root."
+  valid_site_identity "$site_user" || fail "Invalid diagnostic site identity."
+  [[ "$engine" == nginx || "$engine" == apache || "$engine" == openlitespeed ]] || fail "Invalid diagnostic engine."
+  [[ "$type" == php || "$type" == static ]] || fail "Invalid diagnostic site type."
+  [[ "$php_version" =~ ^8\.[1-5]$ ]] || fail "Invalid diagnostic PHP version."
+  [[ "$expected_ipv4" == - || "$expected_ipv4" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || fail "Invalid expected server address."
+
+  if [[ -d "$document_root" && ! -L "$document_root" ]]; then
+    diagnostic_check document-root pass "El document root existe y no es un enlace simbólico."
+    local owner
+    owner="$(stat -c %U "$document_root")"
+    [[ "$owner" == "$site_user" ]] && diagnostic_check unix-owner pass "La raíz pertenece al usuario aislado $site_user." \
+      || diagnostic_check unix-owner fail "La raíz pertenece a $owner; se esperaba $site_user."
+  else
+    diagnostic_check document-root fail "El document root no existe o es un enlace simbólico."
+  fi
+  if [[ -f "/etc/nginx/sites-enabled/xpanel-gateway-$domain.conf" ]] && nginx -t >/dev/null 2>&1; then
+    diagnostic_check gateway pass "El gateway Nginx está habilitado y su configuración es válida."
+  else
+    diagnostic_check gateway fail "El gateway Nginx falta o su configuración no es válida."
+  fi
+  case "$engine" in
+    nginx)
+      [[ -f "/etc/nginx/conf.d/xpanel-backend-$domain.conf" ]] && diagnostic_check engine pass "El backend Nginx del sitio está instalado." || diagnostic_check engine fail "Falta el backend Nginx del sitio."
+      ;;
+    apache)
+      if [[ -f "/etc/apache2/sites-enabled/xpanel-$domain.conf" ]] && systemctl is-active --quiet apache2; then diagnostic_check engine pass "Apache está activo y el vhost está habilitado."; else diagnostic_check engine fail "Apache o el vhost del sitio no está activo."; fi
+      ;;
+    openlitespeed)
+      if [[ -f "/usr/local/lsws/conf/vhosts/xpanel-$domain/vhconf.conf" ]] && systemctl is-active --quiet lsws; then diagnostic_check engine pass "OpenLiteSpeed está activo y el vhost existe."; else diagnostic_check engine fail "OpenLiteSpeed o el vhost del sitio no está activo."; fi
+      ;;
+  esac
+  if [[ "$type" == php ]]; then
+    if [[ "$engine" == openlitespeed ]]; then
+      [[ -x "/usr/local/lsws/lsphp${php_version/.}/bin/lsphp" ]] && diagnostic_check php-runtime pass "LSPHP $php_version está disponible." || diagnostic_check php-runtime fail "LSPHP $php_version no está disponible."
+    elif systemctl is-active --quiet "php$php_version-fpm" && [[ -S "/run/php/php$php_version-fpm-$domain.sock" ]]; then
+      diagnostic_check php-runtime pass "PHP-FPM $php_version y el socket aislado están activos."
+    else
+      diagnostic_check php-runtime fail "PHP-FPM $php_version o el socket aislado no está activo."
+    fi
+  else
+    diagnostic_check php-runtime pass "El sitio es estático y no requiere PHP."
+  fi
+  local http_code https_code disk_use addresses
+  http_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 --resolve "$domain:80:127.0.0.1" "http://$domain/" || true)"
+  if [[ "$http_code" =~ ^[1-4][0-9]{2}$ ]]; then diagnostic_check http pass "El gateway local respondió HTTP $http_code."; else diagnostic_check http fail "El gateway local no respondió correctamente (HTTP ${http_code:-000})."; fi
+  if [[ -f "/etc/letsencrypt/live/$domain/fullchain.pem" ]]; then
+    https_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 --resolve "$domain:443:127.0.0.1" "https://$domain/" || true)"
+    if [[ "$https_code" =~ ^[1-4][0-9]{2}$ ]]; then diagnostic_check https pass "HTTPS local respondió $https_code y el certificado fue aceptado."; else diagnostic_check https fail "HTTPS local falló la conexión o validación (HTTP ${https_code:-000})."; fi
+  else
+    diagnostic_check https warning "No existe un certificado Let's Encrypt local para este dominio."
+  fi
+  addresses="$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd, -)"
+  if [[ -z "$addresses" ]]; then
+    diagnostic_check dns fail "El dominio no devuelve direcciones IPv4 públicas."
+  elif [[ "$expected_ipv4" == - || ",$addresses," == *",$expected_ipv4,"* ]]; then
+    diagnostic_check dns pass "DNS IPv4 resuelve a $addresses."
+  else
+    diagnostic_check dns warning "DNS resuelve a $addresses y no directamente a $expected_ipv4; puede existir un CDN o proxy."
+  fi
+  disk_use="$(df -P "$document_root" 2>/dev/null | awk 'NR == 2 { gsub(/%/, "", $5); print $5 }')"
+  if [[ "$disk_use" =~ ^[0-9]+$ && "$disk_use" -lt 90 ]]; then diagnostic_check disk pass "El sistema de archivos usa $disk_use%."; else diagnostic_check disk warning "El uso de disco es ${disk_use:-desconocido}% y requiere revisión."; fi
+}
+
 access_log_read() {
   local domain="$2" engine="$3" log
   valid_domain "$domain" || fail "Invalid log domain."
@@ -1110,6 +1183,7 @@ case "$ACTION" in
   malware-quarantine) malware_quarantine "$@" ;;
   wordpress-install) wordpress_install "$@" ;;
   site-migrate) site_migrate "$@" ;;
+  site-diagnose) site_diagnose "$@" ;;
   access-log-read) access_log_read "$@" ;;
   cache-purge) cache_purge "$@" ;;
   git-deploy) git_deploy "$@" ;;

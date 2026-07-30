@@ -30,6 +30,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Escaneos ClamAV con historial de hallazgos y cuarentena recuperable fuera del document root.
 - Instalación WordPress mediante WP-CLI verificado, base exclusiva, backup previo y rollback ante fallos.
 - Migración ZIP/TAR.GZ y SQL.GZ con límites anti-bomba, base nueva, historial y adaptación automática de WordPress.
+- PageSpeed Insights móvil/escritorio e historial de diagnóstico técnico del sitio con pruebas locales reales.
 
 ### Corregido
 

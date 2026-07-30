@@ -141,6 +141,16 @@ class Site extends Model
         return $this->hasMany(SiteMigration::class)->latest();
     }
 
+    public function pageSpeedScans(): HasMany
+    {
+        return $this->hasMany(PageSpeedScan::class)->latest();
+    }
+
+    public function diagnostics(): HasMany
+    {
+        return $this->hasMany(SiteDiagnostic::class)->latest();
+    }
+
     public function gitRepository(): HasOne
     {
         return $this->hasOne(SiteGitRepository::class);

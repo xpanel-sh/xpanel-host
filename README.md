@@ -176,7 +176,7 @@ En una MicroVM administrada por Core, cada alias también debe registrarse como 
 
 ### Módulos visibles que siguen en preparación
 
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: diagnóstico con IA, PageSpeed, CDN, constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
+El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: CDN, constructor web y editor DNS por proveedor. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
 
 Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio.
 
@@ -207,6 +207,12 @@ El respaldo de base debe ser `.sql.gz`. Host crea una base y usuario nuevos, imp
 Cada migración conserva historial, cantidad de archivos, bytes, base creada y token del backup `pre_migration`. Ante un error se intenta restaurar ese backup y retirar la base nueva; si el servidor impide completar el rollback, ambos recursos se conservan y el panel marca la limpieza pendiente. Los paquetes subidos se eliminan del staging al terminar.
 
 El panel configura Nginx y su PHP-FPM para cargas grandes. Cuando Host vive dentro de una MicroVM administrada por Core, el ingress exterior de Core/Traefik también debe permitir el tamaño y tiempo de carga elegidos; Host no puede ampliar por sí solo el límite del servidor padre.
+
+### PageSpeed y diagnóstico
+
+**Rendimiento → PageSpeed** consulta la [API oficial PageSpeed Insights v5](https://developers.google.com/speed/docs/insights/v5/get-started) con la URL pública derivada del sitio; el usuario no puede proporcionar destinos arbitrarios. Conserva mediciones móvil/escritorio, puntuaciones Lighthouse, FCP, LCP, TBT, CLS, Speed Index y las oportunidades principales. Los fallos o límites de cuota quedan registrados como fallos, nunca como puntuaciones ficticias. La API admite consultas sin clave; para uso frecuente configura `PAGESPEED_API_KEY`.
+
+**Rendimiento → Diagnóstico del sitio** ejecuta comprobaciones deterministas dentro del Host: document root, propietario Unix, gateway Nginx, backend elegido, PHP-FPM/LSPHP, respuesta HTTP y HTTPS local, resolución DNS, uso de disco, estado SSL registrado, último malware y existencia de backup. Cada resultado queda como correcto, aviso o fallo con historial. No envía archivos ni logs a servicios de IA.
 
 ### phpMyAdmin y MySQL remoto
 

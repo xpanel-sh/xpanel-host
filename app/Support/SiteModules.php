@@ -29,7 +29,7 @@ class SiteModules
                 'label' => 'Rendimiento',
                 'icon' => 'ki-chart-line-up',
                 'items' => [
-                    'ai-troubleshooter' => ['label' => 'Solucionador con IA', 'icon' => 'ki-message-programming', 'description' => 'Diagnostico asistido de errores comunes del sitio.'],
+                    'ai-troubleshooter' => ['label' => 'Diagnóstico del sitio', 'icon' => 'ki-message-programming', 'description' => 'Comprueba servicios, rutas, DNS, HTTP, HTTPS, backups y seguridad.'],
                     'page-speed' => ['label' => 'Page Speed', 'icon' => 'ki-chart-simple', 'description' => 'Diagnostico de velocidad de carga del sitio.'],
                     'cdn' => ['label' => 'CDN', 'icon' => 'ki-world', 'description' => 'Sirve contenido estatico desde una red de distribucion.'],
                 ],
@@ -150,6 +150,8 @@ class SiteModules
             $section === 'advanced' && $key === 'git' => route('sites.git.index', $site),
             $section === 'advanced' && $key === 'password-protect-directories' => route('sites.protected-directories.index', $site),
             $section === 'security' && $key === 'malware-scanner' => route('sites.malware.index', $site),
+            $section === 'performance' && $key === 'page-speed' => route('sites.pagespeed.index', $site),
+            $section === 'performance' && $key === 'ai-troubleshooter' => route('sites.diagnostics.index', $site),
             default => route('sites.module', [$site, $section, $key]),
         };
     }
@@ -185,6 +187,8 @@ class SiteModules
             request()->routeIs('sites.git.*') => 'git',
             request()->routeIs('sites.protected-directories.*') => 'password-protect-directories',
             request()->routeIs('sites.malware.*') => 'malware-scanner',
+            request()->routeIs('sites.pagespeed.*') => 'page-speed',
+            request()->routeIs('sites.diagnostics.*') => 'ai-troubleshooter',
             default => null,
         };
     }
@@ -193,6 +197,7 @@ class SiteModules
     {
         return in_array($section.'.'.$key, [
             'server.summary', 'server.usage', 'server.external', 'analytics.analytics',
+            'performance.ai-troubleshooter', 'performance.page-speed',
             'security.ssl', 'security.malware-scanner', 'domains.subdomains', 'domains.parked-domains', 'domains.redirects',
             'website.wordpress', 'website.auto-installer', 'website.migration', 'website.error-pages', 'files.file-manager', 'files.backups', 'files.ftp', 'database.mysql-databases',
             'database.phpmyadmin', 'database.remote-mysql',

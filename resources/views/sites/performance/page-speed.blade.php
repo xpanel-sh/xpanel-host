@@ -1,21 +1,18 @@
 @extends('layouts.client')
 
+@section('title', 'PageSpeed - '.$site->domain)
+
 @section('content')
-    @include('layouts.partials.client.web-module-page', [
-        'sectionLabel' => 'Rendimiento',
-        'title' => 'Page speed',
-        'description' => 'Mide tiempos de respuesta, peso de pagina y oportunidades de optimizacion.',
-        'actions' => [
-            ['label' => 'Medir ahora', 'icon' => 'ki-chart-line-up', 'style' => 'kt-btn-primary'],
-        ],
-        'metrics' => [
-            ['label' => 'Score', 'value' => '--', 'icon' => 'ki-chart-simple'],
-            ['label' => 'TTFB', 'value' => '-- ms', 'icon' => 'ki-timer'],
-            ['label' => 'Peso', 'value' => '-- MB', 'icon' => 'ki-file'],
-        ],
-        'cards' => [
-            ['title' => 'Historial', 'body' => 'Aqui se mostraran mediciones de velocidad por fecha.'],
-            ['title' => 'Optimizaciones', 'body' => 'Compresion, cache y recursos estaticos se analizaran desde este panel.'],
-        ],
-    ])
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><div class="text-sm text-secondary-foreground">Rendimiento / {{ $site->domain }}</div><h1 class="text-2xl font-semibold text-mono">PageSpeed Insights</h1><p class="mt-1 text-sm text-secondary-foreground">Medición Lighthouse real de Google para móvil o escritorio.</p></div>@if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<form method="post" action="{{ route('sites.pagespeed.store', $site) }}" class="flex gap-2" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Midiendo…'">@csrf<select class="kt-select" name="strategy"><option value="mobile">Móvil</option><option value="desktop">Escritorio</option></select><button class="kt-btn kt-btn-primary">Medir ahora</button></form>@endif</div>
+  @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
+  @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+  @if($latest)
+  <div class="grid gap-5 md:grid-cols-4">@foreach(['performance'=>'Rendimiento','accessibility'=>'Accesibilidad','best-practices'=>'Buenas prácticas','seo'=>'SEO'] as $key=>$label)<div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">{{ $label }}</div><div class="mt-2 text-3xl font-semibold {{ ($latest->categories[$key] ?? 0) >= 90 ? 'text-success' : (($latest->categories[$key] ?? 0) >= 50 ? 'text-warning' : 'text-danger') }}">{{ $latest->categories[$key] ?? '—' }}</div></div></div>@endforeach</div>
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Métricas {{ $latest->strategy }}</h2></div><div class="kt-card-content p-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">@foreach($latest->metrics ?? [] as $metric)<div class="rounded-lg border border-border p-3"><div class="text-xs text-secondary-foreground">{{ $metric['title'] }}</div><div class="mt-1 font-semibold">{{ $metric['value'] }}</div></div>@endforeach</div></section>
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Oportunidades</h2></div><div class="kt-card-content p-5 grid gap-3">@forelse($latest->opportunities ?? [] as $opportunity)<div class="flex justify-between gap-4 rounded-lg border border-border p-3"><span class="text-sm font-medium">{{ $opportunity['title'] }}</span><span class="text-sm text-secondary-foreground">{{ $opportunity['value'] }}</span></div>@empty<p class="text-sm text-secondary-foreground">Google no devolvió oportunidades prioritarias.</p>@endforelse</div></section>
+  @endif
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Historial</h2></div><div class="kt-card-content p-5 overflow-x-auto">@if($scans->isEmpty())<p class="text-sm text-secondary-foreground">Sin mediciones.</p>@else<table class="kt-table"><thead><tr><th>Fecha</th><th>Estrategia</th><th>Estado</th><th>Score</th><th>Detalle</th></tr></thead><tbody>@foreach($scans as $scan)<tr><td>{{ $scan->created_at->format('Y-m-d H:i') }}</td><td>{{ $scan->strategy }}</td><td>{{ $scan->status }}</td><td>{{ $scan->performance_score ?? '—' }}</td><td class="max-w-md text-sm text-danger">{{ $scan->error }}</td></tr>@endforeach</tbody></table>@endif</div></section>
+  <div class="text-xs text-secondary-foreground">PageSpeed consulta la URL pública del dominio. Puede funcionar sin clave, pero `PAGESPEED_API_KEY` es recomendable para uso frecuente.</div>
+</div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

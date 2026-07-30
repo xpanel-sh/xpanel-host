@@ -20,6 +20,7 @@ use App\Http\Controllers\MailController;
 use App\Http\Controllers\MailDnsController;
 use App\Http\Controllers\MalwareScanController;
 use App\Http\Controllers\OwnershipController;
+use App\Http\Controllers\PageSpeedController;
 use App\Http\Controllers\ParkedDomainController;
 use App\Http\Controllers\PhpConfigurationController;
 use App\Http\Controllers\PhpMyAdminController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SiteAccessController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SiteDiagnosticController;
 use App\Http\Controllers\SiteMigrationController;
 use App\Http\Controllers\SiteOperationController;
 use App\Http\Controllers\SubdomainController;
@@ -147,6 +149,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/advanced/php-info', [PhpConfigurationController::class, 'info'])->name('sites.php.info');
             Route::get('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'index'])->name('sites.cron.index');
             Route::get('/sites/{site}/security/malware-scanner', [MalwareScanController::class, 'index'])->name('sites.malware.index');
+            Route::get('/sites/{site}/performance/page-speed', [PageSpeedController::class, 'index'])->name('sites.pagespeed.index');
+            Route::get('/sites/{site}/performance/ai-troubleshooter', [SiteDiagnosticController::class, 'index'])->name('sites.diagnostics.index');
             Route::prefix('/sites/{site}/files/manager/api')->name('sites.files.api.')->group(function () {
                 Route::get('/list', [FileManagerController::class, 'list'])->name('list');
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
@@ -175,6 +179,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::put('/sites/{site}/website/error-pages', [ErrorPageController::class, 'update'])->name('sites.error-pages.update');
             Route::post('/sites/{site}/website/wordpress', [WordPressController::class, 'store'])->middleware('throttle:3,1')->name('sites.wordpress.store');
             Route::post('/sites/{site}/website/migration', [SiteMigrationController::class, 'store'])->middleware('throttle:3,1')->name('sites.migrations.store');
+            Route::post('/sites/{site}/performance/page-speed', [PageSpeedController::class, 'store'])->middleware('throttle:4,10')->name('sites.pagespeed.store');
+            Route::post('/sites/{site}/performance/ai-troubleshooter', [SiteDiagnosticController::class, 'store'])->middleware('throttle:10,1')->name('sites.diagnostics.store');
             Route::post('/sites/{site}/advanced/fix-file-ownership', [OwnershipController::class, 'repair'])->name('sites.ownership.repair');
             Route::post('/sites/{site}/advanced/cache-manager/purge', [CacheController::class, 'purge'])->name('sites.cache.purge');
             Route::put('/sites/{site}/advanced/folder-index-manager', [FolderIndexController::class, 'update'])->name('sites.folder-index.update');
