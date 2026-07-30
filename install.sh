@@ -147,7 +147,7 @@ load_existing_configuration() {
 
   local key value
   for key in \
-    XPANEL_MANAGEMENT_MODE XPANEL_PANEL_DOMAIN XPANEL_WEB_SERVER \
+    XPANEL_MANAGEMENT_MODE XPANEL_PANEL_DOMAIN XPANEL_PANEL_ACCESS_MODE XPANEL_PANEL_PORT XPANEL_ACCESS_CONFIGURED XPANEL_WEB_SERVER \
     XPANEL_MAIL_HOSTNAME XPANEL_WEBMAIL_HOSTNAME XPANEL_WEBMAIL_URL XPANEL_ROUNDCUBE_ENABLED XPANEL_PHPMYADMIN_ENABLED \
     XPANEL_MAIL_UID XPANEL_MAIL_GID XPANEL_SERVER_IPV4 XPANEL_DKIM_SELECTOR \
     XPANEL_SITE_USER XPANEL_SITE_GROUP; do
@@ -165,13 +165,37 @@ load_existing_configuration() {
 configure_management_context() {
   local mode="${XPANEL_MANAGEMENT_MODE:-standalone}"
   local panel_domain="${XPANEL_PANEL_DOMAIN:-}"
+  local access_mode="${XPANEL_PANEL_ACCESS_MODE:-}"
+  local panel_port="${XPANEL_PANEL_PORT:-8080}"
+  local server_ipv4="${XPANEL_SERVER_IPV4:-$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')}"
   case "$mode" in
     standalone|core) ;;
     *) echo "XPANEL_MANAGEMENT_MODE must be standalone or core." >&2; exit 1 ;;
   esac
 
-  if [[ "$mode" == "standalone" && -z "$panel_domain" && -t 0 ]]; then
-    read -r -p "Hostname del panel (vacio para usar la IP): " panel_domain
+  if [[ "$mode" == "standalone" && "${XPANEL_ACCESS_CONFIGURED:-}" != "true" ]]; then
+    if [[ -t 0 ]]; then
+      echo
+      echo "Acceso inicial al panel:"
+      echo "  1) IP del servidor y puerto $panel_port (recomendado)"
+      echo "  2) Dominio o subdominio ya apuntado al servidor"
+      read -r -p "Selecciona [1]: " access_choice
+      case "${access_choice:-1}" in
+        2)
+          access_mode="domain"
+          read -r -p "Dominio o subdominio del panel: " panel_domain
+          ;;
+        *)
+          access_mode="ip"
+          panel_domain=""
+          ;;
+      esac
+    else
+      access_mode="${access_mode:-ip}"
+    fi
+  fi
+  if [[ -z "$access_mode" ]]; then
+    if [[ -n "$panel_domain" ]]; then access_mode="domain"; else access_mode="ip"; fi
   fi
   panel_domain="${panel_domain,,}"
   panel_domain="${panel_domain%.}"
@@ -181,16 +205,36 @@ configure_management_context() {
   fi
 
   set_env_var XPANEL_MANAGEMENT_MODE "$mode"
-  if [[ -n "$panel_domain" ]]; then
+  if [[ "$mode" == "standalone" && "$access_mode" == "ip" ]]; then
+    [[ "$panel_port" =~ ^[0-9]{2,5}$ ]] && (( panel_port >= 1024 && panel_port <= 65535 )) || {
+      echo "XPANEL_PANEL_PORT must be between 1024 and 65535." >&2
+      exit 1
+    }
+    [[ -n "$server_ipv4" ]] || { echo "Could not detect the server IPv4 address." >&2; exit 1; }
+    unset XPANEL_PANEL_DOMAIN
+    XPANEL_PANEL_ACCESS_MODE=ip
+    XPANEL_PANEL_PORT="$panel_port"
+    export XPANEL_PANEL_ACCESS_MODE XPANEL_PANEL_PORT
+    set_env_var XPANEL_PANEL_DOMAIN ""
+    set_env_var XPANEL_PANEL_ACCESS_MODE ip
+    set_env_var XPANEL_PANEL_PORT "$panel_port"
+    set_env_var APP_URL "http://$server_ipv4:$panel_port"
+  elif [[ -n "$panel_domain" ]]; then
     XPANEL_PANEL_DOMAIN="$panel_domain"
     export XPANEL_PANEL_DOMAIN
+    XPANEL_PANEL_ACCESS_MODE=domain
+    XPANEL_PANEL_PORT="$panel_port"
+    export XPANEL_PANEL_ACCESS_MODE XPANEL_PANEL_PORT
     set_env_var XPANEL_PANEL_DOMAIN "$panel_domain"
+    set_env_var XPANEL_PANEL_ACCESS_MODE domain
+    set_env_var XPANEL_PANEL_PORT "$panel_port"
     if [[ "$mode" == "core" ]]; then
       set_env_var APP_URL "https://$panel_domain"
     else
       set_env_var APP_URL "http://$panel_domain"
     fi
   fi
+  set_env_var XPANEL_ACCESS_CONFIGURED true
 
   if [[ "$mode" == "core" ]]; then
     local required=(
@@ -501,16 +545,22 @@ EOF
 }
 
 configure_panel_vhost() {
-  local php_version panel_host
+  local php_version panel_host panel_listen
   php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
-  panel_host="${XPANEL_PANEL_DOMAIN:-_}"
+  if [[ "${XPANEL_PANEL_ACCESS_MODE:-ip}" == "domain" && -n "${XPANEL_PANEL_DOMAIN:-}" ]]; then
+    panel_host="$XPANEL_PANEL_DOMAIN"
+    panel_listen="80"
+  else
+    panel_host="_"
+    panel_listen="${XPANEL_PANEL_PORT:-8080} default_server"
+  fi
   set_env_var XPANEL_PHP_VERSIONS "$php_version"
   a2dissite xpanel-host-panel.conf >/dev/null 2>&1 || true
   rm -f /etc/apache2/sites-available/xpanel-host-panel.conf
 
   cat > /etc/nginx/sites-available/xpanel-host-panel.conf <<EOF
 server {
-    listen 80;
+    listen $panel_listen;
     server_name $panel_host;
     root $ROOT/public;
     index index.php;
@@ -624,19 +674,34 @@ if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-roundcube.sh"
 fi
 
-if [[ "${XPANEL_MANAGEMENT_MODE:-standalone}" == "standalone" && -n "${XPANEL_PANEL_DOMAIN:-}" ]]; then
-  bash "$ROOT/scripts/enable-panel-ssl.sh" "${XPANEL_ACME_EMAIL:-}"
+initial_admin_created=false
+initial_admin_email=""
+initial_admin_password=""
+if [[ "$(sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:admin-bootstrap --status-only)" == "missing" ]]; then
+  initial_admin_email="admin@xpanel.local"
+  initial_admin_password="$(openssl rand -hex 16)"
+  printf '%s\n' "$initial_admin_password" | sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" \
+    xpanel:admin-bootstrap --name="Administrador" --email="$initial_admin_email" --password-stdin >/dev/null
+  initial_admin_created=true
 fi
 
-if [[ "${XPANEL_INSTALL_CLI:-}" == "yes" ]]; then
-  install_cli
-elif [[ "${XPANEL_INSTALL_CLI:-}" == "no" ]]; then
-  :
-elif [[ -t 0 ]]; then
-  read -r -p "Install xpanel CLI commands? [y/N] " answer
-  case "$answer" in
-    y|Y|yes|YES) install_cli ;;
-  esac
-fi
+install_cli
+"/usr/local/bin/xpanel" status --root="$ROOT" >/dev/null
 
-echo "$SYSTEM installed."
+panel_url="$(grep '^APP_URL=' "$ROOT/.env" | tail -n1 | cut -d= -f2-)"
+echo
+echo "============================================================"
+echo "XPanel Host instalado correctamente"
+echo "Acceso: $panel_url/login"
+if [[ "$initial_admin_created" == "true" ]]; then
+  echo "Correo: $initial_admin_email"
+  echo "Contraseña: $initial_admin_password"
+  echo "Guarda esta contraseña ahora; no volverá a mostrarse."
+else
+  echo "Administrador: se conservó la cuenta existente."
+fi
+echo "CLI global: xpanel"
+if [[ "${XPANEL_PANEL_ACCESS_MODE:-ip}" == "domain" ]]; then
+  echo "SSL: actívalo después desde Ajustes cuando el dominio esté verificado."
+fi
+echo "============================================================"

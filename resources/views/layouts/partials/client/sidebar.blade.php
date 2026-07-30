@@ -43,7 +43,7 @@
         $user?->hasPermission(Permissions::SERVER_MANAGE) ? [
             'label' => 'Ajustes',
             'icon' => 'ki-setting-2',
-            'url' => route('settings.web-servers.index'),
+            'url' => route('settings.panel-access.index'),
             'active' => request()->routeIs('settings.*'),
         ] : null,
     ]));

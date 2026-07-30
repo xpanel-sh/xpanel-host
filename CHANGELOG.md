@@ -6,6 +6,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- Instalación interactiva sin variables de entorno, acceso inicial por `IP:8080`, propietario automático y resumen final de credenciales.
+- Ajustes para verificar y cambiar el dominio del panel, volver al acceso por IP e instalar SSL posteriormente.
 - Gestión de sitios PHP y estáticos, subdominios y raíces aisladas.
 - Nginx como motor inicial y soporte instalable para Apache y OpenLiteSpeed por sitio.
 - Certificados Let's Encrypt, bases MariaDB y gestor de archivos.
@@ -37,6 +39,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- Instalación obligatoria y comprobación de la CLI global durante el despliegue de Host.
 - Instalación inicial con sólo el dominio del panel; el correo ACME y el DNS de webmail quedan opcionales y no bloquean el proceso.
 - Inicio de OpenDKIM en Ubuntu y Debian mediante un PID y directorio de ejecución compatibles con su unidad systemd.
 - Validación temprana del correo ACME para impedir instalaciones con valores de ejemplo sin reemplazar.

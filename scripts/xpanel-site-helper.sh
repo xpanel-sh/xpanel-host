@@ -18,6 +18,15 @@ valid_site_identity() { [[ "$1" =~ ^xps[a-z0-9]{9,29}$ ]]; }
 valid_ipv4() { [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && php -r 'exit(filter_var($argv[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? 0 : 1);' "$1"; }
 valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; }
 
+set_root_env() {
+  local key="$1" value="$2"
+  if grep -q "^${key}=" "$ROOT/.env" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$ROOT/.env"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ROOT/.env"
+  fi
+}
+
 [[ "$(id -u)" == "0" ]] || fail "xpanel-site-helper must run as root."
 getent passwd "$SITE_USER" >/dev/null || fail "Configured site user does not exist."
 getent group "$SITE_GROUP" >/dev/null || fail "Configured site group does not exist."
@@ -33,6 +42,87 @@ reload_web_server() {
   fi
   nginx -t
   systemctl reload nginx
+}
+
+panel_access_apply() {
+  local mode="$2" value="$3" port="${4:-8080}"
+  local panel_host panel_listen panel_url php_version
+  php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
+  [[ -S "/run/php/php$php_version-fpm.sock" ]] || fail "PHP-FPM socket is not available."
+
+  case "$mode" in
+    domain)
+      valid_domain "$value" || fail "Invalid panel domain."
+      panel_host="$value"
+      panel_listen="80"
+      panel_url="http://$value"
+      ;;
+    ip)
+      valid_ipv4 "$value" || fail "Invalid panel IPv4 address."
+      [[ "$port" =~ ^[0-9]{2,5}$ ]] && (( port >= 1024 && port <= 65535 )) || fail "Invalid panel port."
+      panel_host="_"
+      panel_listen="$port default_server"
+      panel_url="http://$value:$port"
+      ;;
+    *) fail "Invalid panel access mode." ;;
+  esac
+
+  local target="/etc/nginx/sites-available/xpanel-host-panel.conf"
+  local temporary backup=""
+  temporary="$(mktemp /etc/nginx/sites-available/.xpanel-host-panel.XXXXXX)"
+  if [[ -f "$target" ]]; then
+    backup="$(mktemp /etc/nginx/sites-available/.xpanel-host-panel-backup.XXXXXX)"
+    cp "$target" "$backup"
+  fi
+  cat > "$temporary" <<EOF
+server {
+    listen $panel_listen;
+    server_name $panel_host;
+    root $ROOT/public;
+    index index.php;
+    include /etc/nginx/snippets/xpanel-phpmyadmin.conf;
+
+    location / { try_files \$uri \$uri/ /index.php?\$query_string; }
+    location ~ \.php\$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php$php_version-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_read_timeout 1250s;
+    }
+    location ~ /\. { deny all; }
+}
+EOF
+  install -o root -g root -m 0644 "$temporary" "$target"
+  rm -f "$temporary"
+  ln -sfn "$target" /etc/nginx/sites-enabled/xpanel-host-panel.conf
+  if ! nginx -t; then
+    if [[ -n "$backup" ]]; then
+      install -o root -g root -m 0644 "$backup" "$target"
+    else
+      rm -f "$target" /etc/nginx/sites-enabled/xpanel-host-panel.conf
+    fi
+    rm -f "$backup"
+    fail "Nginx rejected the new panel address; the previous configuration was restored."
+  fi
+  rm -f "$backup"
+
+  local configured_domain=""
+  [[ "$mode" != domain ]] || configured_domain="$value"
+  set_root_env XPANEL_PANEL_ACCESS_MODE "$mode"
+  set_root_env XPANEL_PANEL_DOMAIN "$configured_domain"
+  set_root_env XPANEL_PANEL_PORT "$port"
+  set_root_env XPANEL_ACCESS_CONFIGURED true
+  set_root_env APP_URL "$panel_url"
+  sudo -u "$SITE_USER" php "$ROOT/artisan" optimize:clear >/dev/null
+  systemctl reload nginx
+  printf 'url=%s\n' "$panel_url"
+}
+
+panel_ssl_enable() {
+  local domain
+  domain="$(grep '^XPANEL_PANEL_DOMAIN=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
+  valid_domain "$domain" || fail "Configure and verify a panel domain first."
+  bash "$ROOT/scripts/enable-panel-ssl.sh"
 }
 
 ensure_site_identity() {
@@ -1174,6 +1264,8 @@ backup_delete() {
 }
 
 case "$ACTION" in
+  panel-access-apply) panel_access_apply "$@" ;;
+  panel-ssl-enable) panel_ssl_enable ;;
   apply|remove) site_action "$@" ;;
   site-restart) site_restart "$@" ;;
   cron-sync) cron_sync "$@" ;;

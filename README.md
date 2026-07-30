@@ -70,7 +70,7 @@ Para la primera instalación se recomienda un VDS limpio con:
 - Al menos 2 GB de RAM; utiliza más memoria si activas Apache, OpenLiteSpeed o varias cuentas PHP.
 - Puertos 22, 80 y 443 permitidos.
 - Puertos 25, 587 y 993 si utilizarás correo.
-- Un registro DNS `A` para el hostname del panel si deseas HTTPS desde la instalación.
+- El puerto 8080 permitido para el acceso inicial por IP. Puedes cerrarlo después de configurar un dominio.
 
 No publiques los puertos internos 8082, 8083, 7080 u 8088. Host limita los backends opcionales a loopback.
 
@@ -82,12 +82,12 @@ Conéctate a un VDS limpio y ejecuta:
 ssh root@IP_DEL_SERVIDOR
 git clone https://github.com/xpanel-sh/xpanel-host.git /opt/xpanel-host
 cd /opt/xpanel-host
-XPANEL_INSTALL_CLI=yes bash install.sh
+bash install.sh
 ```
 
-El instalador obtiene por sí mismo la CLI oficial, descarga las dependencias, configura Nginx, PHP-FPM, MariaDB, Postfix, Dovecot y Certbot, ejecuta las migraciones e instala el comando `xpanel` en `/usr/local/bin/xpanel`. No necesitas descargar ni publicar otro repositorio.
+El instalador pregunta solamente cómo quieres entrar al panel: por `IP:8080` (recomendado) o mediante un dominio ya apuntado. Después instala dependencias, servicios, migraciones y la CLI global, crea el primer administrador y muestra la URL, correo y contraseña al finalizar. No necesitas preparar variables `XPANEL_*`.
 
-### Instalación con dominio y SSL del panel
+### Acceso inicial y dominio del panel
 
 Antes de ejecutar este comando, crea el registro DNS:
 
@@ -95,55 +95,17 @@ Antes de ejecutar este comando, crea el registro DNS:
 example.com A IP_DEL_SERVIDOR
 ```
 
-Cuando DNS ya resuelva y el puerto 80 sea accesible:
-
-```bash
-cd /opt/xpanel-host
-XPANEL_PANEL_DOMAIN=example.com \
-XPANEL_INSTALL_CLI=yes \
-bash install.sh
-```
-
-El dominio es el único dato necesario: Host deduce `mail.example.com`, instala los componentes de correo y obtiene el SSL del panel. Puedes proporcionar `XPANEL_ACME_EMAIL` opcionalmente si quieres recibir avisos de la autoridad certificadora; no es una cuenta de Host.
-
-El panel quedará en:
+Si eliges dominio durante la instalación, Host lo registra como dirección del panel pero deja el SSL pendiente de verificación. Si eliges IP, el panel queda disponible inmediatamente en:
 
 ```text
-https://example.com/setup
+http://IP_DEL_SERVIDOR:8080/login
 ```
 
-Si todavía no tienes DNS, omite `XPANEL_PANEL_DOMAIN`. Al terminar abre:
-
-```text
-http://IP_DEL_SERVIDOR/setup
-```
-
-Cuando prepares DNS, vuelve a ejecutar el instalador de forma idempotente para guardar el hostname, regenerar el vhost y emitir SSL:
-
-```bash
-cd /opt/xpanel-host
-sudo env \
-  XPANEL_PANEL_DOMAIN=example.com \
-  XPANEL_INSTALL_CLI=yes \
-  bash install.sh
-```
-
-Si el hostname ya estaba configurado y solamente faltaba emitir el certificado, utiliza:
-
-```bash
-cd /opt/xpanel-host
-sudo bash scripts/enable-panel-ssl.sh
-```
+Después entra en **Ajustes → Acceso al panel**, escribe el dominio o subdominio, verifica su registro A y aplica el cambio. Host redirige a la nueva dirección; desde la misma pantalla puedes instalar el certificado SSL. El DNS y SSL de correo siguen siendo posteriores e independientes.
 
 ## Primer acceso
 
-La ruta `/setup` solicita:
-
-1. nombre del propietario;
-2. correo de acceso;
-3. contraseña y confirmación.
-
-No existe una contraseña predeterminada. Después de crear el primer propietario, `/setup` se bloquea y el acceso continúa por `/login`.
+El instalador crea automáticamente el primer propietario y muestra sus credenciales una sola vez. Guárdalas antes de cerrar la terminal. La ruta `/setup` queda bloqueada y el acceso normal continúa por `/login`.
 
 ## Primer sitio
 
@@ -319,7 +281,7 @@ Actualizar Host:
 
 ```bash
 cd /opt/xpanel-host
-sudo xpanel update
+xpanel update
 ```
 
 `xpanel update` actualiza primero `xpanel-cli` y luego el clon de Host usando sus ramas remotas configuradas. La actualización de Host:

@@ -16,6 +16,8 @@ return [
     'core_url' => env('XPANEL_CORE_URL'),
     'core_service_id' => env('XPANEL_CORE_SERVICE_ID'),
     'panel_domain' => env('XPANEL_PANEL_DOMAIN'),
+    'panel_access_mode' => env('XPANEL_PANEL_ACCESS_MODE', 'ip'),
+    'panel_port' => (int) env('XPANEL_PANEL_PORT', 8080),
     'assigned_cpu' => env('XPANEL_ASSIGNED_CPU'),
     'assigned_memory_mib' => env('XPANEL_ASSIGNED_MEMORY_MIB'),
     'assigned_disk_gib' => env('XPANEL_ASSIGNED_DISK_GIB'),

@@ -23,6 +23,7 @@ use App\Http\Controllers\MailDnsController;
 use App\Http\Controllers\MalwareScanController;
 use App\Http\Controllers\OwnershipController;
 use App\Http\Controllers\PageSpeedController;
+use App\Http\Controllers\PanelAccessController;
 use App\Http\Controllers\ParkedDomainController;
 use App\Http\Controllers\PhpConfigurationController;
 use App\Http\Controllers\PhpMyAdminController;
@@ -263,6 +264,10 @@ Route::middleware('setup.complete')->group(function () {
             Route::resource('roles', RoleController::class)->except(['show']);
         });
         Route::middleware('permission:'.Permissions::SERVER_MANAGE)->group(function () {
+            Route::get('/settings/panel-access', [PanelAccessController::class, 'index'])->name('settings.panel-access.index');
+            Route::put('/settings/panel-access/domain', [PanelAccessController::class, 'domain'])->name('settings.panel-access.domain');
+            Route::put('/settings/panel-access/ip', [PanelAccessController::class, 'ip'])->name('settings.panel-access.ip');
+            Route::post('/settings/panel-access/ssl', [PanelAccessController::class, 'ssl'])->name('settings.panel-access.ssl');
             Route::get('/settings/web-servers', [WebServerEngineController::class, 'index'])->name('settings.web-servers.index');
             Route::post('/settings/web-servers/{engine}/install', [WebServerEngineController::class, 'install'])->name('settings.web-servers.install');
         });

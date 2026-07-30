@@ -30,16 +30,29 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('XPANEL_ACME_EMAIL must be a real email address', $installer);
     }
 
-    public function test_initial_panel_ssl_does_not_require_an_email_or_webmail_dns(): void
+    public function test_initial_install_does_not_require_ssl_or_webmail_dns(): void
     {
         $installer = file_get_contents(base_path('install.sh'));
         $panelSsl = file_get_contents(base_path('scripts/enable-panel-ssl.sh'));
         $webmailSsl = file_get_contents(base_path('scripts/enable-webmail-ssl.sh'));
 
-        $this->assertStringContainsString('enable-panel-ssl.sh" "${XPANEL_ACME_EMAIL:-}"', $installer);
+        $this->assertStringNotContainsString('bash "$ROOT/scripts/enable-panel-ssl.sh"', $installer);
         $this->assertStringNotContainsString('read -r -p "Correo para Let', $installer);
         $this->assertStringNotContainsString('enable-webmail-ssl.sh" "$XPANEL_ACME_EMAIL"', $installer);
         $this->assertStringContainsString('--register-unsafely-without-email', $panelSsl);
         $this->assertStringContainsString('--register-unsafely-without-email', $webmailSsl);
+    }
+
+    public function test_installer_creates_ip_access_admin_and_global_cli_automatically(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('XPANEL_PANEL_PORT:-8080', $installer);
+        $this->assertStringContainsString('xpanel:admin-bootstrap --status-only', $installer);
+        $this->assertStringContainsString('install_cli', $installer);
+        $this->assertStringContainsString('CLI global: xpanel', $installer);
+        $this->assertStringContainsString('panel-access-apply', $helper);
+        $this->assertStringContainsString('Nginx rejected the new panel address; the previous configuration was restored.', $helper);
     }
 }
