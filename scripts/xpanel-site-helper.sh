@@ -1049,9 +1049,12 @@ access_sync() {
   # blocks unprivileged user namespaces by default and this box has no
   # profile permitting it), this needs no special kernel policy at all. The
   # tradeoff is the jail needs its own bind-mounted copy of whatever a
-  # working shell needs, and it must only ever reach this site's own
-  # document root plus its own subdomains' roots (see
-  # SiteAccessProvisioner::stageJailRoots) — never any other, unrelated site.
+  # working shell needs. Every site and subdomain has its own distinct Unix
+  # identity and its own fully independent jail — reaching a subdomain's
+  # files means connecting to *that* subdomain's own terminal, not a shared
+  # one; group membership only updates at login, so merging them made an
+  # already-open session silently miss access until reconnecting, and
+  # confused which identity was "site" and which was "subdomain".
   #
   # SAFETY: every path below is a *bind* mount of a real host directory or
   # file (identical inode, not a copy) — access_remove() MUST recursively
@@ -1068,27 +1071,16 @@ access_sync() {
   done
   install -d -o root -g root -m 0755 "$jail/dev" "$jail/etc"
 
-  # Cross-membership below is what lets a parent site and its own
-  # subdomains — each with their own distinct Unix identity — actually
-  # read/write each other's files once jailed together; setgid so files
-  # created afterwards keep inheriting that shared group.
-  local roots_source="$ROOT/storage/app/access/$site_user/jail-roots"
-  local member_user member_root
-  local -a family_mounts=()
-  if [[ -f "$roots_source" && ! -L "$roots_source" ]]; then
-    while IFS=' ' read -r member_user member_root; do
-      [[ -z "$member_user" ]] && continue
-      valid_site_identity "$member_user" || fail "Invalid jail member user."
-      valid_document_root "$member_root" || fail "Invalid jail member document root."
-      family_mounts+=("$member_root")
-      if [[ "$member_user" != "$site_user" ]] && getent group "$member_user" >/dev/null; then
-        usermod -a -G "$member_user" "$site_user"
-        if [[ -d "$member_root" && ! -L "$member_root" ]]; then
-          chmod g+rwXs "$member_root"
-        fi
-      fi
-    done < "$roots_source"
-  fi
+  # Shown as the login shell's prompt so it's obvious which site/subdomain a
+  # terminal session belongs to instead of the generic "-bash-5.2$".
+  # document_root defaults to /var/www/<domain>, so its basename is a
+  # reasonable label even though this helper is never handed the domain
+  # string itself.
+  local domain_label
+  domain_label="$(basename -- "$document_root")"
+  printf 'export PS1="xpanel@%s:\\w\\$ "\n' "$domain_label" > "$jail/etc/profile"
+  chown root:root "$jail/etc/profile"
+  chmod 0644 "$jail/etc/profile"
 
   local mount_unit="xpanel-host-jail-$site_user.service"
   {
@@ -1148,11 +1140,8 @@ access_sync() {
       fi
     done
     echo "ExecStart=/bin/mount --bind $document_root $mountpoint_path"
-    local family_root
-    for family_root in "${family_mounts[@]}"; do
-      echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail$family_root"
-      echo "ExecStart=/bin/mount --bind $family_root $jail$family_root"
-    done
+    echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail$document_root"
+    echo "ExecStart=/bin/mount --bind $document_root $jail$document_root"
     echo "ExecStop=$ROOT/scripts/xpanel-jail-unmount.sh $jail"
     echo
     echo "[Install]"

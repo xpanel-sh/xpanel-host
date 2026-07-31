@@ -28,26 +28,10 @@ class FileManagerController extends Controller
     public function list(Request $request, Site $site): JsonResponse
     {
         $requestedPath = $request->query('path', '/');
-        $normalizedPath = '/'.trim(str_replace('\\', '/', $requestedPath), '/');
-
-        if ($normalizedPath === '/' && $this->hasLinkedSubdomains($site)) {
-            $entries = collect([$site])->concat($site->subdomains()->get())
-                ->map(fn (Site $item) => [
-                    'name' => $item->domain,
-                    'path' => '/'.$item->domain,
-                    'is_dir' => true,
-                    'is_virtual' => true,
-                    'size' => null,
-                    'modified' => optional($item->updated_at)->format('Y-m-d H:i') ?? '-',
-                ])
-                ->sortBy('name')
-                ->values();
-
-            return response()->json(['path' => '/', 'entries' => $entries]);
-        }
-
-        [, $dir] = $this->resolveContext($site, $requestedPath, mustExist: true);
+        $dir = $this->resolve($site, $requestedPath, mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta no es una carpeta.');
+
+        $normalizedPath = '/'.trim(str_replace('\\', '/', $requestedPath), '/');
 
         $entries = [];
         foreach (scandir($dir) ?: [] as $name) {
@@ -146,11 +130,10 @@ class FileManagerController extends Controller
             'new_path' => 'required|string',
         ]);
 
-        [$sourceSite, $path] = $this->resolveContext($site, $data['old_path'], mustExist: true);
-        abort_if(rtrim($path, '/\\') === $this->normalizedRoot($sourceSite), 422, 'No se puede mover la raiz del sitio ni de un subdominio vinculado.');
+        $path = $this->resolve($site, $data['old_path'], mustExist: true);
+        abort_if(rtrim($path, '/\\') === rtrim($site->localRoot(), '/\\'), 422, 'No se puede mover la raiz del sitio.');
 
-        [$targetSite, $target] = $this->resolveContext($site, $data['new_path']);
-        abort_unless($sourceSite->is($targetSite), 422, 'No se pueden mover elementos entre sitios o subdominios distintos.');
+        $target = $this->resolve($site, $data['new_path']);
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
@@ -163,8 +146,8 @@ class FileManagerController extends Controller
 
     public function destroy(Request $request, Site $site): JsonResponse
     {
-        [$effectiveSite, $path] = $this->resolveContext($site, $request->input('path', ''), mustExist: true);
-        abort_if(rtrim($path, '/\\') === $this->normalizedRoot($effectiveSite), 422, 'No se puede eliminar la raiz del sitio ni de un subdominio vinculado.');
+        $path = $this->resolve($site, $request->input('path', ''), mustExist: true);
+        abort_if(rtrim($path, '/\\') === rtrim($site->localRoot(), '/\\'), 422, 'No se puede eliminar la raiz del sitio.');
         abort_unless(is_writable(dirname($path)), 422, 'El panel no tiene permiso para eliminar este elemento. Ejecuta la sincronización de sitios.');
 
         is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
@@ -212,18 +195,12 @@ class FileManagerController extends Controller
             'case_sensitive' => 'nullable|boolean',
         ]);
 
-        [$effectiveSite, $root, $logicalPrefix] = $this->resolveContext($site, $data['path'] ?? '/', mustExist: true);
+        $root = $this->resolve($site, $data['path'] ?? '/', mustExist: true);
         abort_unless(is_dir($root), 422, 'La ruta no es una carpeta.');
 
-        $siteRoot = str_replace('\\', '/', realpath($effectiveSite->localRoot()) ?: $effectiveSite->localRoot());
+        $siteRoot = str_replace('\\', '/', realpath($site->localRoot()) ?: $site->localRoot());
 
         [$results, $truncated] = $this->searchWithin($root, $siteRoot, $data);
-        if ($logicalPrefix !== '') {
-            $results = array_map(fn (array $result): array => [
-                ...$result,
-                'path' => $logicalPrefix.$result['path'],
-            ], $results);
-        }
 
         return response()->json(['results' => $results, 'truncated' => $truncated]);
     }
@@ -239,35 +216,6 @@ class FileManagerController extends Controller
 
     private function resolve(Site $site, string $requestedPath, bool $mustExist = false): string
     {
-        return $this->resolveContext($site, $requestedPath, $mustExist)[1];
-    }
-
-    private function normalizedRoot(Site $site): string
-    {
-        return rtrim(str_replace('\\', '/', realpath($site->localRoot()) ?: $site->localRoot()), '/');
-    }
-
-    /** @return array{0: Site, 1: string, 2: string} */
-    private function resolveContext(Site $site, string $requestedPath, bool $mustExist = false): array
-    {
-        if ($this->hasLinkedSubdomains($site)) {
-            $parts = array_values(array_filter(explode('/', str_replace('\\', '/', $requestedPath)), fn (string $part): bool => $part !== ''));
-            abort_if($parts === [], 422, 'Selecciona el sitio o un subdominio antes de continuar.');
-
-            $label = array_shift($parts);
-            $target = $label === $site->domain ? $site : $site->subdomains()->where('domain', $label)->first();
-            abort_if($target === null, 404, 'No encontrado.');
-
-            $relativePath = $parts === [] ? '/' : '/'.implode('/', $parts);
-
-            return [$target, $this->resolveWithinRoot($target->localRoot(), $relativePath, $mustExist), '/'.$label];
-        }
-
-        return [$site, $this->resolveWithinRoot($site->localRoot(), $requestedPath, $mustExist), ''];
-    }
-
-    private function hasLinkedSubdomains(Site $site): bool
-    {
-        return $site->parent_site_id === null && $site->subdomains()->exists();
+        return $this->resolveWithinRoot($site->localRoot(), $requestedPath, $mustExist);
     }
 }

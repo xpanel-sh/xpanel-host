@@ -48,19 +48,17 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - iKode crea archivos vacíos mediante su operación dedicada y respeta la carpeta actual tanto desde la barra como desde el menú contextual.
 - Los hosts HTTPS sin certificado propio se rechazan y nunca heredan el contenido ni el certificado del primer sitio de Nginx.
 - Los subdominios usan raíces independientes por FQDN; la sincronización migra el formato anterior anidado sin sobrescribir destinos.
-- El administrador de un dominio con subdominios muestra el sitio y cada subdominio como carpetas hermanas por FQDN en la raíz; los archivos reales solo aparecen al entrar en cada una, sin duplicarlos ni anidarlos físicamente.
 - Un fallo auxiliar de instalación de la CLI ya no impide mostrar la URL y el estado final del panel.
 - El helper privilegiado se versiona como ejecutable para que el instalador no ensucie el árbol Git ni bloquee `git pull`/`xpanel update`.
 - Primera instalación completamente no interactiva por `IP:80`, sin solicitar dominio/correo ni intentar certificados del panel o webmail.
 - Terminal real por sitio en iKode (`Avanzado → Acceso SSH → Terminal real desde el navegador`), opcional y apagada por defecto (`XPANEL_TERMINAL_ENABLED`). Un agente Go sin privilegios de root (`xpanel-terminal-agent`) hace de puente entre un WebSocket firmado de un solo uso y una sesión SSH real hacia el mismo sshd que ya aísla cada sitio por usuario Unix; el agente nunca toca la base de datos de Laravel ni `APP_KEY`.
-- La terminal real (SSH por llave propia o terminal web) queda enjaulada con `ChrootDirectory` de sshd: cada sesión solo alcanza el document root del sitio y el de sus propios subdominios; ningún otro sitio del servidor es visible ni accesible desde ahí. Los binarios del sistema montados dentro de la jaula quedan de solo lectura.
+- La terminal real (SSH por llave propia o terminal web) queda enjaulada con `ChrootDirectory` de sshd: cada sesión solo alcanza el document root propio de ese sitio o subdominio — nada de ningún otro sitio del servidor es visible ni accesible desde ahí, cada identidad Unix queda completamente independiente. Los binarios del sistema montados dentro de la jaula quedan de solo lectura, y el prompt muestra el dominio en vez del usuario críptico del sistema.
 
 ### Corregido
 
 - El gestor de archivos (iKode) admite subidas hasta 2GB, igual que "Migrar sitio web", en vez de un tope artificial de 20MB — Nginx y PHP-FPM del panel ya estaban configurados para esa capacidad.
 - Extraer un ZIP ahora pregunta antes de reemplazar archivos existentes con el mismo nombre, en vez de sobrescribirlos en silencio.
 - Los errores de validación de rutas AJAX (gestor de archivos y otras) devolvían una página HTML en vez de JSON porque la detección de "el cliente quiere JSON" comparaba contra rutas `api/*` que no existen en esta app; ahora usa `wantsJson()`.
-- Subir o crear archivos en la raíz del gestor de archivos de un dominio con subdominios fallaba ("Selecciona el sitio o un subdominio") al soltar el archivo fuera de una fila concreta o usar los botones "Nuevo archivo/carpeta" — el frontend asumía que la raíz de un sitio individual siempre era una carpeta real, sin contar el caso de subdominios montados como hermanos.
 - El script que desmonta la jaula de la terminal ya no usa `findmnt -R --target`: cuando la carpeta de la jaula no es en sí misma un punto de montaje (nunca lo es), esa combinación resuelve al montaje raíz `/` y lista *todo* el árbol de montajes del sistema como si fueran parte de la jaula, incluido `/proc`. Ahora se filtra por coincidencia literal de prefijo en Bash, que no puede expandirse más allá de la ruta de la jaula.
 - Instalación obligatoria y comprobación de la CLI global durante el despliegue de Host.
 - Instalación inicial con sólo el dominio del panel; el correo ACME y el DNS de webmail quedan opcionales y no bloquean el proceso.
