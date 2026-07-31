@@ -317,6 +317,11 @@ configure_site_helper() {
   chmod 0440 "$sudoers_file"
   visudo -cf "$sudoers_file" >/dev/null
 
+  # Invoked directly by systemd as a jail's ExecStop, and by the helper
+  # above -- root-only, never called by a site user directly.
+  chown root:root "$ROOT/scripts/xpanel-jail-unmount.sh"
+  chmod 0750 "$ROOT/scripts/xpanel-jail-unmount.sh"
+
   set_env_var XPANEL_APPLY_SYSTEM_CHANGES true
   set_env_var XPANEL_SITE_HELPER "$helper"
   set_env_var XPANEL_SITE_USER "${XPANEL_SITE_USER:-www-data}"

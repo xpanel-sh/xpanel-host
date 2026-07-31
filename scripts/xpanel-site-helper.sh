@@ -1153,7 +1153,7 @@ access_sync() {
       echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail$family_root"
       echo "ExecStart=/bin/mount --bind $family_root $jail$family_root"
     done
-    echo "ExecStop=/bin/umount -R $jail"
+    echo "ExecStop=$ROOT/scripts/xpanel-jail-unmount.sh $jail"
     echo
     echo "[Install]"
     echo "WantedBy=multi-user.target"
@@ -1165,7 +1165,7 @@ access_sync() {
     systemctl restart "$mount_unit" || fail "Could not mount the jail for $site_user."
   else
     systemctl stop "$mount_unit" >/dev/null 2>&1 || true
-    umount -R "$jail" >/dev/null 2>&1 || true
+    bash "$ROOT/scripts/xpanel-jail-unmount.sh" "$jail"
     systemctl disable "$mount_unit" >/dev/null 2>&1 || true
   fi
 
@@ -1245,7 +1245,7 @@ access_remove() {
   # then force-unmount directly as a fallback, then verify nothing remains
   # mounted before ever touching the directory.
   systemctl stop "$mount_unit" >/dev/null 2>&1 || true
-  umount -R "$jail" >/dev/null 2>&1 || true
+  bash "$ROOT/scripts/xpanel-jail-unmount.sh" "$jail"
   systemctl disable "$mount_unit" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/$mount_unit"
   systemctl daemon-reload
