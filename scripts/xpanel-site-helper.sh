@@ -1249,8 +1249,17 @@ access_remove() {
   systemctl disable "$mount_unit" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/$mount_unit"
   systemctl daemon-reload
-  if [[ -d "$jail" ]] && findmnt -n -R --target "$jail" 2>/dev/null | grep -q .; then
-    fail "Refusing to delete $jail: it still has live mounts underneath."
+  # Deliberately not `findmnt -R --target "$jail"` here -- see
+  # xpanel-jail-unmount.sh for why that resolves to the whole system's mount
+  # table instead of just this path when $jail isn't itself a mountpoint.
+  if [[ -d "$jail" ]]; then
+    local still_mounted="" mount_target
+    while IFS= read -r mount_target; do
+      case "$mount_target" in
+        "$jail" | "$jail"/*) still_mounted=1 ;;
+      esac
+    done < <(findmnt -n -o TARGET 2>/dev/null)
+    [[ -z "$still_mounted" ]] || fail "Refusing to delete $jail: it still has live mounts underneath."
   fi
   rm -rf -- "/var/lib/xpanel-host/ssh/$site_user" "$jail"
   if [[ -d "$document_root" && ! -L "$document_root" ]]; then chown -R root:root "$document_root"; fi
