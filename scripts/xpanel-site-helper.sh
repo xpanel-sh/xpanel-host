@@ -1150,8 +1150,17 @@ access_sync() {
   systemctl daemon-reload
 
   if [[ "$sftp_enabled" == "1" || "$ssh_enabled" == "1" || "$web_terminal_enabled" == "1" ]]; then
+    # A prior mount attempt can fail partway through (e.g. document_root
+    # changed) and leave orphaned binds behind: systemd only runs ExecStop
+    # when stopping a unit that is actually active, never as automatic
+    # rollback after a failed ExecStart. Tear down anything left over with
+    # the same hardened script access-remove already relies on before every
+    # (re)start, so a half-mounted jail from a previous failure can never
+    # block this one.
+    systemctl stop "$mount_unit" >/dev/null 2>&1 || true
+    bash "$ROOT/scripts/xpanel-jail-unmount.sh" "$jail"
     systemctl enable "$mount_unit" >/dev/null
-    systemctl restart "$mount_unit" || fail "Could not mount the jail for $site_user."
+    systemctl start "$mount_unit" || fail "Could not mount the jail for $site_user."
   else
     systemctl stop "$mount_unit" >/dev/null 2>&1 || true
     bash "$ROOT/scripts/xpanel-jail-unmount.sh" "$jail"

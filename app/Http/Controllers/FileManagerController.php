@@ -150,7 +150,11 @@ class FileManagerController extends Controller
         abort_if(rtrim($path, '/\\') === rtrim($site->localRoot(), '/\\'), 422, 'No se puede eliminar la raiz del sitio.');
         abort_unless(is_writable(dirname($path)), 422, 'El panel no tiene permiso para eliminar este elemento. Ejecuta la sincronización de sitios.');
 
-        is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
+        if (is_dir($path)) {
+            $this->deleteDirectory($path);
+        } else {
+            abort_unless(@unlink($path), 500, 'No se pudo eliminar el elemento.');
+        }
 
         return response()->json(['status' => 'deleted']);
     }

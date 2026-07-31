@@ -167,7 +167,11 @@ class GlobalFileManagerController extends Controller
         $path = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
         abort_if(rtrim($path, '/\\') === rtrim($site->localRoot(), '/\\'), 422, 'No se puede eliminar la raiz del sitio.');
 
-        is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
+        if (is_dir($path)) {
+            $this->deleteDirectory($path);
+        } else {
+            abort_unless(@unlink($path), 500, 'No se pudo eliminar el elemento.');
+        }
 
         return response()->json(['status' => 'deleted']);
     }

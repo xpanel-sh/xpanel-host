@@ -66,9 +66,13 @@ trait ResolvesSandboxedPath
                 continue;
             }
             $path = $dir.DIRECTORY_SEPARATOR.$item;
-            is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
+            if (is_dir($path)) {
+                $this->deleteDirectory($path);
+            } else {
+                abort_unless(@unlink($path), 500, "No se pudo eliminar $item.");
+            }
         }
-        rmdir($dir);
+        abort_unless(@rmdir($dir), 500, 'No se pudo eliminar la carpeta.');
     }
 
     /**
