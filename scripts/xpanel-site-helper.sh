@@ -1100,16 +1100,25 @@ access_sync() {
     echo "[Service]"
     echo "Type=oneshot"
     echo "RemainAfterExit=yes"
-    echo "ExecStart=/bin/mount --bind /bin $jail/bin"
-    echo "ExecStart=/bin/mount --bind /lib $jail/lib"
-    echo "ExecStart=/bin/mount --bind /usr $jail/usr"
+    # Bind-mount then remount read-only as two separate steps: `mount --bind
+    # -o ro` in one command silently ignores the ro flag, a well-known Linux
+    # quirk. Unix permissions already stop a non-root site user from writing
+    # to these root-owned paths, but this closes the gap in case that user
+    # is ever running as root inside the jail through some future bug.
+    local shared_mount
+    for shared_mount in bin lib usr; do
+      echo "ExecStart=/bin/mount --bind /$shared_mount $jail/$shared_mount"
+      echo "ExecStart=/bin/mount -o remount,ro,bind $jail/$shared_mount"
+    done
     if [[ -d /lib64 ]]; then
       echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail/lib64"
       echo "ExecStart=/bin/mount --bind /lib64 $jail/lib64"
+      echo "ExecStart=/bin/mount -o remount,ro,bind $jail/lib64"
     fi
     if [[ -d /sbin ]]; then
       echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail/sbin"
       echo "ExecStart=/bin/mount --bind /sbin $jail/sbin"
+      echo "ExecStart=/bin/mount -o remount,ro,bind $jail/sbin"
     fi
     local dev_node
     for dev_node in null zero urandom random; do
@@ -1123,6 +1132,7 @@ access_sync() {
       if [[ -e "/etc/$etc_file" ]]; then
         echo "ExecStart=/usr/bin/install -o root -g root -m 0644 /dev/null $jail/etc/$etc_file"
         echo "ExecStart=/bin/mount --bind /etc/$etc_file $jail/etc/$etc_file"
+        echo "ExecStart=/bin/mount -o remount,ro,bind $jail/etc/$etc_file"
       fi
     done
     echo "ExecStart=/bin/mount --bind $document_root $mountpoint_path"
