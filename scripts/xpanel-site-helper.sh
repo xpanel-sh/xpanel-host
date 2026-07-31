@@ -1043,30 +1043,43 @@ access_sync() {
     rm -f "$terminal_keys_file"
   fi
 
-  # Jail manifest: a shell must only ever reach this site's own document root
-  # plus its own subdomains' roots (see SiteAccessProvisioner::stageJailRoots),
-  # never any other, unrelated site on the box. xpanel-terminal-jail.sh reads
-  # this list to build its bwrap sandbox. Cross-membership below is what lets
-  # a parent site and its own subdomains — each with their own distinct Unix
-  # identity — actually read/write each other's files once jailed together;
-  # setgid so files created afterwards keep inheriting that shared group.
-  # Same directory the SFTP chroot mountpoint below lives in (created again,
-  # same root:root 0755, further down this function) — created here too
-  # since the manifest file has to exist before that point runs.
-  local jail_root_dir="/var/lib/xpanel-host/jails/$site_user"
-  install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails
-  install -d -o root -g root -m 0755 "$jail_root_dir"
+  # Jail construction (sshd ChrootDirectory). sshd performs the chroot()
+  # itself, as root, before dropping to the target user's privileges — unlike
+  # a userspace sandbox (bubblewrap was tried first; Ubuntu 24.04's AppArmor
+  # blocks unprivileged user namespaces by default and this box has no
+  # profile permitting it), this needs no special kernel policy at all. The
+  # tradeoff is the jail needs its own bind-mounted copy of whatever a
+  # working shell needs, and it must only ever reach this site's own
+  # document root plus its own subdomains' roots (see
+  # SiteAccessProvisioner::stageJailRoots) — never any other, unrelated site.
+  #
+  # SAFETY: every path below is a *bind* mount of a real host directory or
+  # file (identical inode, not a copy) — access_remove() MUST recursively
+  # unmount everything under $jail before deleting it, or `rm -rf` would
+  # delete through the mounts into /usr, /bin, /lib themselves.
+  local jail="/var/lib/xpanel-host/jails/$site_user"
+  local mountpoint_path="$jail/site"
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails "$jail"
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$mountpoint_path"
+  local shared_dir
+  for shared_dir in bin lib usr; do
+    install -d -o root -g root -m 0755 "$jail/$shared_dir"
+  done
+  install -d -o root -g root -m 0755 "$jail/dev" "$jail/etc"
+
+  # Cross-membership below is what lets a parent site and its own
+  # subdomains — each with their own distinct Unix identity — actually
+  # read/write each other's files once jailed together; setgid so files
+  # created afterwards keep inheriting that shared group.
   local roots_source="$ROOT/storage/app/access/$site_user/jail-roots"
-  local roots_manifest="$jail_root_dir/roots.list"
-  local roots_temp
-  roots_temp="$(mktemp)"
+  local member_user member_root
+  local -a family_mounts=()
   if [[ -f "$roots_source" && ! -L "$roots_source" ]]; then
-    local member_user member_root
     while IFS=' ' read -r member_user member_root; do
       [[ -z "$member_user" ]] && continue
       valid_site_identity "$member_user" || fail "Invalid jail member user."
       valid_document_root "$member_root" || fail "Invalid jail member document root."
-      echo "$member_root" >> "$roots_temp"
+      family_mounts+=("$member_root")
       if [[ "$member_user" != "$site_user" ]] && getent group "$member_user" >/dev/null; then
         usermod -a -G "$member_user" "$site_user"
         if [[ -d "$member_root" && ! -L "$member_root" ]]; then
@@ -1075,56 +1088,82 @@ access_sync() {
       fi
     done < "$roots_source"
   fi
-  install -o root -g "$site_user" -m 0640 "$roots_temp" "$roots_manifest"
-  rm -f "$roots_temp"
 
-  local jail="/var/lib/xpanel-host/jails/$site_user"
-  local mountpoint_path="$jail/site"
-  install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails "$jail"
-  install -d -o "$site_user" -g "$site_user" -m 0750 "$mountpoint_path"
   local mount_unit="xpanel-host-jail-$site_user.service"
-  cat > "/etc/systemd/system/$mount_unit" <<EOF
-[Unit]
-Description=XPanel Host jail mount for $site_user
-After=local-fs.target
-Before=ssh.service vsftpd.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/mount --bind $document_root $mountpoint_path
-ExecStop=/bin/umount $mountpoint_path
-
-[Install]
-WantedBy=multi-user.target
-EOF
+  {
+    echo "[Unit]"
+    echo "Description=XPanel Host jail mounts for $site_user"
+    echo "After=local-fs.target"
+    echo "Before=ssh.service vsftpd.service"
+    echo
+    echo "[Service]"
+    echo "Type=oneshot"
+    echo "RemainAfterExit=yes"
+    echo "ExecStart=/bin/mount --bind /bin $jail/bin"
+    echo "ExecStart=/bin/mount --bind /lib $jail/lib"
+    echo "ExecStart=/bin/mount --bind /usr $jail/usr"
+    if [[ -d /lib64 ]]; then
+      echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail/lib64"
+      echo "ExecStart=/bin/mount --bind /lib64 $jail/lib64"
+    fi
+    if [[ -d /sbin ]]; then
+      echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail/sbin"
+      echo "ExecStart=/bin/mount --bind /sbin $jail/sbin"
+    fi
+    local dev_node
+    for dev_node in null zero urandom random; do
+      if [[ -e "/dev/$dev_node" ]]; then
+        echo "ExecStart=/usr/bin/install -o root -g root -m 0666 /dev/null $jail/dev/$dev_node"
+        echo "ExecStart=/bin/mount --bind /dev/$dev_node $jail/dev/$dev_node"
+      fi
+    done
+    local etc_file
+    for etc_file in ld.so.cache passwd group nsswitch.conf resolv.conf; do
+      if [[ -e "/etc/$etc_file" ]]; then
+        echo "ExecStart=/usr/bin/install -o root -g root -m 0644 /dev/null $jail/etc/$etc_file"
+        echo "ExecStart=/bin/mount --bind /etc/$etc_file $jail/etc/$etc_file"
+      fi
+    done
+    echo "ExecStart=/bin/mount --bind $document_root $mountpoint_path"
+    local family_root
+    for family_root in "${family_mounts[@]}"; do
+      echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail$family_root"
+      echo "ExecStart=/bin/mount --bind $family_root $jail$family_root"
+    done
+    echo "ExecStop=/bin/umount -R $jail"
+    echo
+    echo "[Install]"
+    echo "WantedBy=multi-user.target"
+  } > "/etc/systemd/system/$mount_unit"
   systemctl daemon-reload
-  if [[ "$sftp_enabled" == "1" && "$ssh_enabled" == "0" && "$web_terminal_enabled" == "0" ]]; then
-    if mountpoint -q "$mountpoint_path" && [[ "$(findmnt -n -o SOURCE --target "$mountpoint_path")" != "$document_root" ]]; then umount "$mountpoint_path"; fi
-    if ! mountpoint -q "$mountpoint_path"; then mount --bind "$document_root" "$mountpoint_path"; fi
+
+  if [[ "$sftp_enabled" == "1" || "$ssh_enabled" == "1" || "$web_terminal_enabled" == "1" ]]; then
     systemctl enable "$mount_unit" >/dev/null
+    systemctl restart "$mount_unit" || fail "Could not mount the jail for $site_user."
   else
-    if mountpoint -q "$mountpoint_path"; then umount "$mountpoint_path"; fi
+    systemctl stop "$mount_unit" >/dev/null 2>&1 || true
+    umount -R "$jail" >/dev/null 2>&1 || true
     systemctl disable "$mount_unit" >/dev/null 2>&1 || true
   fi
 
   install -d -o root -g root -m 0755 /etc/ssh/sshd_config.d
   local ssh_config="/etc/ssh/sshd_config.d/90-xpanel-$site_user.conf"
   if [[ "$ssh_enabled" == "1" || "$web_terminal_enabled" == "1" ]]; then
-    # sshd cannot tell which authorized key was used before ForceCommand
+    # sshd cannot tell which authorized key was used before ChrootDirectory
     # applies, so a real shell for the terminal key means a real shell for
     # the owner's own keys too — same precedence the ssh_enabled branch
     # already had over sftp_enabled below. The panel UI must say this
     # plainly before letting an owner turn on the terminal on a
-    # SFTP-only site.
+    # SFTP-only site. document_root is mirrored inside the jail at the same
+    # absolute path, so HOME resolves correctly once chrooted.
     usermod -s /bin/bash -d "$document_root" "$site_user"
     cat > "$ssh_config" <<EOF
 Match User $site_user
+    ChrootDirectory $jail
     PubkeyAuthentication yes
     PasswordAuthentication no
     AuthenticationMethods publickey
     AuthorizedKeysFile /var/lib/xpanel-host/ssh/%u/authorized_keys /var/lib/xpanel-host/ssh/%u/authorized_keys.terminal
-    ForceCommand $ROOT/scripts/xpanel-terminal-jail.sh
     AllowTcpForwarding no
     X11Forwarding no
     PermitTunnel no
@@ -1169,7 +1208,6 @@ access_remove() {
   valid_site_identity "$site_user" || fail "Invalid access removal user."
   valid_document_root "$document_root" || fail "Invalid access removal document root."
   local jail="/var/lib/xpanel-host/jails/$site_user"
-  local mountpoint_path="$jail/site"
   local mount_unit="xpanel-host-jail-$site_user.service"
   rm -f "/etc/ssh/sshd_config.d/90-xpanel-$site_user.conf"
   if [[ -f /etc/xpanel-host/ftp-users ]]; then
@@ -1177,9 +1215,20 @@ access_remove() {
     mv /etc/xpanel-host/ftp-users.tmp /etc/xpanel-host/ftp-users
     chmod 0600 /etc/xpanel-host/ftp-users
   fi
-  if mountpoint -q "$mountpoint_path"; then umount "$mountpoint_path"; fi
+  # The jail now bind-mounts /usr, /bin, /lib and more (see access_sync) --
+  # every one of those is the SAME inode as the real host directory, not a
+  # copy. `rm -rf` through a still-live mount would delete through into the
+  # real /usr, /bin, /lib. Stop the unit (its ExecStop recursively unmounts),
+  # then force-unmount directly as a fallback, then verify nothing remains
+  # mounted before ever touching the directory.
+  systemctl stop "$mount_unit" >/dev/null 2>&1 || true
+  umount -R "$jail" >/dev/null 2>&1 || true
   systemctl disable "$mount_unit" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/$mount_unit"
+  systemctl daemon-reload
+  if [[ -d "$jail" ]] && findmnt -n -R --target "$jail" 2>/dev/null | grep -q .; then
+    fail "Refusing to delete $jail: it still has live mounts underneath."
+  fi
   rm -rf -- "/var/lib/xpanel-host/ssh/$site_user" "$jail"
   if [[ -d "$document_root" && ! -L "$document_root" ]]; then chown -R root:root "$document_root"; fi
   if id "$site_user" >/dev/null 2>&1; then userdel "$site_user"; fi
