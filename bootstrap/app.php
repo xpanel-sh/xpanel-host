@@ -33,7 +33,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // No route in this app is actually prefixed with "api/" (the AJAX
+        // endpoints all live under paths like sites/{site}/files/manager/api/...),
+        // so `$request->is('api/*')` never matched anything — every abort()/
+        // validation error on those routes rendered as an HTML error page
+        // instead of JSON, even though the frontend's api() helper always
+        // sends Accept: application/json. wantsJson() checks that directly.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->wantsJson(),
         );
     })->create();

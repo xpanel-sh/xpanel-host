@@ -230,12 +230,12 @@ class GlobalFileManagerController extends Controller
 
     public function extract(Request $request): JsonResponse
     {
-        $data = $request->validate(['path' => 'required|string']);
+        $data = $request->validate(['path' => 'required|string', 'overwrite' => 'nullable|boolean']);
 
         [$site, $rest] = $this->splitVirtualPath($data['path']);
         $path = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
 
-        return response()->json($this->extractArchive($path));
+        return response()->json($this->extractArchive($path, $request->boolean('overwrite')));
     }
 
     /**

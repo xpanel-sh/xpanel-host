@@ -140,9 +140,9 @@ trait ResolvesSandboxedPath
     }
 
     /**
-     * @return array{status: string, count: int}
+     * @return array{status: string, count?: int, conflicts?: array<int, string>, conflict_count?: int}
      */
-    private function extractArchive(string $path): array
+    private function extractArchive(string $path, bool $overwrite = false): array
     {
         abort_if(is_dir($path), 422, 'Selecciona un archivo comprimido.');
         abort_unless(in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['zip', 'jar']), 422, 'Solo se puede descomprimir ZIP/JAR.');
@@ -153,7 +153,9 @@ trait ResolvesSandboxedPath
         $count = $zip->numFiles;
         abort_if($count > 5000, 422, 'El archivo comprimido contiene demasiados elementos.');
 
+        $destination = dirname($path);
         $totalBytes = 0;
+        $conflicts = [];
         for ($index = 0; $index < $count; $index++) {
             $stat = $zip->statIndex($index);
             abort_unless(is_array($stat) && isset($stat['name']), 422, 'El archivo comprimido contiene una entrada invalida.');
@@ -176,10 +178,24 @@ trait ResolvesSandboxedPath
 
             $totalBytes += (int) ($stat['size'] ?? 0);
             abort_if($totalBytes > 512 * 1024 * 1024, 422, 'El contenido descomprimido supera el limite de 512 MB.');
+
+            if (! str_ends_with($entry, '/') && file_exists($destination.'/'.$entry)) {
+                $conflicts[] = $entry;
+            }
+        }
+
+        if ($conflicts !== [] && ! $overwrite) {
+            $zip->close();
+
+            return [
+                'status' => 'conflict',
+                'conflicts' => array_slice($conflicts, 0, 50),
+                'conflict_count' => count($conflicts),
+            ];
         }
 
         try {
-            abort_unless($zip->extractTo(dirname($path)), 422, 'No se pudo descomprimir el archivo.');
+            abort_unless($zip->extractTo($destination), 422, 'No se pudo descomprimir el archivo.');
         } finally {
             $zip->close();
         }

@@ -230,11 +230,11 @@ class FileManagerController extends Controller
 
     public function extract(Request $request, Site $site): JsonResponse
     {
-        $data = $request->validate(['path' => 'required|string']);
+        $data = $request->validate(['path' => 'required|string', 'overwrite' => 'nullable|boolean']);
 
         $path = $this->resolve($site, $data['path'], mustExist: true);
 
-        return response()->json($this->extractArchive($path));
+        return response()->json($this->extractArchive($path, $request->boolean('overwrite')));
     }
 
     private function resolve(Site $site, string $requestedPath, bool $mustExist = false): string

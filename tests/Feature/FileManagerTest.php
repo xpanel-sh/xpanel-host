@@ -360,6 +360,36 @@ class FileManagerTest extends TestCase
         $this->assertFileDoesNotExist(dirname($site->localRoot()).'/outside.txt');
     }
 
+    public function test_extract_asks_for_confirmation_before_overwriting_existing_files(): void
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is not installed.');
+        }
+
+        $site = $this->site();
+        $developer = $this->userWithRole('developer');
+        file_put_contents($site->localRoot().'/index.php', 'original content');
+        $archive = $site->localRoot().'/update.zip';
+        $zip = new \ZipArchive;
+        $zip->open($archive, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('index.php', 'new content');
+        $zip->close();
+
+        $this->actingAs($developer)->postJson(route('sites.files.api.extract', $site), [
+            'path' => '/update.zip',
+        ])->assertOk()->assertJson([
+            'status' => 'conflict',
+            'conflict_count' => 1,
+            'conflicts' => ['index.php'],
+        ]);
+        $this->assertSame('original content', file_get_contents($site->localRoot().'/index.php'));
+
+        $this->actingAs($developer)->postJson(route('sites.files.api.extract', $site), [
+            'path' => '/update.zip', 'overwrite' => true,
+        ])->assertOk()->assertJson(['status' => 'extracted']);
+        $this->assertSame('new content', file_get_contents($site->localRoot().'/index.php'));
+    }
+
     public function test_new_files_cannot_follow_a_directory_symlink_outside_the_site(): void
     {
         $site = $this->site();

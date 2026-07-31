@@ -2397,7 +2397,19 @@
                 const parent = dirname(entry.path);
                 showProgress(`Descomprimiendo ${entry.name}...`, 10);
                 try {
-                    const response = await api('POST', '/extract', { domain: config.domain, path: entry.path });
+                    let response = await api('POST', '/extract', { domain: config.domain, path: entry.path });
+                    if (response.status === 'conflict') {
+                        const preview = response.conflicts.slice(0, 10).join('\n');
+                        const more = response.conflict_count > response.conflicts.length ? `\n... y ${response.conflict_count - response.conflicts.length} mas` : '';
+                        hideProgress();
+                        const confirmed = confirm(`Esto reemplazara ${response.conflict_count} archivo(s) existente(s):\n\n${preview}${more}\n\nContinuar?`);
+                        if (!confirmed) {
+                            log(`Descompresion cancelada (${response.conflict_count} archivo(s) en conflicto): ${entry.path}`);
+                            return;
+                        }
+                        showProgress(`Descomprimiendo ${entry.name}...`, 10);
+                        response = await api('POST', '/extract', { domain: config.domain, path: entry.path, overwrite: true });
+                    }
                     setProgress(100, `Descompresion completada (${response.count || 0} archivo(s))`);
                     state.expanded.add(parent);
                     clearCachedBranch(parent);
