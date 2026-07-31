@@ -10,7 +10,12 @@ use Symfony\Component\Mime\Email;
 
 class XMailService
 {
-    private const SERVER = '{127.0.0.1:143/imap/tls/novalidate-cert}';
+    // Direct SSL (port 993) instead of STARTTLS on 143: PHP's IMAP extension
+    // (the old c-client library) has a long-documented history of aborting
+    // mid-handshake when negotiating STARTTLS with Dovecot, even with
+    // novalidate-cert set -- direct SSL avoids that upgrade-in-place step
+    // entirely and is the standard workaround.
+    private const SERVER = '{127.0.0.1:993/imap/ssl/novalidate-cert}';
 
     public function authenticate(string $email, #[\SensitiveParameter] string $password): bool
     {
