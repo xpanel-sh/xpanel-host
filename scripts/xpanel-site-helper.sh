@@ -1135,6 +1135,18 @@ access_sync() {
         echo "ExecStart=/bin/mount -o remount,ro,bind $jail/etc/$etc_file"
       fi
     done
+    # /usr/bin/php etc. are update-alternatives symlinks through
+    # /etc/alternatives; /etc/php holds the same php.ini/extension config the
+    # real site's PHP-FPM pool already uses, so composer/artisan behave the
+    # same inside the jail as they do outside it.
+    local etc_dir
+    for etc_dir in alternatives php ssl; do
+      if [[ -d "/etc/$etc_dir" ]]; then
+        echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail/etc/$etc_dir"
+        echo "ExecStart=/bin/mount --bind /etc/$etc_dir $jail/etc/$etc_dir"
+        echo "ExecStart=/bin/mount -o remount,ro,bind $jail/etc/$etc_dir"
+      fi
+    done
     echo "ExecStart=/bin/mount --bind $document_root $mountpoint_path"
     local family_root
     for family_root in "${family_mounts[@]}"; do
