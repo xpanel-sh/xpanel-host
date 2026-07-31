@@ -174,7 +174,10 @@ class FileManagerController extends Controller
 
     public function upload(Request $request, Site $site): JsonResponse
     {
-        $request->validate(['path' => 'required|string', 'file' => 'required|file|max:20480']);
+        // Matches the ceiling scripts/configure-panel-uploads.sh already sets in
+        // Nginx/PHP-FPM for the panel (client_max_body_size / post_max_size),
+        // same one the site migration upload already relies on.
+        $request->validate(['path' => 'required|string', 'file' => 'required|file|max:2097152']);
 
         $dir = $this->resolve($site, $request->input('path', '/'), mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta destino no es una carpeta.');

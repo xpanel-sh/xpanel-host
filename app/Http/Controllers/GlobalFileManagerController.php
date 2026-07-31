@@ -174,7 +174,10 @@ class GlobalFileManagerController extends Controller
 
     public function upload(Request $request): JsonResponse
     {
-        $request->validate(['path' => 'required|string', 'file' => 'required|file|max:20480']);
+        // Matches the ceiling scripts/configure-panel-uploads.sh already sets in
+        // Nginx/PHP-FPM for the panel (client_max_body_size / post_max_size),
+        // same one the site migration upload already relies on.
+        $request->validate(['path' => 'required|string', 'file' => 'required|file|max:2097152']);
 
         [$site, $rest] = $this->splitVirtualPath($request->input('path', '/'));
         $dir = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);

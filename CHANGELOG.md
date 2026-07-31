@@ -57,6 +57,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- El gestor de archivos (iKode) admite subidas hasta 2GB, igual que "Migrar sitio web", en vez de un tope artificial de 20MB — Nginx y PHP-FPM del panel ya estaban configurados para esa capacidad.
 - El script que desmonta la jaula de la terminal ya no usa `findmnt -R --target`: cuando la carpeta de la jaula no es en sí misma un punto de montaje (nunca lo es), esa combinación resuelve al montaje raíz `/` y lista *todo* el árbol de montajes del sistema como si fueran parte de la jaula, incluido `/proc`. Ahora se filtra por coincidencia literal de prefijo en Bash, que no puede expandirse más allá de la ruta de la jaula.
 - Instalación obligatoria y comprobación de la CLI global durante el despliegue de Host.
 - Instalación inicial con sólo el dominio del panel; el correo ACME y el DNS de webmail quedan opcionales y no bloquean el proceso.
