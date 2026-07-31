@@ -11,6 +11,10 @@
     $filesBackRoute = $site ? route('sites.files.index', $site) : route('sites.index');
     $webTerminalEnabled = $site && config('xpanel.terminal_enabled') && (bool) $site->accessSettings?->web_terminal_enabled;
     $terminalTokenUrl = $site ? route('sites.access.terminal.token', $site) : null;
+    // Mirrors FileManagerController::hasLinkedSubdomains(): when true, '/' in
+    // this site's own file manager is a virtual picker (site + its
+    // subdomains as sibling folders), not a real, writable directory.
+    $rootIsVirtual = $site && $site->parent_site_id === null && $site->subdomains()->exists();
     $filesSites = \App\Models\Site::orderBy('domain')->get()
         ->when($site, fn ($collection) => $collection->reject(fn ($item) => $item->is($site)))
         ->map(fn ($item) => [
@@ -1135,6 +1139,7 @@
             scope: @json('client'),
             webTerminalEnabled: @json($webTerminalEnabled),
             terminalTokenUrl: @json($terminalTokenUrl),
+            rootIsVirtual: @json($rootIsVirtual),
         };
     </script>
     <script>
@@ -1454,8 +1459,13 @@
                 return clean.length ? `/${clean.join('/')}` : '/';
             };
             const isGlobalSitesRoot = () => !config.domain;
+            // True whenever '/' in the current file manager is a virtual picker
+            // (either "all sites", or a single site with subdomains mounted as
+            // sibling folders — see FileManagerController::hasLinkedSubdomains)
+            // rather than a real, writable directory.
+            const rootRequiresConcreteTarget = () => isGlobalSitesRoot() || !!config.rootIsVirtual;
             const virtualSiteRoot = (path = state.currentPath) => {
-                if (!isGlobalSitesRoot()) return '/';
+                if (!rootRequiresConcreteTarget()) return '/';
                 const first = normalizePath(path).split('/').filter(Boolean)[0];
                 return first ? `/${first}` : '/';
             };
@@ -1464,9 +1474,9 @@
                 return virtualSiteRoot(source);
             };
             const requireConcreteSiteTarget = (target = currentVirtualSiteRoot()) => {
-                if (!isGlobalSitesRoot() || target !== '/') return target;
-                toast('Selecciona o entra a un dominio antes de crear o mover archivos.', 'error');
-                throw new Error('Selecciona un dominio');
+                if (!rootRequiresConcreteTarget() || target !== '/') return target;
+                toast('Selecciona el sitio o un subdominio antes de crear o mover archivos.', 'error');
+                throw new Error('Selecciona un sitio o subdominio');
             };
             const downloadUrl = (path, inline = false) => `${config.baseUrl}/download?domain=${domainParam()}&path=${encodeURIComponent(path)}${inline ? '&inline=1' : ''}`;
 
@@ -2223,12 +2233,12 @@
                     if (state.ctxEntry) return dirname(state.ctxEntry.path);
                     if (state.ctxFromBlank) {
                         const contextTarget = state.ctxDirectory || state.currentPath || '/';
-                        return isGlobalSitesRoot() ? requireConcreteSiteTarget(contextTarget) : contextTarget;
+                        return requireConcreteSiteTarget(contextTarget);
                     }
                 }
 
                 const current = state.currentPath || '/';
-                return isGlobalSitesRoot() ? requireConcreteSiteTarget(current) : current;
+                return requireConcreteSiteTarget(current);
             };
             const startInlineCreate = async (type, fromContextMenu = false) => {
                 const parentPath = targetDirectory(fromContextMenu);
@@ -3138,7 +3148,7 @@
                 async drop(event) {
                     event.preventDefault();
                     ($('#xpanel_drop_hint') || $('#xpanel_file_list')).classList.remove('dragover');
-                    const target = requireConcreteSiteTarget(isGlobalSitesRoot() ? currentVirtualSiteRoot() : '/');
+                    const target = requireConcreteSiteTarget();
                     const dragged = draggedEntryFromEvent(event);
                     if (dragged) {
                         await moveEntry(dragged, target);
