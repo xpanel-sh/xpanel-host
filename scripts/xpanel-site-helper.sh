@@ -1061,6 +1061,7 @@ access_sync() {
   local mountpoint_path="$jail/site"
   install -d -o root -g root -m 0755 /var/lib/xpanel-host/jails "$jail"
   install -d -o "$site_user" -g "$site_user" -m 0750 "$mountpoint_path"
+  rm -f "$jail/roots.list" # stale artifact from an earlier bubblewrap-based build
   local shared_dir
   for shared_dir in bin lib usr; do
     install -d -o root -g root -m 0755 "$jail/$shared_dir"
