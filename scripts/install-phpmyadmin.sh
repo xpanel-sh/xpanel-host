@@ -13,7 +13,12 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin php-mysql php-mbstr
 
 install -d -o root -g www-data -m 0750 /etc/phpmyadmin/conf.d
 secret_file=/etc/xpanel-host/phpmyadmin.secret
-install -d -o root -g www-data -m 0750 /etc/xpanel-host
+# /etc/xpanel-host is a shared namespace directory used by unrelated
+# services (Dovecot's passwd-file auth, the site helper, etc.) that need to
+# traverse it as their own unprivileged users -- it must stay root:root
+# 0755. Only the secret file itself (chown/chmod below) needs to be
+# readable solely by www-data.
+install -d -o root -g root -m 0755 /etc/xpanel-host
 if [[ ! -s "$secret_file" ]]; then
   openssl rand -hex 32 > "$secret_file"
 fi
