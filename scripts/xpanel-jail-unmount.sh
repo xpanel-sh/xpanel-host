@@ -26,10 +26,17 @@ case "$jail" in
     ;;
 esac
 
+# Read mount points straight from the kernel's own table instead of piping
+# through `findmnt`: on a host whose mount table has grown large (e.g. from
+# repeated failed/retried mount attempts stacking bind mounts on top of each
+# other -- `mount --bind` never fails just because the target is already
+# mounted), findmnt's per-entry filesystem/label resolution can take minutes
+# and burn CPU while every caller waits on it. Field 5 of mountinfo is the
+# mount point; nothing else about the matching logic below changes.
 while IFS= read -r target; do
   case "$target" in
     "$jail" | "$jail"/*)
       umount "$target" 2>/dev/null || umount -l "$target" 2>/dev/null || true
       ;;
   esac
-done < <(findmnt -n -o TARGET 2>/dev/null | sort -r)
+done < <(awk '{ print $5 }' /proc/self/mountinfo | sort -r)
