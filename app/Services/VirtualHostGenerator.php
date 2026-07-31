@@ -44,7 +44,7 @@ class VirtualHostGenerator
         $maps = $sites->map(fn (Site $site) => "    map                     xpanel_{$site->id} ".implode(',', $this->domainNames($site)))->implode("\n");
         $vhosts = $sites->map(fn (Site $site) => <<<CONF
 virtualhost xpanel_{$site->id} {
-    vhRoot                   {$site->document_root}
+    vhRoot                   {$site->webRoot()}
     configFile               /usr/local/lsws/conf/vhosts/xpanel-{$site->domain}/vhconf.conf
     allowSymbolLink          1
     enableScript             1
@@ -123,13 +123,13 @@ CONF);
 <VirtualHost 127.0.0.1:8082>
     ServerName {$site->domain}
 {$aliases}
-    DocumentRoot {$site->document_root}
+    DocumentRoot {$site->webRoot()}
 
     <FilesMatch \.php$>
         SetHandler "proxy:unix:{$socket}|fcgi://localhost"
     </FilesMatch>
 
-    <Directory {$site->document_root}>
+    <Directory {$site->webRoot()}>
         Options {$indexes}
         AllowOverride All
         Require all granted
@@ -150,9 +150,9 @@ CONF;
 <VirtualHost 127.0.0.1:8082>
     ServerName {$site->domain}
 {$aliases}
-    DocumentRoot {$site->document_root}
+    DocumentRoot {$site->webRoot()}
 
-    <Directory {$site->document_root}>
+    <Directory {$site->webRoot()}>
         Options {$indexes}
         AllowOverride All
         Require all granted
@@ -183,7 +183,7 @@ CONF;
 server {
     listen 127.0.0.1:8081;
     server_name {$serverNames};
-    root {$site->document_root};
+    root {$site->webRoot()};
     index index.php index.html;
     set_real_ip_from 127.0.0.1;
     real_ip_header X-Forwarded-For;
@@ -219,7 +219,7 @@ CONF;
 server {
     listen 127.0.0.1:8081;
     server_name {$serverNames};
-    root {$site->document_root};
+    root {$site->webRoot()};
     index index.html;
     set_real_ip_from 127.0.0.1;
     real_ip_header X-Forwarded-For;
@@ -243,7 +243,7 @@ CONF;
 server {
     listen 127.0.0.1:8081;
     server_name {$serverNames};
-    root {$site->document_root};
+    root {$site->webRoot()};
 
     location ^~ /.well-known/acme-challenge/ {
         try_files \$uri =404;
@@ -260,7 +260,7 @@ CONF;
         return <<<CONF
 <VirtualHost 127.0.0.1:8082>
     ServerName {$site->domain}
-    DocumentRoot {$site->document_root}
+    DocumentRoot {$site->webRoot()}
     ErrorDocument 503 "Sitio suspendido por el propietario de este servidor."
     RewriteEngine On
     RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
@@ -282,7 +282,7 @@ CONF;
         $autoindex = $this->directoryListing($site) ? 1 : 0;
 
         return <<<CONF
-docRoot                   {$site->document_root}
+docRoot                   {$site->webRoot()}
 vhDomain                  {$domainNames}
 enableGzip                1
 
@@ -357,7 +357,7 @@ CONF;
 server {
     listen 80;
     server_name {$serverNames};
-    root {$site->document_root};
+    root {$site->webRoot()};
     access_log /var/log/nginx/{$site->domain}-access.log;
     error_log /var/log/nginx/{$site->domain}-error.log;
 {$accessRules}
@@ -396,7 +396,7 @@ CONF;
 server {
     {$listen}{$certificate}
     server_name {$serverNames};
-    root {$site->document_root};
+    root {$site->webRoot()};
     access_log /var/log/nginx/{$site->domain}-access.log;
     error_log /var/log/nginx/{$site->domain}-error.log;
 {$accessRules}
@@ -426,7 +426,7 @@ CONF;
 server {
     {$listen}{$certificate}
     server_name {$serverNames};
-    root {$site->document_root};
+    root {$site->webRoot()};
     access_log /var/log/nginx/{$site->domain}-access.log;
     error_log /var/log/nginx/{$site->domain}-error.log;
 {$accessRules}
@@ -485,7 +485,7 @@ CONF;
 server {
     {$listen}{$certificate}
     server_name {$serverNames};
-    root {$site->document_root};
+    root {$site->webRoot()};
     index index.php index.html;
     access_log /var/log/nginx/{$site->domain}-access.log;
     error_log /var/log/nginx/{$site->domain}-error.log;
@@ -661,7 +661,7 @@ pm = ondemand
 pm.max_children = 10
 pm.process_idle_timeout = 10s
 pm.max_requests = 500
-chdir = {$site->document_root}
+chdir = {$site->webRoot()}
 catch_workers_output = yes
 php_admin_value[memory_limit] = {$memoryLimit}
 php_admin_value[upload_max_filesize] = {$uploadLimit}

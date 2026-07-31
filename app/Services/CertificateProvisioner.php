@@ -28,7 +28,7 @@ class CertificateProvisioner
 
         $command = [
             'sudo', '-n', (string) config('xpanel.site_helper'), 'ssl-issue',
-            $site->domain, $site->web_server, $site->document_root, $email, $site->systemUser(),
+            $site->domain, $site->web_server, $site->webRoot(), $email, $site->systemUser(),
         ];
         $aliases = $site->parkedDomains()->pluck('domain')->all();
         $output = $aliases === []

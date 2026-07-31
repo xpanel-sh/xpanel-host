@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 
-#[Fillable(['parent_site_id', 'domain', 'document_root', 'system_user', 'php_version', 'type', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
+#[Fillable(['parent_site_id', 'domain', 'document_root', 'public_path', 'system_user', 'php_version', 'type', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
 class Site extends Model
 {
     protected static function booted(): void
@@ -84,6 +84,21 @@ class Site extends Model
         }
 
         return $fallback;
+    }
+
+    /**
+     * The path the web server actually serves from: document_root itself,
+     * or a subdirectory within it (e.g. "public" for a Laravel app whose
+     * project root holds .env/storage/vendor above the served folder).
+     * File manager, SSH/SFTP, ownership and backups keep using document_root
+     * directly — only nginx/Apache/OpenLiteSpeed, the PHP-FPM pool, the ACME
+     * webroot challenge and error pages should ever read this value.
+     */
+    public function webRoot(): string
+    {
+        $publicPath = trim((string) $this->public_path, '/');
+
+        return $publicPath === '' ? $this->document_root : rtrim($this->document_root, '/').'/'.$publicPath;
     }
 
     public function databases(): HasMany

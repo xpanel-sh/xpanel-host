@@ -19,8 +19,15 @@
 </div>
 
 <div class="flex flex-col gap-1">
-    <label class="kt-form-label font-normal text-mono">Document root</label>
+    <label class="kt-form-label font-normal text-mono">Raíz del proyecto</label>
     <input class="kt-input" type="text" name="document_root" value="{{ old('document_root', $site->document_root ?? '') }}" placeholder="/var/www/cliente.example.com"/>
+    <p class="kt-form-description">Carpeta completa del sitio: aquí viven el gestor de archivos, SSH/SFTP y la terminal, sin importar la subcarpeta pública que uses abajo.</p>
+</div>
+
+<div class="flex flex-col gap-1">
+    <label class="kt-form-label font-normal text-mono">Subcarpeta pública (opcional)</label>
+    <input class="kt-input" type="text" name="public_path" value="{{ old('public_path', $site->public_path ?? '') }}" placeholder="public"/>
+    <p class="kt-form-description">Déjalo vacío salvo que tu app sirva desde una subcarpeta dentro de la raíz del proyecto (ej. Laravel usa "public"). El resto del proyecto sigue siendo accesible desde archivos/SSH/SFTP.</p>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">

@@ -16,7 +16,12 @@ class ErrorPageProvisioner
     {
         $pages = $site->errorPages()->where('enabled', true)->get();
         if (! config('xpanel.apply_system_changes')) {
-            $directory = $site->localRoot().DIRECTORY_SEPARATOR.'.xpanel-errors';
+            // localRoot() has the local-dev/test fallback to a storage/ sandbox
+            // when document_root isn't a real path on this machine; webRoot()
+            // doesn't, so the public-path suffix is appended on top of it here.
+            $publicPath = trim((string) $site->public_path, '/');
+            $base = $publicPath === '' ? $site->localRoot() : $site->localRoot().DIRECTORY_SEPARATOR.$publicPath;
+            $directory = $base.DIRECTORY_SEPARATOR.'.xpanel-errors';
             $this->files->ensureDirectoryExists($directory, 0755);
             foreach ([403, 404, 500, 502, 503] as $code) {
                 $page = $pages->firstWhere('status_code', $code);
@@ -36,7 +41,7 @@ class ErrorPageProvisioner
         }
         $this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'error-pages-sync',
-            $site->domain, $site->document_root, $site->systemUser(),
+            $site->domain, $site->webRoot(), $site->systemUser(),
         ], $pages->pluck('status_code')->implode("\n").($pages->isEmpty() ? '' : "\n"));
     }
 }

@@ -37,6 +37,7 @@ class SiteProvisionerTest extends TestCase
             '8.3',
             '/var/www/client.example.com',
             $site->systemUser(),
+            '/var/www/client.example.com',
         ]);
 
         $generator = new VirtualHostGenerator;

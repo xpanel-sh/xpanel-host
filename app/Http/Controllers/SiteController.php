@@ -185,6 +185,7 @@ class SiteController extends Controller
         $request->merge([
             'domain' => strtolower(rtrim(trim((string) $request->input('domain')), '.')),
             'document_root' => trim((string) $request->input('document_root')),
+            'public_path' => trim((string) $request->input('public_path'), " \t\n\r\0\x0B/"),
         ]);
         $data = $request->validate([
             'domain' => [
@@ -204,6 +205,16 @@ class SiteController extends Controller
                     }
                 },
             ],
+            'public_path' => [
+                'nullable',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value !== '' && (! preg_match('#^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$#', $value) || str_contains($value, '..'))) {
+                        $fail('La subcarpeta pública no es válida.');
+                    }
+                },
+            ],
             'php_version' => 'required|string|in:'.implode(',', Site::phpVersions()),
             'type' => 'required|string|in:php,static',
             'web_server' => 'nullable|string|in:'.implode(',', Site::webServers()),
@@ -212,6 +223,10 @@ class SiteController extends Controller
 
         if (empty($data['document_root'])) {
             $data['document_root'] = '/var/www/'.$data['domain'];
+        }
+
+        if (empty($data['public_path'])) {
+            $data['public_path'] = null;
         }
 
         if (empty($data['web_server'])) {

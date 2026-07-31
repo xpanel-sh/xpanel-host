@@ -117,6 +117,7 @@ class GitAndProtectedDirectoriesTest extends TestCase
             $mock->shouldReceive('run')->once()->with([
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'apply',
                 $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root, $site->systemUser(),
+                $site->webRoot(),
             ]);
         });
 

@@ -180,11 +180,13 @@ ensure_site_identity() {
 
 site_action() {
   local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
+  local web_root="${8:-$document_root}"
   valid_domain "$domain" || fail "Invalid site domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   [[ "$type" == "php" || "$type" == "static" ]] || fail "Invalid site type."
   [[ "$php_version" =~ ^8\.[1-4]$ ]] || fail "Invalid PHP version."
   valid_document_root "$document_root" || fail "Document root must be under /var/www or /srv/www."
+  valid_document_root "$web_root" || fail "Web root must be under /var/www or /srv/www."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
 
   local vhost_source="$ROOT/storage/app/vhosts/$domain.conf"
@@ -215,6 +217,7 @@ site_action() {
   [[ -f "$vhost_source" ]] || fail "Staged virtual host not found."
   [[ -f "$gateway_source" ]] || fail "Staged gateway route not found."
   ensure_site_identity "$site_user" "$document_root"
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$web_root"
   if [[ "$type" == "php" ]]; then
     if [[ "$engine" != "openlitespeed" ]]; then
       [[ -f "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
@@ -224,15 +227,15 @@ site_action() {
     else
       rm -f "$pool"
     fi
-    if [[ ! -e "$document_root/index.php" && ! -e "$document_root/index.html" ]]; then
-      printf '%s\n' '<?php echo "XPanel Host: sitio listo"; ?>' > "$document_root/index.php"
-      chown "$site_user:$site_user" "$document_root/index.php"
+    if [[ ! -e "$web_root/index.php" && ! -e "$web_root/index.html" ]]; then
+      printf '%s\n' '<?php echo "XPanel Host: sitio listo"; ?>' > "$web_root/index.php"
+      chown "$site_user:$site_user" "$web_root/index.php"
     fi
   else
     rm -f "$pool"
-    if [[ ! -e "$document_root/index.html" ]]; then
-      printf '%s\n' '<!doctype html><html lang="es"><meta charset="utf-8"><title>Sitio listo</title><h1>XPanel Host: sitio listo</h1></html>' > "$document_root/index.html"
-      chown "$site_user:$site_user" "$document_root/index.html"
+    if [[ ! -e "$web_root/index.html" ]]; then
+      printf '%s\n' '<!doctype html><html lang="es"><meta charset="utf-8"><title>Sitio listo</title><h1>XPanel Host: sitio listo</h1></html>' > "$web_root/index.html"
+      chown "$site_user:$site_user" "$web_root/index.html"
     fi
   fi
 
@@ -308,12 +311,12 @@ cron_sync() {
 }
 
 error_pages_sync() {
-  local domain="$2" document_root="$3" site_user="$4"
+  local domain="$2" web_root="$3" site_user="$4"
   valid_domain "$domain" || fail "Invalid error page domain."
-  valid_document_root "$document_root" || fail "Invalid error page document root."
+  valid_document_root "$web_root" || fail "Invalid error page web root."
   valid_site_identity "$site_user" || fail "Invalid error page site user."
   local source_root="$ROOT/storage/app/error-pages/$domain"
-  local target_root="$document_root/.xpanel-errors"
+  local target_root="$web_root/.xpanel-errors"
   install -d -o "$site_user" -g "$site_user" -m 0755 "$target_root"
   local enabled=() code source
   while IFS= read -r code; do
@@ -822,10 +825,10 @@ engine_install() {
 }
 
 ssl_action() {
-  local domain="$2" engine="$3" document_root="$4" site_user="${6:-}"
+  local domain="$2" engine="$3" web_root="$4" site_user="${6:-}"
   valid_domain "$domain" || fail "Invalid certificate domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
-  valid_document_root "$document_root" || fail "Invalid ACME webroot."
+  valid_document_root "$web_root" || fail "Invalid ACME webroot."
   valid_site_identity "$site_user" || fail "Invalid certificate site user."
 
   if [[ "$ACTION" == "ssl-delete" ]]; then
@@ -853,9 +856,9 @@ ssl_action() {
     [[ "$alias" != "$domain" ]] || fail "Duplicate certificate domain."
     certificate_domains+=(-d "$alias")
   done
-  install -d -o "$site_user" -g "$site_user" -m 0755 "$document_root/.well-known/acme-challenge"
+  install -d -o "$site_user" -g "$site_user" -m 0755 "$web_root/.well-known/acme-challenge"
   certbot certonly --non-interactive --agree-tos --no-eff-email \
-    --expand --webroot -w "$document_root" --cert-name "$domain" "${certificate_domains[@]}" -m "$email"
+    --expand --webroot -w "$web_root" --cert-name "$domain" "${certificate_domains[@]}" -m "$email"
 
   local certificate="/etc/letsencrypt/live/$domain/fullchain.pem"
   [[ -f "$certificate" ]] || fail "Certbot did not create the expected certificate."

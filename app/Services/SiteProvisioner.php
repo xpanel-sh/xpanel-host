@@ -46,6 +46,7 @@ class SiteProvisioner
             $site->php_version,
             $site->document_root,
             $site->systemUser(),
+            $site->webRoot(),
         ]);
     }
 
