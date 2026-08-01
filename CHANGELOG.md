@@ -7,6 +7,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 ### Añadido
 
 - Subcarpeta pública opcional por sitio (`public_path`, ej. `public` para Laravel): la raíz del proyecto sigue siendo el límite del gestor de archivos, SSH/SFTP y la terminal real, mientras nginx/Apache/OpenLiteSpeed, el pool PHP-FPM, el desafío ACME de Certbot y las páginas de error personalizadas sirven únicamente desde esa subcarpeta cuando está configurada.
+- IP dedicada opcional por dominio de correo (al estilo del `mailips` de cPanel/Exim, adaptado a Postfix): además de la IP/hostname compartidos del servidor, se puede dar de alta una IP ya asignada al servidor con su propio PTR/HELO y asignarla a uno o varios dominios desde "Correos" — Postfix enruta el correo saliente de esos dominios por esa IP mediante `sender_dependent_default_transport_maps`, sin afectar a los dominios que siguen en modo compartido. La guía de registros DNS por dominio ahora refleja la IP/PTR dedicada cuando aplica.
 - Recuperación local de la contraseña del propietario mediante `php artisan xpanel:admin-password --generate`.
 - Instalación sin variables de entorno, acceso inicial por `IP:80`, propietario automático y resumen final de credenciales.
 - Ajustes para verificar y cambiar el dominio del panel, volver al acceso por IP e instalar SSL posteriormente.

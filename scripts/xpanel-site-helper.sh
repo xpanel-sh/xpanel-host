@@ -1328,6 +1328,63 @@ mail_sync() {
   systemctl reload postfix
 }
 
+# Domains in "dedicated" outbound mode get their own Postfix transport (own
+# smtp_bind_address + smtp_helo_name) via sender_dependent_default_transport_maps,
+# so mail from that domain leaves through its own IP/PTR instead of the one
+# shared server-wide hostname every other domain uses. The master.cf block is
+# fully regenerated between two fixed markers on every call -- simpler and
+# safer than trying to add/remove individual dynamic entries with `postconf
+# -M`/`-X` (that's fine for the one static `submission` service set up once
+# at install time, but not for a set that changes every time an admin flips a
+# domain's mode). IPv4 only for now (smtp_bind_address, not the IPv6 variant).
+mail_outbound_sync() {
+  local source="$ROOT/storage/app/mail"
+  [[ -f "$source/sender-transport" ]] || fail "Missing staged sender-transport map."
+  [[ -f "$source/dedicated-ips" ]] || fail "Missing staged dedicated IPs list."
+  if grep -Ev '^(@[a-z0-9.-]+ xpanelout-[a-z0-9-]+:)?$' "$source/sender-transport" | grep -q .; then
+    fail "Invalid sender transport map."
+  fi
+  if grep -Ev '^(xpanelout-[a-z0-9-]+ [0-9a-fA-F.:]+ [a-z0-9.-]+)?$' "$source/dedicated-ips" | grep -q .; then
+    fail "Invalid dedicated IP list."
+  fi
+
+  install -o root -g root -m 0644 "$source/sender-transport" /etc/xpanel-host/mail/sender-transport
+  postmap /etc/xpanel-host/mail/sender-transport
+
+  local master="/etc/postfix/master.cf"
+  local begin_marker="# BEGIN XPANEL-HOST DEDICATED OUTBOUND TRANSPORTS -- managed by xpanel-host, do not edit by hand"
+  local end_marker="# END XPANEL-HOST DEDICATED OUTBOUND TRANSPORTS"
+  local rebuilt
+  rebuilt="$(mktemp "$(dirname "$master")/.xpanel-master.XXXXXX")"
+  awk -v begin="$begin_marker" -v end="$end_marker" '
+    $0 == begin { skip = 1; next }
+    $0 == end { skip = 0; next }
+    !skip { print }
+  ' "$master" > "$rebuilt"
+
+  if [[ -s "$source/dedicated-ips" ]]; then
+    {
+      echo "$begin_marker"
+      while read -r transport ip hostname; do
+        [[ -z "$transport" ]] && continue
+        printf '%s unix - - n - - smtp\n' "$transport"
+        printf '  -o smtp_bind_address=%s\n' "$ip"
+        printf '  -o smtp_helo_name=%s\n' "$hostname"
+      done < "$source/dedicated-ips"
+      echo "$end_marker"
+    } >> "$rebuilt"
+    postconf -e "sender_dependent_default_transport_maps = hash:/etc/xpanel-host/mail/sender-transport"
+  else
+    postconf -e "sender_dependent_default_transport_maps ="
+  fi
+  chown root:root "$rebuilt"
+  chmod 0644 "$rebuilt"
+  mv -f "$rebuilt" "$master"
+
+  postfix check
+  systemctl reload postfix
+}
+
 mail_remove() {
   local domain="$2" local_part="$3"
   valid_domain "$domain" || fail "Invalid mail domain."
@@ -1478,6 +1535,7 @@ case "$ACTION" in
   access-sync) access_sync "$@" ;;
   access-remove) access_remove "$@" ;;
   mail-sync) mail_sync ;;
+  mail-outbound-sync) mail_outbound_sync ;;
   mail-remove) mail_remove "$@" ;;
   mail-remove-domain) mail_remove_domain "$@" ;;
   backup-create) backup_create "$@" ;;

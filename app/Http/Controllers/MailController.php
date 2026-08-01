@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Domain;
 use App\Models\MailAccount;
+use App\Models\ServerIpAddress;
 use App\Services\MailDnsService;
 use App\Services\MailProvisioner;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +16,7 @@ class MailController extends Controller
 {
     public function index(MailDnsService $dns): View
     {
-        $accounts = MailAccount::with('domain')->orderBy('local_part')->paginate(10);
+        $accounts = MailAccount::with('domain.mailSettings.serverIpAddress')->orderBy('local_part')->paginate(10);
 
         return view('mail.index', [
             'accounts' => $accounts,
@@ -26,6 +27,7 @@ class MailController extends Controller
                     'domain' => $domain,
                     'records' => $dns->expected($domain),
                 ]]),
+            'serverIpAddresses' => ServerIpAddress::orderBy('label')->orderBy('ip_address')->get(),
         ]);
     }
 

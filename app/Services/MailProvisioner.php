@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Domain;
+use App\Models\DomainMailSettings;
 use App\Models\MailAccount;
 use Illuminate\Support\Collection;
 use Symfony\Component\Process\Process;
@@ -42,6 +43,48 @@ class MailProvisioner
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'mail-sync',
             ]);
         }
+    }
+
+    /**
+     * Domains in "dedicated" outbound mode get their own Postfix transport
+     * (own smtp_bind_address + smtp_helo_name), so their mail leaves through
+     * a specific IP with a PTR that actually matches, instead of the one
+     * shared server-wide hostname/IP every domain uses by default.
+     */
+    public function syncOutboundRouting(): void
+    {
+        $this->stageOutboundRouting();
+
+        if (config('xpanel.apply_system_changes')) {
+            $this->commands->run([
+                'sudo', '-n', (string) config('xpanel.site_helper'), 'mail-outbound-sync',
+            ]);
+        }
+    }
+
+    private function stageOutboundRouting(): void
+    {
+        $settings = DomainMailSettings::with(['domain', 'serverIpAddress'])
+            ->where('outbound_mode', 'dedicated')
+            ->whereHas('serverIpAddress')
+            ->get();
+
+        $directory = storage_path('app/mail');
+        if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
+            throw new \RuntimeException('No se pudo preparar la configuración de correo.');
+        }
+
+        $senderTransport = [];
+        $dedicatedIps = [];
+        foreach ($settings as $setting) {
+            $ip = $setting->serverIpAddress;
+            $transport = 'xpanelout-'.str_replace(['.', ':'], '-', $ip->ip_address);
+            $senderTransport[] = '@'.$setting->domain->domain.' '.$transport.':';
+            $dedicatedIps[$ip->id] ??= $transport.' '.$ip->ip_address.' '.$ip->ptr_hostname;
+        }
+
+        $this->atomicWrite($directory.'/sender-transport', implode("\n", $senderTransport).($senderTransport ? "\n" : ''));
+        $this->atomicWrite($directory.'/dedicated-ips', implode("\n", array_values($dedicatedIps)).($dedicatedIps ? "\n" : ''));
     }
 
     public function removeDomain(Domain $domain): void

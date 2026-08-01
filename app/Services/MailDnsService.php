@@ -12,8 +12,9 @@ class MailDnsService
     public function expected(Domain $domain): array
     {
         $name = strtolower($domain->domain);
-        $mailHostname = strtolower((string) config('xpanel.mail_hostname'));
-        $serverIpv4 = (string) config('xpanel.server_ipv4');
+        $dedicatedIp = $domain->mailSettings?->outbound_mode === 'dedicated' ? $domain->mailSettings->serverIpAddress : null;
+        $mailHostname = strtolower($dedicatedIp?->ptr_hostname ?? (string) config('xpanel.mail_hostname'));
+        $serverIpv4 = $dedicatedIp?->ip_address ?? (string) config('xpanel.server_ipv4');
         $selector = (string) config('xpanel.dkim_selector', 'xpanel');
         $dkimPath = storage_path("app/mail/dkim/{$name}.txt");
         $dkim = is_file($dkimPath) ? trim((string) file_get_contents($dkimPath)) : null;

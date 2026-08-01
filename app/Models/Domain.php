@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['domain', 'type', 'site_id', 'dns_status', 'ssl_status'])]
 class Domain extends Model
@@ -23,5 +24,10 @@ class Domain extends Model
     public function mailAccounts(): HasMany
     {
         return $this->hasMany(MailAccount::class);
+    }
+
+    public function mailSettings(): HasOne
+    {
+        return $this->hasOne(DomainMailSettings::class);
     }
 }

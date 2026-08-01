@@ -71,6 +71,54 @@
                         <div class="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-secondary-foreground">Para recibir correo desde Internet configura MX hacia <strong>{{ config('xpanel.mail_hostname') }}</strong>, un registro A/AAAA, PTR/rDNS y SPF. Emite también SSL para ese hostname desde un sitio con el mismo dominio para reemplazar el certificado inicial del servidor de correo.</div>
                     @endif
 
+                    @if ($canManage)
+                        <div class="kt-card">
+                            <div class="kt-card-header"><h2 class="kt-card-title">IPs dedicadas para correo saliente</h2></div>
+                            <div class="kt-card-content p-5 grid gap-4">
+                                <p class="text-sm text-secondary-foreground">Da de alta aquí una IP que ya esté asignada y funcionando en la interfaz de red del servidor (el panel no la asigna por ti), junto con el hostname que va a tener su PTR. Después asígnala a uno o varios dominios desde "DNS del correo" en la tabla de abajo.</p>
+                                @if ($serverIpAddresses->isNotEmpty())
+                                    <div class="overflow-x-auto rounded-xl border border-border">
+                                        <table class="kt-table w-full">
+                                            <thead><tr><th class="p-3 text-left">IP</th><th class="p-3 text-left">PTR/HELO</th><th class="p-3 text-left">Etiqueta</th><th class="p-3"></th></tr></thead>
+                                            <tbody>
+                                                @foreach ($serverIpAddresses as $ip)
+                                                    <tr class="border-t border-border">
+                                                        <td class="p-3 font-mono">{{ $ip->ip_address }}</td>
+                                                        <td class="p-3 font-mono">{{ $ip->ptr_hostname }}</td>
+                                                        <td class="p-3">{{ $ip->label }}</td>
+                                                        <td class="p-3 text-right">
+                                                            <form method="POST" action="{{ route('server-ip-addresses.destroy', $ip) }}" onsubmit="return confirm('¿Eliminar esta IP dedicada?')">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="kt-btn kt-btn-sm kt-btn-outline">Eliminar</button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
+                                <form method="POST" action="{{ route('server-ip-addresses.store') }}" class="flex flex-wrap items-end gap-3">
+                                    @csrf
+                                    <div class="flex flex-col gap-1">
+                                        <label class="kt-form-label font-normal text-mono text-xs">IP</label>
+                                        <input class="kt-input" type="text" name="ip_address" placeholder="203.0.113.10" required/>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="kt-form-label font-normal text-mono text-xs">Hostname PTR/HELO</label>
+                                        <input class="kt-input" type="text" name="ptr_hostname" placeholder="mail.cliente.com" required/>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="kt-form-label font-normal text-mono text-xs">Etiqueta (opcional)</label>
+                                        <input class="kt-input" type="text" name="label" placeholder="Cliente X"/>
+                                    </div>
+                                    <button type="submit" class="kt-btn kt-btn-primary">Agregar IP</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endif
+
                     @if ($accounts->isEmpty())
                         <div class="kt-card">
                             <div class="flex flex-col items-center justify-center gap-5 py-20 text-center">
@@ -235,6 +283,38 @@
             <div class="rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-sm text-warning">
                 <strong>Cloudflare:</strong> el registro de <code>{{ $records['mail_hostname'] }}</code> debe estar en <strong>DNS only</strong> (nube gris). El proxy naranja no transporta SMTP ni IMAP.
             </div>
+
+            @if ($canManage)
+                @php $currentMode = $dnsDomain->mailSettings->outbound_mode ?? 'shared'; @endphp
+                <section class="grid gap-3">
+                    <div>
+                        <h3 class="font-semibold text-mono">Paso 0: modo de envío</h3>
+                        <p class="mt-1 text-sm text-secondary-foreground">Por defecto este dominio sale por la IP compartida del servidor. Si tiene una IP dedicada dada de alta arriba, puedes hacer que use su propio PTR/HELO en vez del compartido.</p>
+                    </div>
+                    <form method="POST" action="{{ route('mail.domains.settings', $dnsDomain) }}" class="flex flex-wrap items-end gap-3">
+                        @csrf
+                        @method('PUT')
+                        <div class="flex flex-col gap-1">
+                            <label class="kt-form-label font-normal text-mono text-xs">Modo</label>
+                            <select class="kt-select" name="outbound_mode" onchange="this.closest('form').querySelector('[data-dedicated-ip]').classList.toggle('hidden', this.value !== 'dedicated')">
+                                <option value="shared" @selected($currentMode === 'shared')>Compartido (servidor)</option>
+                                <option value="dedicated" @selected($currentMode === 'dedicated')>IP dedicada</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1 {{ $currentMode === 'dedicated' ? '' : 'hidden' }}" data-dedicated-ip>
+                            <label class="kt-form-label font-normal text-mono text-xs">IP dedicada</label>
+                            <select class="kt-select" name="server_ip_address_id">
+                                @forelse ($serverIpAddresses as $ip)
+                                    <option value="{{ $ip->id }}" @selected($dnsDomain->mailSettings?->server_ip_address_id === $ip->id)>{{ $ip->label ?: $ip->ip_address }} ({{ $ip->ip_address }})</option>
+                                @empty
+                                    <option value="" disabled>No hay IPs dedicadas dadas de alta</option>
+                                @endforelse
+                            </select>
+                        </div>
+                        <button type="submit" class="kt-btn kt-btn-outline">Guardar modo</button>
+                    </form>
+                </section>
+            @endif
 
             <section class="grid gap-3">
                 <div>

@@ -11,6 +11,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DnsZoneController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\DomainMailSettingsController;
 use App\Http\Controllers\ErrorPageController;
 use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\FolderIndexController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\ProtectedDirectoryController;
 use App\Http\Controllers\RedirectController;
 use App\Http\Controllers\RemoteMysqlController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\ServerIpAddressController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SiteAccessController;
@@ -125,6 +127,10 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/mail', [MailController::class, 'store'])->name('mail.store');
             Route::delete('/mail/{mailAccount}', [MailController::class, 'destroy'])->name('mail.destroy');
             Route::post('/mail/{mailAccount}/password', [MailController::class, 'resetPassword'])->name('mail.reset-password');
+            Route::put('/mail/domains/{domain}/settings', [DomainMailSettingsController::class, 'update'])->name('mail.domains.settings');
+
+            Route::post('/server-ip-addresses', [ServerIpAddressController::class, 'store'])->name('server-ip-addresses.store');
+            Route::delete('/server-ip-addresses/{serverIpAddress}', [ServerIpAddressController::class, 'destroy'])->name('server-ip-addresses.destroy');
         });
         // Registered after the literal /sites/create, /sites/{site}/edit routes above so
         // those don't get swallowed by the {site} wildcard here.
