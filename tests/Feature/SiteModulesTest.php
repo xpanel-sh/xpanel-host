@@ -64,6 +64,19 @@ class SiteModulesTest extends TestCase
             ->assertStatus(404);
     }
 
+    public function test_server_summary_uses_the_compact_metric_strip(): void
+    {
+        $site = $this->site();
+
+        $this->actingAs($this->owner())
+            ->get(SiteModules::url($site, 'server', 'summary'))
+            ->assertOk()
+            ->assertSee('xpanel-kpi-inline', false)
+            ->assertSee('CPU disponible')
+            ->assertSee('Memoria')
+            ->assertSee('Disco');
+    }
+
     public function test_unknown_section_is_404(): void
     {
         $this->actingAs($this->owner())

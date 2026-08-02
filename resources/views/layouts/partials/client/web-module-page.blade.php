@@ -12,56 +12,52 @@
                     @if(request()->routeIs('sites.module') && !\App\Support\SiteModules::isReady((string) request()->route('section'), (string) request()->route('module')))
                         <div class="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">Esta vista conserva el diseño previsto, pero su operación de servidor todavía está en preparación. Los botones sin backend permanecen desactivados.</div>
                     @endif
-                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-2">
-                                <span class="kt-badge kt-badge-outline kt-badge-primary">{{ $sectionLabel ?? 'Sitio web' }}</span>
-                                <span class="text-xs text-secondary-foreground uppercase">{{ $site->domain }}</span>
-                            </div>
-                            <h1 class="mt-2 text-2xl font-semibold text-mono truncate">{{ $title ?? ($activeModule['label'] ?? 'Modulo') }}</h1>
-                            <p class="mt-1 max-w-3xl text-sm text-secondary-foreground">
-                                {{ $description ?? 'Vista preparada para gestionar este recurso del sitio seleccionado.' }}
-                            </p>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2">
-                            @foreach($actions as $action)
-                                @if(!empty($action['url']))
-                                <a class="kt-btn {{ $action['style'] ?? 'kt-btn-outline' }}" href="{{ $action['url'] }}">
-                                    @isset($action['icon'])
-                                        <i class="ki-filled {{ $action['icon'] }}"></i>
-                                    @endisset
-                                    {{ $action['label'] }}
-                                </a>
-                                @else
-                                <button class="kt-btn kt-btn-outline opacity-60 cursor-not-allowed" type="button" disabled title="Esta operación todavía no está conectada al servidor">
-                                    @isset($action['icon'])<i class="ki-filled {{ $action['icon'] }}"></i>@endisset
-                                    {{ $action['label'] }} · pendiente
-                                </button>
-                                @endif
-                            @endforeach
-                        </div>
-                    </div>
-
-                    @if($metrics)
-                        <div class="grid gap-5 md:grid-cols-3">
-                            @foreach($metrics as $metric)
-                                <div class="kt-card">
-                                    <div class="kt-card-content p-5">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <div>
-                                                <div class="text-sm text-secondary-foreground">{{ $metric['label'] }}</div>
-                                                <div class="mt-2 text-2xl font-semibold text-mono">{{ $metric['value'] }}</div>
-                                            </div>
-                                            <div class="flex size-10 items-center justify-center rounded-lg bg-accent">
-                                                <i class="ki-filled {{ $metric['icon'] ?? 'ki-chart-simple' }} text-lg text-primary"></i>
-                                            </div>
-                                        </div>
-                                    </div>
+                    <section class="kt-card overflow-hidden">
+                        <div class="kt-card-content flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="kt-badge kt-badge-outline kt-badge-primary">{{ $sectionLabel ?? 'Sitio web' }}</span>
+                                    <span class="truncate text-xs uppercase text-secondary-foreground">{{ $site->domain }}</span>
                                 </div>
-                            @endforeach
+                                <h1 class="mt-2 truncate text-2xl font-semibold text-mono">{{ $title ?? ($activeModule['label'] ?? 'Modulo') }}</h1>
+                                <p class="mt-1 max-w-3xl text-sm text-secondary-foreground">
+                                    {{ $description ?? 'Vista preparada para gestionar este recurso del sitio seleccionado.' }}
+                                </p>
+                            </div>
+
+                            <div class="flex shrink-0 flex-wrap items-center gap-2">
+                                @foreach($actions as $action)
+                                    @if(!empty($action['url']))
+                                    <a class="kt-btn {{ $action['style'] ?? 'kt-btn-outline' }}" href="{{ $action['url'] }}">
+                                        @isset($action['icon'])<i class="ki-filled {{ $action['icon'] }}"></i>@endisset
+                                        {{ $action['label'] }}
+                                    </a>
+                                    @else
+                                    <button class="kt-btn kt-btn-outline opacity-60 cursor-not-allowed" type="button" disabled title="Esta operación todavía no está conectada al servidor">
+                                        @isset($action['icon'])<i class="ki-filled {{ $action['icon'] }}"></i>@endisset
+                                        {{ $action['label'] }} · pendiente
+                                    </button>
+                                    @endif
+                                @endforeach
+                            </div>
                         </div>
-                    @endif
+
+                        @if($metrics)
+                            <div class="xpanel-kpi-inline border-t border-border">
+                                @foreach($metrics as $metric)
+                                    <div class="flex min-w-0 items-center gap-3 px-4 py-3">
+                                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
+                                            <i class="ki-filled {{ $metric['icon'] ?? 'ki-chart-simple' }}"></i>
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block text-xs text-secondary-foreground">{{ $metric['label'] }}</span>
+                                            <span class="mt-0.5 block text-sm font-semibold text-mono" title="{{ $metric['value'] }}">{{ $metric['value'] }}</span>
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </section>
 
                     <div class="grid gap-5 lg:grid-cols-2">
                         @foreach($cards as $card)

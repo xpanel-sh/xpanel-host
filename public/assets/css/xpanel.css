@@ -24,3 +24,71 @@
 .py-20 {
   padding-block: calc(var(--spacing) * 20);
 }
+
+/* Compact KPI rows for site-module pages. The site sidebar already reduces
+   the available canvas, so small values should read as a strip instead of a
+   second row of full-size cards. */
+.xpanel-kpi-inline,
+.xpanel-kpi-grid,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.xpanel-kpi-inline > * + *,
+.xpanel-kpi-grid > * + *,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 > * + * {
+  border-inline-start: 1px solid var(--color-border);
+}
+
+.xpanel-kpi-grid,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 {
+  overflow: hidden;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-background);
+}
+
+.xpanel-kpi-grid > .kt-card,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 > .kt-card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.xpanel-kpi-grid > .kt-card .kt-card-content,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 > .kt-card .kt-card-content {
+  min-height: 72px;
+  padding: 14px 16px;
+}
+
+.xpanel-kpi-grid > .kt-card .mt-2,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 > .kt-card .mt-2 {
+  margin-top: 4px;
+}
+
+.xpanel-kpi-grid > .kt-card .text-2xl,
+.xpanel-kpi-grid > .kt-card .text-xl,
+.xpanel-kpi-grid > .kt-card .text-lg,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 > .kt-card .text-2xl,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 > .kt-card .text-xl,
+#scrollable_content .grid.gap-5.md\:grid-cols-3 > .kt-card .text-lg {
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (width < 48rem) {
+  .xpanel-kpi-inline,
+  .xpanel-kpi-grid,
+  #scrollable_content .grid.gap-5.md\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .xpanel-kpi-inline > * + *,
+  .xpanel-kpi-grid > * + *,
+  #scrollable_content .grid.gap-5.md\:grid-cols-3 > * + * {
+    border-inline-start: 0;
+  }
+}
