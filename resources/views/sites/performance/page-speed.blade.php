@@ -41,6 +41,28 @@
                     </div>
                 </section>
 
+                @if(auth()->user()->hasPermission(\App\Support\Permissions::SERVER_MANAGE))
+                    <section class="kt-card">
+                        <div class="kt-card-header">
+                            <div><h2 class="kt-card-title">API de Google PageSpeed</h2><p class="mt-1 text-xs text-secondary-foreground">Configuración global para todos los sitios de esta instalación.</p></div>
+                            <span class="kt-badge kt-badge-outline {{ $apiKeyConfigured ? 'kt-badge-success' : 'kt-badge-warning' }}">{{ $apiKeyConfigured ? 'Configurada' : 'Sin configurar' }}</span>
+                        </div>
+                        <form method="post" action="{{ route('sites.pagespeed.api-key', $site) }}" class="kt-card-content grid gap-4 p-5" autocomplete="off">
+                            @csrf
+                            @method('put')
+                            <div class="grid gap-2">
+                                <label class="text-sm font-medium text-mono" for="pagespeed_api_key">Nueva clave API</label>
+                                <input class="kt-input" id="pagespeed_api_key" name="api_key" type="password" minlength="20" maxlength="255" placeholder="Pega una clave nueva para guardarla o reemplazarla" autocomplete="new-password">
+                                <p class="text-xs text-secondary-foreground">La clave actual nunca se muestra. Se guarda como <code>PAGESPEED_API_KEY</code>, se activa inmediatamente y no se registra en el historial.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button class="kt-btn kt-btn-primary" type="submit" name="action" value="save"><i class="ki-filled ki-check"></i> Guardar clave</button>
+                                @if($apiKeyConfigured)<button class="kt-btn kt-btn-outline" type="submit" name="action" value="remove" formnovalidate onclick="return confirm('¿Eliminar la clave privada y volver a la cuota pública?')"><i class="ki-filled ki-trash"></i> Eliminar clave</button>@endif
+                            </div>
+                        </form>
+                    </section>
+                @endif
+
                 @if($latest)
                     <section class="grid gap-5 lg:grid-cols-3">
                         <div class="kt-card lg:col-span-2">

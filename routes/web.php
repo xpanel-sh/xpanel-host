@@ -285,6 +285,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::resource('roles', RoleController::class)->except(['show']);
         });
         Route::middleware('permission:'.Permissions::SERVER_MANAGE)->group(function () {
+            Route::put('/sites/{site}/performance/page-speed/api-key', [PageSpeedController::class, 'updateApiKey'])->name('sites.pagespeed.api-key');
             Route::get('/settings/panel-access', [PanelAccessController::class, 'index'])->name('settings.panel-access.index');
             Route::put('/settings/panel-access/domain', [PanelAccessController::class, 'domain'])->name('settings.panel-access.domain');
             Route::put('/settings/panel-access/ip', [PanelAccessController::class, 'ip'])->name('settings.panel-access.ip');

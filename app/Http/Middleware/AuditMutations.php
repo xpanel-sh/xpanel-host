@@ -79,6 +79,7 @@ class AuditMutations
             'sites.wordpress.store' => 'Instaló WordPress en el sitio.',
             'sites.migrations.store' => 'Importó una migración de archivos y base de datos.',
             'sites.pagespeed.store' => 'Ejecutó una medición PageSpeed.',
+            'sites.pagespeed.api-key' => 'Actualizó la credencial privada de PageSpeed.',
             'sites.diagnostics.store' => 'Ejecutó el diagnóstico técnico del sitio.',
             'sites.dns.connect' => 'Conectó el proveedor DNS del sitio.',
             'sites.dns.disconnect' => 'Desconectó el proveedor DNS del sitio.',

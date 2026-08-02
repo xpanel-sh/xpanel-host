@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
+use App\Services\ServerCommandRunner;
 use App\Services\SiteDiagnosticService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -87,6 +88,46 @@ class PerformanceDiagnosticsTest extends TestCase
 
         config(['services.pagespeed.key' => 'private-test-key']);
         $owner->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('PageSpeed conectado con cuota propia')->assertDontSee('private-test-key');
+    }
+
+    public function test_owner_can_replace_pagespeed_key_without_exposing_it_in_the_command(): void
+    {
+        $site = $this->site();
+        $key = 'AIzaSyExamplePrivateKey_1234567890';
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $this->mock(ServerCommandRunner::class, function ($mock) use ($key): void {
+            $mock->shouldReceive('run')->once()->with([
+                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'pagespeed-key-set',
+            ], $key."\n");
+        });
+
+        $this->actingAs($this->owner())->put(route('sites.pagespeed.api-key', $site), [
+            'action' => 'save', 'api_key' => $key,
+        ])->assertRedirect()->assertSessionHas('status', 'Clave de PageSpeed actualizada y protegida.');
+
+        $this->assertSame($key, config('services.pagespeed.key'));
+    }
+
+    public function test_invalid_pagespeed_key_is_never_flashed_back_to_the_session(): void
+    {
+        $site = $this->site();
+        $secret = 'invalid secret with spaces';
+
+        $this->actingAs($this->owner())->from(route('sites.pagespeed.index', $site))->put(route('sites.pagespeed.api-key', $site), [
+            'action' => 'save', 'api_key' => $secret,
+        ])->assertRedirect(route('sites.pagespeed.index', $site))->assertSessionHasErrors('api_key');
+
+        $this->assertNull(session()->getOldInput('api_key'));
+    }
+
+    public function test_pagespeed_key_helper_uses_stdin_and_rolls_back_the_environment_on_failure(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('pagespeed_key_set()', $helper);
+        $this->assertStringContainsString('IFS= read -r key', $helper);
+        $this->assertStringContainsString('cp -a -- "$backup" "$ROOT/.env"', $helper);
+        $this->assertStringContainsString('pagespeed-key-set) pagespeed_key_set', $helper);
     }
 
     public function test_diagnostic_parser_rejects_bad_protocol_and_local_run_persists_real_checks(): void

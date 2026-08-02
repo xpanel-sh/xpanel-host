@@ -177,7 +177,7 @@ El panel configura Nginx y su PHP-FPM para cargas grandes. Cuando Host vive dent
 
 ### PageSpeed y diagnóstico
 
-**Rendimiento → PageSpeed** consulta la [API oficial PageSpeed Insights v5](https://developers.google.com/speed/docs/insights/v5/get-started) con la URL pública derivada del sitio; el usuario no puede proporcionar destinos arbitrarios. Conserva mediciones móvil/escritorio, puntuaciones Lighthouse, FCP, LCP, TBT, CLS, Speed Index y las oportunidades principales. Los fallos o límites de cuota quedan registrados como fallos, nunca como puntuaciones ficticias. La API admite consultas sin clave; para uso frecuente configura `PAGESPEED_API_KEY`.
+**Rendimiento → PageSpeed** consulta la [API oficial PageSpeed Insights v5](https://developers.google.com/speed/docs/insights/v5/get-started) con la URL pública derivada del sitio; el usuario no puede proporcionar destinos arbitrarios. Conserva mediciones móvil/escritorio, puntuaciones Lighthouse, FCP, LCP, TBT, CLS, Speed Index y las oportunidades principales. Los fallos o límites de cuota quedan registrados como fallos, nunca como puntuaciones ficticias. La API admite consultas sin clave; un propietario con permiso de servidor puede guardar, reemplazar o retirar `PAGESPEED_API_KEY` directamente desde esta vista sin exponer su valor actual.
 
 **Rendimiento → Diagnóstico del sitio** ejecuta comprobaciones deterministas dentro del Host: document root, propietario Unix, gateway Nginx, backend elegido, PHP-FPM/LSPHP, respuesta HTTP y HTTPS local, resolución DNS, uso de disco, estado SSL registrado, último malware y existencia de backup. Cada resultado queda como correcto, aviso o fallo con historial. No envía archivos ni logs a servicios de IA.
 

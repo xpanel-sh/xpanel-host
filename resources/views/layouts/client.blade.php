@@ -30,7 +30,7 @@
     $selectedSiteDomain = $selectedSite?->domain;
     $hasSecondarySidebar = $selectedSiteDomain !== null;
 @endphp
-<body class="antialiased flex h-full text-base text-foreground bg-background [--header-height:60px] {{ $hasSecondarySidebar ? '[--sidebar-width:290px]' : '[--sidebar-width:90px]' }} [--navbar-height:56px] bg-muted! lg:overflow-hidden">
+<body class="antialiased flex h-full text-base text-foreground bg-background bg-muted! lg:overflow-hidden" style="--header-height:60px; --sidebar-width:{{ $hasSecondarySidebar ? '310px' : '90px' }}; --navbar-height:56px">
     <script>
         const defaultThemeMode = 'light';
         let themeMode;

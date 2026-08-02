@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- Configuración protegida de `PAGESPEED_API_KEY` desde la propia vista PageSpeed: la clave entra al helper por stdin, permanece oculta, actualiza la caché de configuración y restaura `.env` si la activación falla.
 - Medición real por sitio con muestras cada cinco minutos: archivos e inodos del `document_root`, tamaño de sus bases MariaDB, CPU/RAM/procesos e I/O de su identidad Unix, además de solicitudes y transferencia de su access log. La vista conserva 31 días de historial y distingue estas métricas observadas de los límites globales que administra Core.
 - Subcarpeta pública opcional por sitio (`public_path`, ej. `public` para Laravel): la raíz del proyecto sigue siendo el límite del gestor de archivos, SSH/SFTP y la terminal real, mientras nginx/Apache/OpenLiteSpeed, el pool PHP-FPM, el desafío ACME de Certbot y las páginas de error personalizadas sirven únicamente desde esa subcarpeta cuando está configurada.
 - IP dedicada opcional por dominio de correo (al estilo del `mailips` de cPanel/Exim, adaptado a Postfix): además de la IP/hostname compartidos del servidor, se puede dar de alta una IP ya asignada al servidor con su propio PTR/HELO y asignarla a uno o varios dominios desde "Correos" — Postfix enruta el correo saliente de esos dominios por esa IP mediante `sender_dependent_default_transport_maps`, sin afectar a los dominios que siguen en modo compartido. La guía de registros DNS por dominio ahora refleja la IP/PTR dedicada cuando aplica.
@@ -42,6 +43,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- El ancho del sidebar se declara como una variable CSS inline real, por lo que sus consumidores de ancho y margen heredan `310px` sin depender de que Tailwind haya generado una utilidad arbitraria específica.
 - El historial global de CPU, RAM, solicitudes HTTP, transferencia e I/O vive ahora en «Resumen del servidor»; «Uso de recursos» queda enfocado en la huella real del sitio, con indicadores circulares de disco e inodos y sus métricas propias.
 - El inicio muestra KPIs, recursos, sitios y actividad real del servidor; correo y XMail tienen una jerarquía visual más clara, ajustes comparte el contenedor principal y la cabecera permite navegar sitios y subdominios por separado.
 - Los indicadores pequeños de las páginas internas de un sitio se agrupan en franjas compactas junto a su encabezado, aprovechando mejor el espacio disponible con el menú secundario abierto.

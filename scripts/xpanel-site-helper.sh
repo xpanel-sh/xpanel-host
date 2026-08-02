@@ -36,6 +36,23 @@ server_ip_validate() {
   ' || fail "The dedicated IPv4 address is not assigned to this server."
 }
 
+pagespeed_key_set() {
+  local key="" backup
+  IFS= read -r key || true
+  [[ -z "$key" || "$key" =~ ^[A-Za-z0-9_-]{20,255}$ ]] || fail "Invalid PageSpeed API key."
+  [[ -f "$ROOT/.env" && ! -L "$ROOT/.env" ]] || fail "XPanel environment file is unavailable."
+
+  backup="$(mktemp "$ROOT/.env.pagespeed.XXXXXX")"
+  cp -a -- "$ROOT/.env" "$backup"
+  if ! set_root_env PAGESPEED_API_KEY "$key" || ! sudo -u "$SITE_USER" php "$ROOT/artisan" config:cache --no-interaction >/dev/null; then
+    cp -a -- "$backup" "$ROOT/.env"
+    sudo -u "$SITE_USER" php "$ROOT/artisan" config:cache --no-interaction >/dev/null 2>&1 || true
+    rm -f -- "$backup"
+    fail "Could not activate the PageSpeed API key."
+  fi
+  rm -f -- "$backup"
+}
+
 [[ "$(id -u)" == "0" ]] || fail "xpanel-site-helper must run as root."
 getent passwd "$SITE_USER" >/dev/null || fail "Configured site user does not exist."
 getent group "$SITE_GROUP" >/dev/null || fail "Configured site group does not exist."
@@ -1605,6 +1622,7 @@ backup_delete() {
 }
 
 case "$ACTION" in
+  pagespeed-key-set) pagespeed_key_set ;;
   server-ip-validate) server_ip_validate "$@" ;;
   panel-access-apply) panel_access_apply "$@" ;;
   panel-ssl-enable) panel_ssl_enable ;;
