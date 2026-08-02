@@ -99,10 +99,12 @@ class MailServerInstallationTest extends TestCase
     public function test_dedicated_mail_routing_validates_local_ipv4_and_rolls_back_postfix(): void
     {
         $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+        $syncCommand = file_get_contents(base_path('app/Console/Commands/SyncMailConfiguration.php'));
 
         $this->assertStringContainsString('server_ip_validate()', $helper);
         $this->assertStringContainsString('ip -4 -o address show', $helper);
         $this->assertStringContainsString('.outbound-rollback.', $helper);
         $this->assertStringContainsString('the previous configuration was restored', $helper);
+        $this->assertStringContainsString('syncOutboundRouting()', $syncCommand);
     }
 }

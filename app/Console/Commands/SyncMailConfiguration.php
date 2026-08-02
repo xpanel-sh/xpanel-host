@@ -15,6 +15,7 @@ class SyncMailConfiguration extends Command
     public function handle(MailProvisioner $provisioner): int
     {
         $provisioner->sync();
+        $provisioner->syncOutboundRouting();
         MailAccount::query()->update([
             'status' => config('xpanel.apply_system_changes') ? 'active' : 'staged',
             'updated_at' => now(),
