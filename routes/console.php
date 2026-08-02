@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('xpanel:backups-run')->hourly()->withoutOverlapping();
 Schedule::command('xpanel:ssl-sync')->daily()->withoutOverlapping();
+Schedule::command('xpanel:resources-collect')->everyFiveMinutes()->withoutOverlapping();

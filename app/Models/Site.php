@@ -166,6 +166,11 @@ class Site extends Model
         return $this->hasMany(SiteDiagnostic::class)->latest();
     }
 
+    public function resourceSamples(): HasMany
+    {
+        return $this->hasMany(SiteResourceSample::class)->latest('sampled_at');
+    }
+
     public function dnsConnection(): HasOne
     {
         return $this->hasOne(DnsProviderConnection::class);

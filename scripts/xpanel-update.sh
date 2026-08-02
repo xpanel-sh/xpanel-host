@@ -82,7 +82,7 @@ if [[ -z "$(env_value XPANEL_XMAIL_ENABLED)" ]]; then
 fi
 
 missing_services=()
-for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync ip sshd vsftpd nft clamscan freshclam flock wp; do
+for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync ip ps sshd vsftpd nft clamscan freshclam flock wp; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     missing_services+=("$command_name")
   fi

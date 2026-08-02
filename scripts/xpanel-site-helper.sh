@@ -659,6 +659,63 @@ access_log_read() {
   tail -n 10000 -- "$log"
 }
 
+resource_snapshot() {
+  local domain="$2" document_root="$3" site_user="$4" engine="$5"
+  valid_domain "$domain" || fail "Invalid resource domain."
+  valid_document_root "$document_root" || fail "Invalid resource document root."
+  valid_site_identity "$site_user" || fail "Invalid resource site user."
+  [[ "$engine" =~ ^(nginx|apache|openlitespeed)$ ]] || fail "Invalid resource web engine."
+  [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
+  getent passwd "$site_user" >/dev/null || fail "Site Unix identity does not exist."
+
+  local disk_bytes inode_count database_bytes=0 database value
+  disk_bytes="$(du -sbx -- "$document_root" | awk '{print $1}')"
+  inode_count="$(find -P "$document_root" -xdev -printf . | wc -c)"
+  shift 5
+  for database in "$@"; do
+    valid_identifier "$database" || fail "Invalid resource database name."
+    value="$(mariadb --batch --skip-column-names --protocol=socket information_schema -e "SELECT COALESCE(SUM(data_length + index_length), 0) FROM tables WHERE table_schema = '$database';")"
+    [[ "$value" =~ ^[0-9]+$ ]] || fail "Could not measure a site database."
+    database_bytes=$((database_bytes + value))
+  done
+
+  local process_values cpu_percent memory_kib process_count pid io_read_total=0 io_write_total=0 read_value write_value
+  process_values="$(ps -u "$site_user" -o pcpu=,rss= --no-headers 2>/dev/null | awk '{cpu += $1; rss += $2; count++} END {printf "%.2f %d %d", cpu + 0, rss + 0, count + 0}')"
+  read -r cpu_percent memory_kib process_count <<< "$process_values"
+  while read -r pid; do
+    [[ "$pid" =~ ^[0-9]+$ && -r "/proc/$pid/io" ]] || continue
+    read_value="$(awk '$1 == "read_bytes:" {print $2}' "/proc/$pid/io" 2>/dev/null || true)"
+    write_value="$(awk '$1 == "write_bytes:" {print $2}' "/proc/$pid/io" 2>/dev/null || true)"
+    [[ "$read_value" =~ ^[0-9]+$ ]] && io_read_total=$((io_read_total + read_value))
+    [[ "$write_value" =~ ^[0-9]+$ ]] && io_write_total=$((io_write_total + write_value))
+  done < <(ps -u "$site_user" -o pid= --no-headers 2>/dev/null | awk '{print $1}')
+
+  local log="/var/log/nginx/$domain-access.log" request_count=0 transfer_bytes=0
+  [[ -f "$log" && ! -L "$log" ]] || log="/var/log/xpanel-host/$domain-ols-access.log"
+  local metrics_root="/var/lib/xpanel-host/metrics" state="$metrics_root/$domain-access.state"
+  install -d -o root -g "$SITE_GROUP" -m 0750 "$metrics_root"
+  if [[ -f "$log" && ! -L "$log" ]]; then
+    local inode size old_inode=0 old_size=0 access_values temporary
+    inode="$(stat -c %i -- "$log")"
+    size="$(stat -c %s -- "$log")"
+    if [[ -f "$state" && ! -L "$state" ]]; then
+      read -r old_inode old_size < "$state" || true
+    fi
+    if [[ "$inode" == "$old_inode" && "$old_size" =~ ^[0-9]+$ && "$size" -ge "$old_size" ]]; then
+      access_values="$(tail -c "+$((old_size + 1))" -- "$log" | awk '{requests++; if ($10 ~ /^[0-9]+$/) bytes += $10} END {print requests + 0, bytes + 0}')"
+      read -r request_count transfer_bytes <<< "$access_values"
+    fi
+    temporary="$(mktemp "$metrics_root/.access-state.XXXXXX")"
+    printf '%s %s\n' "$inode" "$size" > "$temporary"
+    install -o root -g "$SITE_GROUP" -m 0640 "$temporary" "$state"
+    rm -f -- "$temporary"
+  fi
+
+  printf 'disk_bytes=%s\ninode_count=%s\ndatabase_bytes=%s\ncpu_percent=%s\nmemory_bytes=%s\nprocess_count=%s\nrequest_count=%s\ntransfer_bytes=%s\nio_read_total=%s\nio_write_total=%s\n' \
+    "$disk_bytes" "$inode_count" "$database_bytes" "$cpu_percent" "$((memory_kib * 1024))" "$process_count" \
+    "$request_count" "$transfer_bytes" "$io_read_total" "$io_write_total"
+}
+
 cache_purge() {
   local domain="$2" document_root="$3"
   valid_domain "$domain" || fail "Invalid cache domain."
@@ -1560,6 +1617,7 @@ case "$ACTION" in
   site-migrate) site_migrate "$@" ;;
   site-diagnose) site_diagnose "$@" ;;
   access-log-read) access_log_read "$@" ;;
+  resource-snapshot) resource_snapshot "$@" ;;
   cache-purge) cache_purge "$@" ;;
   git-deploy) git_deploy "$@" ;;
   git-remove) git_remove "$@" ;;

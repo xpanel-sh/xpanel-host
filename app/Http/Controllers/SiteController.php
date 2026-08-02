@@ -8,6 +8,7 @@ use App\Services\CertificateProvisioner;
 use App\Services\ServerContext;
 use App\Services\SiteAccessProvisioner;
 use App\Services\SiteProvisioner;
+use App\Services\SiteResourceUsageService;
 use App\Support\SiteModules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,14 +33,19 @@ class SiteController extends Controller
         ]);
     }
 
-    public function module(Site $site, string $section, string $module, ServerContext $serverContext): View
+    public function module(Site $site, string $section, string $module, ServerContext $serverContext, SiteResourceUsageService $resourceUsage): View
     {
         $definition = SiteModules::find($section, $module);
         abort_if($definition === null, 404);
 
         $dedicated = "sites.{$section}.{$module}";
         if (view()->exists($dedicated)) {
-            return view($dedicated, ['site' => $site, 'serverContext' => $serverContext->snapshot()]);
+            $data = ['site' => $site, 'serverContext' => $serverContext->snapshot()];
+            if ($section === 'server' && $module === 'usage') {
+                $data['usage'] = $resourceUsage->overview($site, (string) request('period', '24h'), request()->boolean('refresh'));
+            }
+
+            return view($dedicated, $data);
         }
 
         return view('sites.module', [

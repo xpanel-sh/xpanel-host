@@ -77,18 +77,19 @@ class SiteModulesTest extends TestCase
             ->assertSee('Disco');
     }
 
-    public function test_resource_usage_renders_real_capacity_sections(): void
+    public function test_resource_usage_renders_real_per_site_sections(): void
     {
         $site = $this->site();
 
         $this->actingAs($this->owner())
             ->get(SiteModules::url($site, 'server', 'usage'))
             ->assertOk()
-            ->assertSee('Uso del disco')
-            ->assertSee('Uso de memoria RAM')
-            ->assertSee('Carga de CPU')
+            ->assertSee('Uso de recursos del sitio')
+            ->assertSee('Archivos del sitio')
+            ->assertSee('Bases de datos')
+            ->assertSee('Solicitudes HTTP')
             ->assertSee('Recalcular uso')
-            ->assertSee('<svg', false);
+            ->assertDontSee('Recursos compartidos del servidor');
     }
 
     public function test_unknown_section_is_404(): void
