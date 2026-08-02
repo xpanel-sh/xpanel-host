@@ -40,6 +40,7 @@ class ExampleTest extends TestCase
 
         $this->actingAs($owner)->get(route('sites.show', $subdomain))
             ->assertOk()
+            ->assertSee('[--sidebar-width:290px]', false)
             ->assertSee('Subdominios de example.com')
             ->assertSee('app.example.com')
             ->assertSee(route('sites.show', $subdomain), false)
