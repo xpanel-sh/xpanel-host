@@ -22,6 +22,9 @@ class ServerContextTest extends TestCase
         $this->assertGreaterThan(0, $context['cpu']);
         $this->assertGreaterThan(0, $context['memory_total_mib']);
         $this->assertGreaterThan(0, $context['disk_total_gib']);
+        $this->assertArrayHasKey('memory_used_percent', $context);
+        $this->assertArrayHasKey('cpu_load_percent', $context);
+        $this->assertArrayHasKey('uptime_seconds', $context);
     }
 
     public function test_core_mode_displays_resources_assigned_to_the_microvm(): void

@@ -77,6 +77,20 @@ class SiteModulesTest extends TestCase
             ->assertSee('Disco');
     }
 
+    public function test_resource_usage_renders_real_capacity_sections(): void
+    {
+        $site = $this->site();
+
+        $this->actingAs($this->owner())
+            ->get(SiteModules::url($site, 'server', 'usage'))
+            ->assertOk()
+            ->assertSee('Uso del disco')
+            ->assertSee('Uso de memoria RAM')
+            ->assertSee('Carga de CPU')
+            ->assertSee('Recalcular uso')
+            ->assertSee('<svg', false);
+    }
+
     public function test_unknown_section_is_404(): void
     {
         $this->actingAs($this->owner())

@@ -54,7 +54,12 @@ class PerformanceDiagnosticsTest extends TestCase
                 && str_contains($url, 'url=https%3A%2F%2Fspeed.example.com%2F')
                 && substr_count($url, 'category=') === 4;
         });
-        $this->actingAs($this->owner())->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('Reduce unused CSS');
+        $this->actingAs($this->owner())->get(route('sites.pagespeed.index', $site))
+            ->assertOk()
+            ->assertSee('Resultado más reciente')
+            ->assertSee('Métricas principales')
+            ->assertSee('Oportunidades de mejora')
+            ->assertSee('Reduce unused CSS');
     }
 
     public function test_pagespeed_failure_is_not_reported_as_a_fake_score(): void
@@ -78,10 +83,10 @@ class PerformanceDiagnosticsTest extends TestCase
         $owner = $this->actingAs($this->owner());
 
         config(['services.pagespeed.key' => null]);
-        $owner->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('Usando cuota pública de Google');
+        $owner->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('PageSpeed usa la cuota pública de Google');
 
         config(['services.pagespeed.key' => 'private-test-key']);
-        $owner->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('Cuota propia configurada')->assertDontSee('private-test-key');
+        $owner->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('PageSpeed conectado con cuota propia')->assertDontSee('private-test-key');
     }
 
     public function test_diagnostic_parser_rejects_bad_protocol_and_local_run_persists_real_checks(): void

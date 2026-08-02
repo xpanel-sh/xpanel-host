@@ -4,9 +4,7 @@ namespace App\Services;
 
 class ServerContext
 {
-    /**
-     * @return array<string, int|string|bool|null>
-     */
+    /** @return array<string, int|string|bool|null> */
     public function snapshot(): array
     {
         $managed = config('xpanel.management_mode') === 'core';
@@ -23,6 +21,9 @@ class ServerContext
         $diskFreeBytes = @disk_free_space(base_path());
         $diskFreeGiB = is_float($diskFreeBytes) ? (int) floor($diskFreeBytes / 1024 / 1024 / 1024) : 0;
         $diskUsedGiB = max(0, $diskTotal - min($diskTotal, $diskFreeGiB));
+        $memoryAvailableMiB = $this->detectedMemoryAvailableMiB();
+        $memoryUsedMiB = $memoryAvailableMiB === null ? null : max(0, $memoryTotal - min($memoryTotal, $memoryAvailableMiB));
+        $cpuLoadPercent = $this->detectedCpuLoadPercent($cpu);
 
         return [
             'mode' => $managed ? 'core' : 'standalone',
@@ -30,10 +31,15 @@ class ServerContext
             'managed' => $managed,
             'cpu' => $cpu,
             'memory_total_mib' => $memoryTotal,
+            'memory_used_mib' => $memoryUsedMiB,
+            'memory_free_mib' => $memoryUsedMiB === null ? null : max(0, $memoryTotal - $memoryUsedMiB),
+            'memory_used_percent' => $memoryUsedMiB === null || $memoryTotal === 0 ? null : (int) round(($memoryUsedMiB / $memoryTotal) * 100),
             'disk_total_gib' => $diskTotal,
             'disk_used_gib' => $diskUsedGiB,
             'disk_free_gib' => max(0, $diskTotal - $diskUsedGiB),
             'disk_used_percent' => $diskTotal > 0 ? (int) round(($diskUsedGiB / $diskTotal) * 100) : 0,
+            'cpu_load_percent' => $cpuLoadPercent,
+            'uptime_seconds' => $this->detectedUptimeSeconds(),
             'core_url' => $managed ? config('xpanel.core_url') : null,
             'core_service_id' => $managed ? config('xpanel.core_service_id') : null,
             'panel_domain' => config('xpanel.panel_domain'),
@@ -66,6 +72,36 @@ class ServerContext
         }
 
         return 1024;
+    }
+
+    private function detectedMemoryAvailableMiB(): ?int
+    {
+        $memInfo = @file_get_contents('/proc/meminfo');
+        if (is_string($memInfo) && preg_match('/^MemAvailable:\s+(\d+)\s+kB/m', $memInfo, $matches)) {
+            return max(0, (int) floor(((int) $matches[1]) / 1024));
+        }
+
+        return null;
+    }
+
+    private function detectedCpuLoadPercent(int $cpu): ?int
+    {
+        $load = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
+        if (! is_array($load) || ! isset($load[0]) || $cpu < 1) {
+            return null;
+        }
+
+        return min(100, max(0, (int) round((((float) $load[0]) / $cpu) * 100)));
+    }
+
+    private function detectedUptimeSeconds(): ?int
+    {
+        $uptime = @file_get_contents('/proc/uptime');
+        if (! is_string($uptime) || ! preg_match('/^(\d+(?:\.\d+)?)/', $uptime, $matches)) {
+            return null;
+        }
+
+        return max(0, (int) floor((float) $matches[1]));
     }
 
     private function detectedDiskGiB(): int
