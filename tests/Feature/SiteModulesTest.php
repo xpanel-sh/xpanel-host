@@ -64,17 +64,18 @@ class SiteModulesTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_server_summary_uses_the_compact_metric_strip(): void
+    public function test_server_summary_contains_global_history_and_capacity(): void
     {
         $site = $this->site();
 
         $this->actingAs($this->owner())
             ->get(SiteModules::url($site, 'server', 'summary'))
             ->assertOk()
-            ->assertSee('xpanel-kpi-inline', false)
             ->assertSee('CPU disponible')
-            ->assertSee('Memoria')
-            ->assertSee('Disco');
+            ->assertSee('CPU del servidor')
+            ->assertSee('Solicitudes HTTP')
+            ->assertSee('Últimas 24 horas')
+            ->assertSee('Últimos 30 días');
     }
 
     public function test_resource_usage_renders_real_per_site_sections(): void
@@ -88,8 +89,9 @@ class SiteModulesTest extends TestCase
             ->assertSee('Espacio utilizado')
             ->assertSee('Inodos utilizados')
             ->assertSee('Bases de datos')
-            ->assertSee('Solicitudes HTTP')
+            ->assertSee('Tráfico reciente')
             ->assertSee('Recalcular uso')
+            ->assertDontSee('Últimas 30 días')
             ->assertDontSee('Recursos compartidos del servidor');
     }
 

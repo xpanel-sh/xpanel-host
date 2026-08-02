@@ -42,6 +42,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- El historial global de CPU, RAM, solicitudes HTTP, transferencia e I/O vive ahora en «Resumen del servidor»; «Uso de recursos» queda enfocado en la huella real del sitio, con indicadores circulares de disco e inodos y sus métricas propias.
 - El inicio muestra KPIs, recursos, sitios y actividad real del servidor; correo y XMail tienen una jerarquía visual más clara, ajustes comparte el contenedor principal y la cabecera permite navegar sitios y subdominios por separado.
 - Los indicadores pequeños de las páginas internas de un sitio se agrupan en franjas compactas junto a su encabezado, aprovechando mejor el espacio disponible con el menú secundario abierto.
 - PageSpeed presenta los resultados Lighthouse con puntuaciones, métricas, oportunidades e historial mejor jerarquizados; Uso de recursos muestra disco, memoria, carga de CPU y entorno mediante lecturas reales del servidor, sin gráficas históricas simuladas.
