@@ -668,9 +668,11 @@ resource_snapshot() {
   [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
   getent passwd "$site_user" >/dev/null || fail "Site Unix identity does not exist."
 
-  local disk_bytes inode_count database_bytes=0 database value
+  local disk_bytes filesystem_bytes inode_count filesystem_inodes database_bytes=0 database value
   disk_bytes="$(du -sbx -- "$document_root" | awk '{print $1}')"
+  filesystem_bytes="$(df -PB1 -- "$document_root" | awk 'NR == 2 {print $2}')"
   inode_count="$(find -P "$document_root" -xdev -printf . | wc -c)"
+  filesystem_inodes="$(df -Pi -- "$document_root" | awk 'NR == 2 {print $2}')"
   shift 5
   for database in "$@"; do
     valid_identifier "$database" || fail "Invalid resource database name."
@@ -692,7 +694,8 @@ resource_snapshot() {
 
   local log="/var/log/nginx/$domain-access.log" request_count=0 transfer_bytes=0
   [[ -f "$log" && ! -L "$log" ]] || log="/var/log/xpanel-host/$domain-ols-access.log"
-  local metrics_root="/var/lib/xpanel-host/metrics" state="$metrics_root/$domain-access.state"
+  local metrics_root="/var/lib/xpanel-host/metrics"
+  local state="$metrics_root/$domain-access.state"
   install -d -o root -g "$SITE_GROUP" -m 0750 "$metrics_root"
   if [[ -f "$log" && ! -L "$log" ]]; then
     local inode size old_inode=0 old_size=0 access_values temporary
@@ -711,8 +714,8 @@ resource_snapshot() {
     rm -f -- "$temporary"
   fi
 
-  printf 'disk_bytes=%s\ninode_count=%s\ndatabase_bytes=%s\ncpu_percent=%s\nmemory_bytes=%s\nprocess_count=%s\nrequest_count=%s\ntransfer_bytes=%s\nio_read_total=%s\nio_write_total=%s\n' \
-    "$disk_bytes" "$inode_count" "$database_bytes" "$cpu_percent" "$((memory_kib * 1024))" "$process_count" \
+  printf 'disk_bytes=%s\nfilesystem_bytes=%s\ninode_count=%s\nfilesystem_inodes=%s\ndatabase_bytes=%s\ncpu_percent=%s\nmemory_bytes=%s\nprocess_count=%s\nrequest_count=%s\ntransfer_bytes=%s\nio_read_total=%s\nio_write_total=%s\n' \
+    "$disk_bytes" "$filesystem_bytes" "$inode_count" "$filesystem_inodes" "$database_bytes" "$cpu_percent" "$((memory_kib * 1024))" "$process_count" \
     "$request_count" "$transfer_bytes" "$io_read_total" "$io_write_total"
 }
 

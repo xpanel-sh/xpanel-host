@@ -18,7 +18,7 @@ class SiteResourceUsageServiceTest extends TestCase
         $usage = app(SiteResourceUsageService::class);
 
         $values = $usage->parse(implode("\n", [
-            'disk_bytes=2048', 'inode_count=12', 'database_bytes=4096', 'cpu_percent=3.25',
+            'disk_bytes=2048', 'filesystem_bytes=1048576', 'inode_count=12', 'filesystem_inodes=50000', 'database_bytes=4096', 'cpu_percent=3.25',
             'memory_bytes=8192', 'process_count=2', 'request_count=8', 'transfer_bytes=1024',
             'io_read_total=500', 'io_write_total=600',
         ]));
@@ -42,7 +42,7 @@ class SiteResourceUsageServiceTest extends TestCase
             'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active',
         ]);
         config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
-        $output = "disk_bytes=2048\ninode_count=12\ndatabase_bytes=0\ncpu_percent=2.50\nmemory_bytes=8192\nprocess_count=2\nrequest_count=8\ntransfer_bytes=1024\nio_read_total=500\nio_write_total=600";
+        $output = "disk_bytes=2048\nfilesystem_bytes=1048576\ninode_count=12\nfilesystem_inodes=50000\ndatabase_bytes=0\ncpu_percent=2.50\nmemory_bytes=8192\nprocess_count=2\nrequest_count=8\ntransfer_bytes=1024\nio_read_total=500\nio_write_total=600";
         $this->mock(ServerCommandRunner::class, function ($mock) use ($site, $output): void {
             $mock->shouldReceive('run')->twice()->with([
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'resource-snapshot',

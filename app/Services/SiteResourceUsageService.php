@@ -46,7 +46,7 @@ class SiteResourceUsageService
         }
         if ($current === null) {
             $current = new SiteResourceSample([
-                'disk_bytes' => 0, 'inode_count' => 0, 'database_bytes' => 0,
+                'disk_bytes' => 0, 'filesystem_bytes' => 0, 'inode_count' => 0, 'filesystem_inodes' => 0, 'database_bytes' => 0,
                 'cpu_percent' => null, 'memory_bytes' => 0, 'process_count' => 0,
                 'request_count' => 0, 'transfer_bytes' => 0, 'io_read_bytes' => 0,
                 'io_write_bytes' => 0, 'io_read_total' => 0, 'io_write_total' => 0,
@@ -76,7 +76,7 @@ class SiteResourceUsageService
     public function parse(string $output): array
     {
         $allowed = [
-            'disk_bytes', 'inode_count', 'database_bytes', 'cpu_percent', 'memory_bytes',
+            'disk_bytes', 'filesystem_bytes', 'inode_count', 'filesystem_inodes', 'database_bytes', 'cpu_percent', 'memory_bytes',
             'process_count', 'request_count', 'transfer_bytes', 'io_read_total', 'io_write_total',
         ];
         $values = [];
@@ -108,7 +108,8 @@ class SiteResourceUsageService
         }
 
         return [
-            'disk_bytes' => $disk, 'inode_count' => $inodes, 'database_bytes' => 0,
+            'disk_bytes' => $disk, 'filesystem_bytes' => (int) (disk_total_space($root) ?: 0),
+            'inode_count' => $inodes, 'filesystem_inodes' => 0, 'database_bytes' => 0,
             'cpu_percent' => 0.0, 'memory_bytes' => 0, 'process_count' => 0,
             'request_count' => 0, 'transfer_bytes' => 0, 'io_read_total' => 0, 'io_write_total' => 0,
         ];

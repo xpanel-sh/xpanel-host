@@ -25,6 +25,10 @@
     $lastTime = $samples->last()?->sampled_at?->format($period === '30d' ? 'd M' : 'H:i') ?? '—';
     $periodRequests = (int) $samples->sum('request_count');
     $periodTransfer = (int) $samples->sum('transfer_bytes');
+    $diskPercent = $current->filesystem_bytes > 0 ? min(100, round(($current->disk_bytes / $current->filesystem_bytes) * 100, 1)) : 0;
+    $inodePercent = $current->filesystem_inodes > 0 ? min(100, round(($current->inode_count / $current->filesystem_inodes) * 100, 1)) : 0;
+    $diskPercentLabel = $diskPercent > 0 && $diskPercent < 1 ? '<1%' : number_format($diskPercent, $diskPercent == floor($diskPercent) ? 0 : 1).'%';
+    $inodePercentLabel = $inodePercent > 0 && $inodePercent < 1 ? '<1%' : number_format($inodePercent, $inodePercent == floor($inodePercent) ? 0 : 1).'%';
 @endphp
 
 @section('content')
@@ -55,8 +59,44 @@
                     </div>
                 </section>
 
-                <section class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                    <article class="kt-card"><div class="kt-card-content flex items-center justify-between gap-4 p-5"><div><div class="text-sm text-secondary-foreground">Archivos del sitio</div><div class="mt-1 text-2xl font-semibold text-mono">{{ $formatBytes($current->disk_bytes) }}</div><div class="mt-1 text-xs text-secondary-foreground">{{ number_format($current->inode_count) }} inodos</div></div><span class="flex size-10 items-center justify-center rounded-lg bg-accent text-primary"><i class="ki-filled ki-folder"></i></span></div></article>
+                <div>
+                    <h2 class="mb-3 text-lg font-semibold text-mono">Disco e inodos del sitio</h2>
+                    <div class="grid gap-5 lg:grid-cols-2">
+                        <section class="kt-card">
+                            <div class="kt-card-header"><div><h3 class="kt-card-title">Espacio utilizado</h3><p class="mt-1 text-xs text-secondary-foreground">Archivos dentro de {{ $site->document_root }}</p></div><div class="text-end"><div class="font-semibold text-primary">{{ $formatBytes($current->disk_bytes) }}</div><div class="text-xs text-secondary-foreground">Del sitio</div></div></div>
+                            <div class="kt-card-content flex flex-col items-center gap-6 p-5 sm:flex-row sm:justify-center">
+                                <svg width="170" height="170" viewBox="0 0 120 120" role="img" aria-label="El sitio ocupa {{ $diskPercentLabel }} del filesystem">
+                                    <circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" stroke-width="12" class="text-muted-foreground opacity-20"/>
+                                    <circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{{ $diskPercent }} 100" transform="rotate(-90 60 60)" class="text-primary"/>
+                                    <text x="60" y="58" text-anchor="middle" dominant-baseline="middle" fill="currentColor" font-size="18" font-weight="700">{{ $diskPercentLabel }}</text>
+                                    <text x="60" y="77" text-anchor="middle" fill="currentColor" font-size="8" opacity=".65">del filesystem</text>
+                                </svg>
+                                <div class="grid min-w-48 gap-3 text-sm">
+                                    <div class="flex items-center gap-2"><span class="size-2 rounded-full bg-primary"></span><span class="text-secondary-foreground">Sitio</span><strong class="ms-auto text-mono">{{ $formatBytes($current->disk_bytes) }}</strong></div>
+                                    <div class="flex items-center gap-2"><span class="size-2 rounded-full bg-muted-foreground opacity-30"></span><span class="text-secondary-foreground">Filesystem total</span><strong class="ms-auto text-mono">{{ $formatBytes($current->filesystem_bytes) }}</strong></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="kt-card">
+                            <div class="kt-card-header"><div><h3 class="kt-card-title">Inodos utilizados</h3><p class="mt-1 text-xs text-secondary-foreground">Archivos y carpetas pertenecientes al sitio</p></div><div class="text-end"><div class="font-semibold text-primary">{{ number_format($current->inode_count) }}</div><div class="text-xs text-secondary-foreground">Del sitio</div></div></div>
+                            <div class="kt-card-content flex flex-col items-center gap-6 p-5 sm:flex-row sm:justify-center">
+                                <svg width="170" height="170" viewBox="0 0 120 120" role="img" aria-label="El sitio utiliza {{ $inodePercentLabel }} de los inodos del filesystem">
+                                    <circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" stroke-width="12" class="text-muted-foreground opacity-20"/>
+                                    <circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{{ $inodePercent }} 100" transform="rotate(-90 60 60)" class="text-primary"/>
+                                    <text x="60" y="58" text-anchor="middle" dominant-baseline="middle" fill="currentColor" font-size="18" font-weight="700">{{ $inodePercentLabel }}</text>
+                                    <text x="60" y="77" text-anchor="middle" fill="currentColor" font-size="8" opacity=".65">del filesystem</text>
+                                </svg>
+                                <div class="grid min-w-48 gap-3 text-sm">
+                                    <div class="flex items-center gap-2"><span class="size-2 rounded-full bg-primary"></span><span class="text-secondary-foreground">Sitio</span><strong class="ms-auto text-mono">{{ number_format($current->inode_count) }}</strong></div>
+                                    <div class="flex items-center gap-2"><span class="size-2 rounded-full bg-muted-foreground opacity-30"></span><span class="text-secondary-foreground">Filesystem total</span><strong class="ms-auto text-mono">{{ number_format($current->filesystem_inodes) }}</strong></div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <section class="grid gap-5 md:grid-cols-3">
                     <article class="kt-card"><div class="kt-card-content flex items-center justify-between gap-4 p-5"><div><div class="text-sm text-secondary-foreground">Bases de datos</div><div class="mt-1 text-2xl font-semibold text-mono">{{ $formatBytes($current->database_bytes) }}</div><div class="mt-1 text-xs text-secondary-foreground">{{ $site->databases()->count() }} registradas</div></div><span class="flex size-10 items-center justify-center rounded-lg bg-accent text-primary"><i class="ki-filled ki-data"></i></span></div></article>
                     <article class="kt-card"><div class="kt-card-content flex items-center justify-between gap-4 p-5"><div><div class="text-sm text-secondary-foreground">Memoria de procesos</div><div class="mt-1 text-2xl font-semibold text-mono">{{ $formatBytes($current->memory_bytes) }}</div><div class="mt-1 text-xs text-secondary-foreground">{{ number_format($current->process_count) }} procesos activos</div></div><span class="flex size-10 items-center justify-center rounded-lg bg-accent text-primary"><i class="ki-filled ki-chart"></i></span></div></article>
                     <article class="kt-card"><div class="kt-card-content flex items-center justify-between gap-4 p-5"><div><div class="text-sm text-secondary-foreground">Tráfico {{ $period === '30d' ? '30 días' : '24 horas' }}</div><div class="mt-1 text-2xl font-semibold text-mono">{{ $formatBytes($periodTransfer) }}</div><div class="mt-1 text-xs text-secondary-foreground">{{ number_format($periodRequests) }} solicitudes</div></div><span class="flex size-10 items-center justify-center rounded-lg bg-accent text-primary"><i class="ki-filled ki-chart-line-up"></i></span></div></article>
