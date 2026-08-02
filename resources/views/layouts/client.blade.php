@@ -18,10 +18,19 @@
     $clientSites = auth()->check() ? \App\Models\Site::whereNull('parent_site_id')->orderBy('domain')->get(['id', 'domain', 'status']) : collect();
     $routeSite = request()->route('site');
     $selectedSite = $routeSite instanceof \App\Models\Site ? $routeSite : null;
+    $selectedPrimarySite = $selectedSite?->parent_site_id ? $selectedSite->parent : $selectedSite;
+    $selectedSubdomain = $selectedSite?->parent_site_id ? $selectedSite : null;
+    $clientSubdomains = auth()->check()
+        ? \App\Models\Site::with('parent:id,domain')
+            ->whereNotNull('parent_site_id')
+            ->when($selectedPrimarySite, fn ($query) => $query->where('parent_site_id', $selectedPrimarySite->id))
+            ->orderBy('domain')
+            ->get(['id', 'parent_site_id', 'domain', 'status'])
+        : collect();
     $selectedSiteDomain = $selectedSite?->domain;
     $hasSecondarySidebar = $selectedSiteDomain !== null;
 @endphp
-<body class="antialiased flex h-full text-base text-foreground bg-background [--header-height:60px] {{ $hasSecondarySidebar ? '[--sidebar-width:290px]' : '[--sidebar-width:90px]' }} [--navbar-height:56px] bg-muted! lg:overflow-hidden">
+<body class="antialiased flex h-full text-base text-foreground bg-background [--header-height:60px] {{ $hasSecondarySidebar ? '[--sidebar-width:300px]' : '[--sidebar-width:90px]' }} [--navbar-height:56px] bg-muted! lg:overflow-hidden">
     <script>
         const defaultThemeMode = 'light';
         let themeMode;
@@ -49,20 +58,21 @@
                             <i class="ki-filled ki-menu"></i>
                         </button>
                     </div>
-                    <div class="flex items-center @if($selectedSiteDomain) mx-5 @endif">
+                    <div class="flex min-w-0 items-center gap-2 @if($selectedSiteDomain) mx-5 @endif">
                         <h3 class="text-secondary-foreground text-base hidden md:block">xpanel-host</h3>
                         <span class="text-sm text-muted-foreground font-medium px-2.5 hidden md:inline">/</span>
                         <div class="kt-menu kt-menu-default" data-kt-menu="true">
                             <div class="kt-menu-item kt-menu-item-dropdown" data-kt-menu-item-offset="0, 10px"
                                 data-kt-menu-item-placement="bottom-start" data-kt-menu-item-toggle="dropdown"
                                 data-kt-menu-item-trigger="hover">
-                                <button class="kt-menu-toggle text-mono font-medium">
-                                    {{ $selectedSiteDomain ?? 'Sitios' }}
+                                <button class="kt-menu-toggle text-mono font-medium" style="max-width:11rem">
+                                    <i class="ki-filled ki-abstract-26 text-primary"></i>
+                                    <span class="truncate">{{ $selectedPrimarySite?->domain ?? 'Sitios' }}</span>
                                     <span class="kt-menu-arrow"><i class="ki-filled ki-down"></i></span>
                                 </button>
                                 <div class="kt-menu-dropdown w-48 py-2">
                                     @forelse ($clientSites as $clientSite)
-                                        <div class="kt-menu-item {{ $selectedSiteDomain === $clientSite->domain ? 'active' : '' }}">
+                                        <div class="kt-menu-item {{ $selectedPrimarySite?->is($clientSite) ? 'active' : '' }}">
                                             <a class="kt-menu-link" href="{{ route('sites.show', $clientSite) }}">
                                                 <span class="kt-menu-icon"><i class="ki-filled ki-click"></i></span>
                                                 <span class="kt-menu-title">{{ $clientSite->domain }}</span>
@@ -78,6 +88,45 @@
                                             <span class="kt-menu-title">Crear sitio</span>
                                         </a>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="hidden text-muted-foreground md:inline">/</span>
+                        <div class="kt-menu kt-menu-default" data-kt-menu="true">
+                            <div class="kt-menu-item kt-menu-item-dropdown" data-kt-menu-item-offset="0, 10px"
+                                data-kt-menu-item-placement="bottom-start" data-kt-menu-item-toggle="dropdown"
+                                data-kt-menu-item-trigger="hover">
+                                <button class="kt-menu-toggle text-mono font-medium" style="max-width:12rem">
+                                    <i class="ki-filled ki-router text-primary"></i>
+                                    <span class="truncate">{{ $selectedSubdomain?->domain ?? 'Subdominios' }}</span>
+                                    <span class="kt-menu-arrow"><i class="ki-filled ki-down"></i></span>
+                                </button>
+                                <div class="kt-menu-dropdown w-64 py-2">
+                                    <div class="px-3 pb-2 text-xs font-medium uppercase tracking-wide text-secondary-foreground">
+                                        {{ $selectedPrimarySite ? 'Subdominios de '.$selectedPrimarySite->domain : 'Todos los subdominios' }}
+                                    </div>
+                                    @forelse ($clientSubdomains as $clientSubdomain)
+                                        <div class="kt-menu-item {{ $selectedSubdomain?->is($clientSubdomain) ? 'active' : '' }}">
+                                            <a class="kt-menu-link" href="{{ route('sites.show', $clientSubdomain) }}">
+                                                <span class="kt-menu-icon"><i class="ki-filled ki-router"></i></span>
+                                                <span class="kt-menu-title min-w-0">
+                                                    <span class="block truncate">{{ $clientSubdomain->domain }}</span>
+                                                    @unless($selectedPrimarySite)<span class="block truncate text-xs text-secondary-foreground">{{ $clientSubdomain->parent?->domain }}</span>@endunless
+                                                </span>
+                                            </a>
+                                        </div>
+                                    @empty
+                                        <div class="px-3 py-2 text-xs text-secondary-foreground">{{ $selectedPrimarySite ? 'Este sitio aún no tiene subdominios.' : 'Aún no tienes subdominios.' }}</div>
+                                    @endforelse
+                                    @if ($selectedPrimarySite)
+                                        <div class="kt-menu-separator"></div>
+                                        <div class="kt-menu-item">
+                                            <a class="kt-menu-link" href="{{ route('sites.subdomains.index', $selectedPrimarySite) }}">
+                                                <span class="kt-menu-icon"><i class="ki-filled ki-plus"></i></span>
+                                                <span class="kt-menu-title">Gestionar subdominios</span>
+                                            </a>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>

@@ -6,17 +6,17 @@
 <style>
 .xmail-app {
     display: grid;
-    grid-template-columns: 180px minmax(270px, 350px) minmax(0, 1fr) 30px;
-    gap: 6px;
+    grid-template-columns: 230px minmax(320px, 380px) minmax(0, 1fr);
+    gap: 12px;
     height: 100dvh;
-    padding: 10px;
-    background: #f4f4f5;
+    padding: 14px;
+    background: #f1f5f9;
     color: #18181b;
-    font-size: 12px;
-    line-height: 1.3;
+    font-size: 13px;
+    line-height: 1.4;
 }
 .xmail-app.is-sidebar-collapsed {
-    grid-template-columns: 48px minmax(270px, 350px) minmax(0, 1fr) 30px;
+    grid-template-columns: 58px minmax(320px, 380px) minmax(0, 1fr);
 }
 .xmail-app.is-sidebar-collapsed .xmail-sidebar { padding-left: 2px; padding-right: 2px; align-items: center; }
 .xmail-app.is-sidebar-collapsed .xmail-sidebar-text,
@@ -34,17 +34,17 @@
 .xmail-app.is-sidebar-collapsed .xmail-sidebar-bottom { width: 100%; }
 .xmail-panel { min-height: 0; border: 1px solid #dedfe3; background: #ffffff; box-shadow: 0 1px 2px rgba(15,23,42,0.05); }
 .xmail-sidebar-profile { gap: 10px !important; padding: 6px 8px 16px !important; }
-.xmail-sidebar { min-height: 0; background: #f4f4f5; padding: 2px 6px 0 6px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
-.xmail-app .text-xs { font-size: 10px !important; line-height: 1.2 !important; }
-.xmail-app .text-sm { font-size: 11.5px !important; line-height: 1.3 !important; }
-.xmail-app .text-base { font-size: 12.5px !important; line-height: 1.3 !important; }
-.xmail-app .text-lg { font-size: 13.5px !important; line-height: 1.3 !important; }
-.xmail-app .text-xl { font-size: 15px !important; line-height: 1.3 !important; }
-.xmail-app .text-2xl { font-size: 18px !important; line-height: 1.25 !important; }
-.xmail-folder { height: 32px; border-radius: 9px; color: #27272a; gap: 8px !important; padding-left: 10px !important; padding-right: 10px !important; }
-.xmail-folder.is-active { background: #ffffff; color: #4f7cff; box-shadow: 0 1px 1px rgba(15,23,42,0.03); }
-.xmail-compose { height: 36px; border-radius: 8px; background: #4f7cff; color: #ffffff; box-shadow: 0 8px 16px rgba(79,124,255,0.18); font-size: 13px !important; }
-.xmail-list-panel, .xmail-reader { border-radius: 14px; overflow: hidden; }
+.xmail-sidebar { min-height: 0; border: 1px solid #dedfe3; border-radius: 16px; background: #ffffff; padding: 14px 12px 10px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
+.xmail-app .text-xs { font-size: 11px !important; line-height: 1.3 !important; }
+.xmail-app .text-sm { font-size: 12.5px !important; line-height: 1.4 !important; }
+.xmail-app .text-base { font-size: 13.5px !important; line-height: 1.4 !important; }
+.xmail-app .text-lg { font-size: 15px !important; line-height: 1.4 !important; }
+.xmail-app .text-xl { font-size: 17px !important; line-height: 1.35 !important; }
+.xmail-app .text-2xl { font-size: 21px !important; line-height: 1.3 !important; }
+.xmail-folder { min-height: 38px; border-radius: 10px; color: #3f3f46; gap: 10px !important; padding-left: 11px !important; padding-right: 11px !important; }
+.xmail-folder.is-active { background: #eef3ff; color: #3568dc; box-shadow: inset 0 0 0 1px rgba(79,124,255,0.12); }
+.xmail-compose { height: 42px; border-radius: 10px; background: #3568dc; color: #ffffff; box-shadow: 0 8px 20px rgba(53,104,220,0.2); font-size: 13px !important; }
+.xmail-list-panel, .xmail-reader { border-radius: 16px; overflow: hidden; }
 .xmail-message { border-radius: 9px; cursor: pointer; gap: 10px !important; padding: 9px 10px !important; }
 .xmail-message.is-active { background: #f0f0f2; box-shadow: inset 0 0 0 1px rgba(79,124,255,0.08); }
 .xmail-message:hover { background: #f7f7f8; }
@@ -59,9 +59,6 @@
 .xmail-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; color: #6b7280; font-size: 13px; }
 .xmail-icon-btn:hover { border-color: #e5e7eb; background: #f8fafc; color: #111827; }
 .xmail-app.is-sidebar-collapsed #xmail_sidebar_toggle i { transform: rotate(180deg); }
-.xmail-rail-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; color: #6b7280; box-shadow: 0 1px 5px rgba(15,23,42,0.08); font-size: 13px; }
-.xmail-rail-btn i { font-size: 15px !important; }
-.xmail-rail-btn.is-active { color: #4f7cff; border-color: rgba(79,124,255,0.28); background: #ffffff; }
 .xmail-attachment { height: 36px; border-radius: 9px; border: 1px solid #e5e7eb; background: #ffffff; gap: 8px !important; padding-left: 10px !important; padding-right: 8px !important; }
 .xmail-sidebar .size-11, .xmail-message .size-11 { width: 32px !important; height: 32px !important; }
 .xmail-sidebar .size-8 { width: 26px !important; height: 26px !important; }
@@ -100,7 +97,6 @@
 .xmail-reader .mt-7 { margin-top: 14px !important; }
 .xmail-reader .mt-9 { margin-top: 18px !important; }
 .xmail-reader > .border-t { padding: 8px 18px !important; }
-.xmail-rail { gap: 10px !important; padding-top: 2px !important; }
 .xmail-reader-iframe { width: 100%; border: 0; min-height: 180px; display: block; }
 .xmail-account-select { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; font-size: 12px; padding: 4px 8px; color: #18181b; cursor: pointer; max-width: 100%; }
 .xmail-skeleton { background: linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%); background-size: 200% 100%; animation: xmail-shimmer 1.2s ease-in-out infinite; border-radius: 6px; }
@@ -116,9 +112,8 @@
 .xmail-tag button { color: #6b7280; }
 .xmail-tag button:hover { color: #18181b; }
 @media (max-width: 1280px) {
-    .xmail-app { grid-template-columns: 170px minmax(260px, 340px) minmax(0, 1fr); }
-    .xmail-app.is-sidebar-collapsed { grid-template-columns: 48px minmax(260px, 340px) minmax(0, 1fr); }
-    .xmail-rail { display: none; }
+    .xmail-app { grid-template-columns: 210px minmax(290px, 350px) minmax(0, 1fr); }
+    .xmail-app.is-sidebar-collapsed { grid-template-columns: 58px minmax(290px, 350px) minmax(0, 1fr); }
 }
 @media (max-width: 1024px) {
     .xmail-app { grid-template-columns: 50px minmax(0, 1fr); overflow: auto; }
@@ -155,17 +150,22 @@
     // the collection of accounts managed by an administrator in Host.
     $displayName  = $mailboxIdentity['name'] ?? $mailboxIdentity['email'];
     $displayEmail = $mailboxIdentity['email'];
-    $avatar       = asset('assets/media/avatars/300-1.png');
+    $avatarInitial = mb_strtoupper(mb_substr($displayName, 0, 1));
 @endphp
 
 @section('content')
 <div class="xmail-app" id="xmail_app">
 
     {{-- ── Sidebar ─────────────────────────────────────────────────────────────── --}}
-    <aside class="xmail-sidebar flex flex-col min-w-0" aria-label="Mail navigation">
+    <aside class="xmail-sidebar flex flex-col min-w-0" aria-label="Navegación del correo">
 
-        <div class="xmail-sidebar-profile flex items-center">
-            <img class="size-11 rounded-full object-cover" src="{{ $avatar }}" alt="{{ $displayName }}">
+        <div class="mb-4 flex items-center gap-3 border-b border-border px-1 pb-4">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><i class="ki-filled ki-sms text-lg"></i></span>
+            <div class="xmail-sidebar-text"><div class="text-lg font-semibold text-mono">XMail</div><div class="text-xs text-secondary-foreground">Correo de XPanel</div></div>
+        </div>
+
+        <div class="xmail-sidebar-profile flex items-center rounded-xl bg-muted/50">
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">{{ $avatarInitial }}</span>
             <div class="xmail-sidebar-text min-w-0">
                 <div class="text-lg font-semibold text-mono truncate">{{ $displayName }}</div>
                 <div class="text-sm text-secondary-foreground truncate">{{ $displayEmail }}</div>
@@ -173,13 +173,13 @@
         </div>
 
         <button class="xmail-compose inline-flex items-center justify-center gap-2 px-4 text-base font-semibold"
-                type="button" id="xmail_new_mail" aria-label="New mail">
+                type="button" id="xmail_new_mail" aria-label="Nuevo correo">
             <i class="ki-filled ki-notepad-edit text-lg"></i>
-            <span class="xmail-sidebar-text">New Mail</span>
+            <span class="xmail-sidebar-text">Redactar</span>
         </button>
 
         <div class="xmail-sidebar-section xmail-mail-section mt-7 flex items-center px-2 text-sm text-secondary-foreground">
-            <span class="grow">Mail</span>
+            <span class="grow">Carpetas</span>
             <button class="xmail-icon-btn" type="button" id="xmail_folder_create" title="Crear carpeta"><i class="ki-filled ki-plus"></i></button>
             <button class="xmail-icon-btn" type="button" id="xmail_folder_delete" title="Eliminar carpeta"><i class="ki-filled ki-trash"></i></button>
         </div>
@@ -202,35 +202,35 @@
     </aside>
 
     {{-- ── Message list ────────────────────────────────────────────────────────── --}}
-    <section class="xmail-panel xmail-list-panel flex flex-col min-w-0" aria-label="Message list">
+    <section class="xmail-panel xmail-list-panel flex flex-col min-w-0" aria-label="Lista de mensajes">
         <div class="xmail-list-toolbar flex items-center gap-3 p-4">
-            <button class="xmail-icon-btn shrink-0" type="button" id="xmail_sidebar_toggle" title="Toggle sidebar">
+            <button class="xmail-icon-btn shrink-0" type="button" id="xmail_sidebar_toggle" title="Contraer navegación">
                 <i class="ki-filled ki-black-left"></i>
             </button>
-            <label class="xmail-search flex grow items-center gap-3 px-4" aria-label="Search messages">
+            <label class="xmail-search flex grow items-center gap-3 px-4" aria-label="Buscar mensajes">
                 <i class="ki-filled ki-magnifier text-xl text-secondary-foreground"></i>
                 <input class="w-full border-0 bg-transparent text-base outline-none placeholder:text-secondary-foreground"
-                       id="xmail_filter" type="search" placeholder="Search...">
+                       id="xmail_filter" type="search" placeholder="Buscar correo...">
             </label>
             <div class="xmail-category-wrap shrink-0">
                 <button class="kt-btn kt-btn-ghost gap-2" type="button" id="xmail_category_toggle"
                         aria-haspopup="menu" aria-expanded="false">
-                    <span id="xmail_category_label">All</span>
+                    <span id="xmail_category_label">Todos</span>
                     <i class="ki-filled ki-down text-xs"></i>
                 </button>
                 <div class="xmail-category-menu" id="xmail_category_menu" role="menu">
                     <button class="xmail-category-option is-active" type="button" data-category="all" role="menuitem">
-                        <i class="ki-filled ki-category text-sm"></i> All mail
+                        <i class="ki-filled ki-category text-sm"></i> Todos
                     </button>
                     <button class="xmail-category-option" type="button" data-category="unread" role="menuitem">
-                        <i class="ki-filled ki-notification-status text-sm"></i> Unread
+                        <i class="ki-filled ki-notification-status text-sm"></i> No leídos
                     </button>
                     <button class="xmail-category-option" type="button" data-category="flagged" role="menuitem">
-                        <i class="ki-filled ki-star text-sm"></i> Starred
+                        <i class="ki-filled ki-star text-sm"></i> Destacados
                     </button>
                 </div>
             </div>
-            <button class="xmail-icon-btn shrink-0" type="button" id="xmail_refresh" title="Refresh">
+            <button class="xmail-icon-btn shrink-0" type="button" id="xmail_refresh" title="Actualizar">
                 <i class="ki-filled ki-arrows-circle"></i>
             </button>
         </div>
@@ -246,31 +246,31 @@
 
         <div class="flex items-center justify-between gap-3 border-t border-border px-4 py-2" id="xmail_pagination">
             <button class="kt-btn kt-btn-ghost kt-btn-sm gap-1" type="button" id="xmail_prev_page" disabled>
-                <i class="ki-filled ki-left text-xs"></i> Prev
+                <i class="ki-filled ki-left text-xs"></i> Anterior
             </button>
             <span class="text-sm text-secondary-foreground" id="xmail_page_info"></span>
             <button class="kt-btn kt-btn-ghost kt-btn-sm gap-1" type="button" id="xmail_next_page" disabled>
-                Next <i class="ki-filled ki-right text-xs"></i>
+                Siguiente <i class="ki-filled ki-right text-xs"></i>
             </button>
         </div>
     </section>
 
     {{-- ── Reader ──────────────────────────────────────────────────────────────── --}}
-    <main class="xmail-panel xmail-reader flex flex-col min-w-0" aria-label="Message detail">
+    <main class="xmail-panel xmail-reader flex flex-col min-w-0" aria-label="Detalle del mensaje">
         <div class="xmail-reader-toolbar flex items-center justify-between border-b border-border">
             <div class="flex items-center gap-2">
-                <button class="xmail-icon-btn" type="button" id="xmail_reader_back" title="Back">
+                <button class="xmail-icon-btn" type="button" id="xmail_reader_back" title="Volver">
                     <i class="ki-filled ki-left"></i>
                 </button>
                 <span class="ms-1 rounded-lg bg-muted px-3 py-1 text-sm font-semibold text-mono" id="xmail_reader_folder_label">—</span>
             </div>
             <div class="xmail-reader-actions flex items-center gap-1">
                 <button class="kt-btn kt-btn-light gap-2" type="button" id="xmail_btn_reply_all">
-                    <i class="ki-filled ki-left"></i> Reply all
+                    <i class="ki-filled ki-left"></i> Responder a todos
                 </button>
-                <button class="xmail-icon-btn" id="xmail_btn_flag" type="button" title="Star"><i class="ki-filled ki-star"></i></button>
-                <button class="xmail-icon-btn" id="xmail_btn_move_trash" type="button" title="Move to Trash"><i class="ki-filled ki-arrows-circle"></i></button>
-                <button class="xmail-icon-btn bg-red-50 text-red-500" id="xmail_btn_delete" type="button" title="Delete permanently"><i class="ki-filled ki-trash"></i></button>
+                <button class="xmail-icon-btn" id="xmail_btn_flag" type="button" title="Destacar"><i class="ki-filled ki-star"></i></button>
+                <button class="xmail-icon-btn" id="xmail_btn_move_trash" type="button" title="Mover a papelera"><i class="ki-filled ki-arrows-circle"></i></button>
+                <button class="xmail-icon-btn bg-red-50 text-red-500" id="xmail_btn_delete" type="button" title="Eliminar permanentemente"><i class="ki-filled ki-trash"></i></button>
             </div>
         </div>
 
@@ -278,7 +278,7 @@
             {{-- Empty state --}}
             <div class="flex flex-col items-center justify-center h-full gap-4 py-20 text-secondary-foreground" id="xmail_reader_empty">
                 <i class="ki-filled ki-sms text-5xl opacity-30"></i>
-                <p class="text-sm">Select a message to read</p>
+                <div class="text-center"><p class="font-semibold text-mono">Selecciona un mensaje</p><p class="mt-1 text-sm">El contenido del correo aparecerá aquí.</p></div>
             </div>
 
             {{-- Message view (hidden until a message is loaded) --}}
@@ -292,7 +292,7 @@
                         </span>
                     </div>
                     <div id="xmail_reader_attachments_wrap" class="hidden mt-4">
-                        <h2 class="text-base font-semibold text-mono">Attachments</h2>
+                        <h2 class="text-base font-semibold text-mono">Archivos adjuntos</h2>
                         <div class="mt-2 grid gap-2 xl:grid-cols-2" id="xmail_reader_attachments"></div>
                     </div>
                 </div>
@@ -318,10 +318,10 @@
                             {{-- Inline reply / forward compose --}}
                             <div class="xmail-compose-box mt-6" id="xmail_compose_box">
                                 <div class="xmail-compose-row">
-                                    <span class="text-base font-semibold text-secondary-foreground">To:</span>
+                                    <span class="text-base font-semibold text-secondary-foreground">Para:</span>
                                     <div class="xmail-to-tags grow" id="xmail_compose_to_tags"></div>
                                     <input class="border-0 bg-transparent text-base outline-none flex-1 min-w-24"
-                                           id="xmail_compose_to_input" type="email" placeholder="Add recipient...">
+                                           id="xmail_compose_to_input" type="email" placeholder="Agregar destinatario...">
                                     <div class="ms-auto flex items-center gap-3 text-base font-semibold text-secondary-foreground">
                                         <button class="hover:text-mono" type="button" id="xmail_compose_toggle_cc">Cc</button>
                                         <button class="hover:text-mono" type="button" id="xmail_compose_close" title="Close">
@@ -332,19 +332,19 @@
                                 <div class="xmail-compose-row hidden" id="xmail_compose_cc_row">
                                     <span class="text-base font-semibold text-secondary-foreground">Cc:</span>
                                     <input class="border-0 bg-transparent text-base outline-none grow"
-                                           id="xmail_compose_cc_input" type="email" placeholder="Add cc...">
+                                           id="xmail_compose_cc_input" type="email" placeholder="Agregar copia...">
                                 </div>
                                 <div class="xmail-compose-row">
-                                    <span class="text-base font-semibold text-secondary-foreground">Subject:</span>
-                                    <input class="w-full border-0 bg-transparent text-base outline-none" id="xmail_compose_subject" type="text" placeholder="Subject">
+                                    <span class="text-base font-semibold text-secondary-foreground">Asunto:</span>
+                                    <input class="w-full border-0 bg-transparent text-base outline-none" id="xmail_compose_subject" type="text" placeholder="Asunto">
                                 </div>
-                                <textarea class="xmail-compose-area" id="xmail_compose_body" placeholder="Type your message..."></textarea>
+                                <textarea class="xmail-compose-area" id="xmail_compose_body" placeholder="Escribe tu mensaje..."></textarea>
                                 <div class="xmail-compose-tools">
                                     <button class="kt-btn kt-btn-primary gap-2" type="button" id="xmail_compose_send">
-                                        <i class="ki-filled ki-send"></i> Send
+                                        <i class="ki-filled ki-send"></i> Enviar
                                     </button>
                                     <span class="text-sm text-secondary-foreground ms-2" id="xmail_compose_status"></span>
-                                    <button class="kt-btn kt-btn-light ms-auto" type="button" id="xmail_compose_close2">Cancel</button>
+                                    <button class="kt-btn kt-btn-light ms-auto" type="button" id="xmail_compose_close2">Cancelar</button>
                                 </div>
                             </div>
                         </div>
@@ -356,49 +356,43 @@
         <div class="xmail-reader-footer border-t border-border" id="xmail_reader_footer" style="display:none">
             <div class="flex flex-wrap items-center gap-2">
                 <button class="kt-btn kt-btn-light kt-btn-sm gap-2" type="button" data-compose-action="reply">
-                    <i class="ki-filled ki-left"></i> Reply <span class="rounded border border-border px-2 text-xs">r</span>
+                    <i class="ki-filled ki-left"></i> Responder <span class="rounded border border-border px-2 text-xs">r</span>
                 </button>
                 <button class="kt-btn kt-btn-light kt-btn-sm gap-2" type="button" data-compose-action="reply-all">
-                    <i class="ki-filled ki-double-left"></i> Reply All
+                    <i class="ki-filled ki-double-left"></i> Responder a todos
                 </button>
                 <button class="kt-btn kt-btn-light kt-btn-sm gap-2" type="button" data-compose-action="forward">
-                    <i class="ki-filled ki-right"></i> Forward
+                    <i class="ki-filled ki-right"></i> Reenviar
                 </button>
             </div>
         </div>
     </main>
 
-    {{-- ── Right rail ──────────────────────────────────────────────────────────── --}}
-    <aside class="xmail-rail flex flex-col items-center gap-5 pt-3">
-        <button class="xmail-rail-btn is-active" type="button" title="Account"><i class="ki-filled ki-profile-circle text-xl"></i></button>
-        <button class="xmail-rail-btn" type="button" title="Settings"><i class="ki-filled ki-setting-2 text-xl"></i></button>
-        <button class="xmail-rail-btn" type="button" title="Contacts"><i class="ki-filled ki-people text-xl"></i></button>
-    </aside>
 </div>
 
 {{-- ── New mail compose window ─────────────────────────────────────────────────── --}}
 <div class="xmail-compose-new" id="xmail_new_compose">
     <div class="xmail-compose-new-header">
-        <span>New Message</span>
+        <span>Nuevo mensaje</span>
         <button class="xmail-icon-btn" type="button" id="xmail_new_compose_close"><i class="ki-filled ki-cross"></i></button>
     </div>
     <div class="xmail-compose-row">
-        <span class="text-base font-semibold text-secondary-foreground shrink-0">To:</span>
+        <span class="text-base font-semibold text-secondary-foreground shrink-0">Para:</span>
         <div class="xmail-to-tags grow" id="xmail_new_to_tags"></div>
         <input class="border-0 bg-transparent text-base outline-none flex-1 min-w-24"
-               id="xmail_new_to_input" type="email" placeholder="Recipient email">
+               id="xmail_new_to_input" type="email" placeholder="Correo del destinatario">
     </div>
     <div class="xmail-compose-row">
-        <span class="text-base font-semibold text-secondary-foreground shrink-0">Subject:</span>
-        <input class="w-full border-0 bg-transparent text-base outline-none" id="xmail_new_subject" type="text" placeholder="Subject">
+        <span class="text-base font-semibold text-secondary-foreground shrink-0">Asunto:</span>
+        <input class="w-full border-0 bg-transparent text-base outline-none" id="xmail_new_subject" type="text" placeholder="Asunto">
     </div>
-    <textarea class="xmail-compose-area" id="xmail_new_body" placeholder="Type your message..." style="min-height:150px"></textarea>
+    <textarea class="xmail-compose-area" id="xmail_new_body" placeholder="Escribe tu mensaje..." style="min-height:150px"></textarea>
     <div class="xmail-compose-tools">
         <button class="kt-btn kt-btn-primary gap-2" type="button" id="xmail_new_send">
-            <i class="ki-filled ki-send"></i> Send
+            <i class="ki-filled ki-send"></i> Enviar
         </button>
         <span class="text-sm text-secondary-foreground ms-2" id="xmail_new_status"></span>
-        <button class="kt-btn kt-btn-light ms-auto" type="button" id="xmail_new_compose_close2">Discard</button>
+        <button class="kt-btn kt-btn-light ms-auto" type="button" id="xmail_new_compose_close2">Descartar</button>
     </div>
 </div>
 
@@ -498,6 +492,11 @@
         return 'ki-folder';
     }
 
+    function folderLabel(name) {
+        const labels = { inbox: 'Bandeja de entrada', sent: 'Enviados', drafts: 'Borradores', draft: 'Borradores', trash: 'Papelera', junk: 'Spam', spam: 'Spam', archive: 'Archivo' };
+        return labels[(name || '').toLowerCase()] || name;
+    }
+
     function formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
@@ -534,7 +533,7 @@
             btn.dataset.folder = f.name;
             btn.innerHTML = `
                 <i class="ki-filled ${f.icon || folderIcon(f.name)} text-lg"></i>
-                <span class="xmail-sidebar-text grow font-medium">${escapeHtml(f.name)}</span>
+                <span class="xmail-sidebar-text grow font-medium">${escapeHtml(folderLabel(f.name))}</span>
                 ${f.unseen > 0 ? `<span class="xmail-sidebar-count text-sm text-secondary-foreground">${f.unseen}</span>` : ''}
             `;
             btn.addEventListener('click', () => selectFolder(f.name));
@@ -546,7 +545,7 @@
         state.folder = name;
         state.page = 1;
         state.message = null;
-        readerFolderLbl.textContent = name;
+        readerFolderLbl.textContent = folderLabel(name);
         document.querySelectorAll('#xmail_folder_nav .xmail-folder').forEach(b => {
             b.classList.toggle('is-active', b.dataset.folder === name);
         });
@@ -601,7 +600,7 @@
 
     function renderMessages(messages) {
         if (!messages.length) {
-            msgInner.innerHTML = '<p class="text-sm text-secondary-foreground py-8 text-center">No messages in this folder.</p>';
+            msgInner.innerHTML = '<p class="text-sm text-secondary-foreground py-8 text-center">No hay mensajes en esta carpeta.</p>';
             return;
         }
 
@@ -621,10 +620,10 @@
                 <span class="flex size-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white font-semibold text-blue-600">${escapeHtml(ch)}</span>
                 <span class="min-w-0 grow">
                     <span class="flex items-center gap-2">
-                        <span class="xmail-msg-from text-base truncate text-mono">${escapeHtml(m.from || m.from_address || '(no sender)')}</span>
+                        <span class="xmail-msg-from text-base truncate text-mono">${escapeHtml(m.from || m.from_address || '(sin remitente)')}</span>
                         ${!m.seen ? '<span class="size-2 shrink-0 rounded-full bg-blue-400"></span>' : ''}
                     </span>
-                    <span class="mt-1 block truncate text-sm font-medium text-mono">${escapeHtml(m.subject || '(no subject)')}</span>
+                    <span class="mt-1 block truncate text-sm font-medium text-mono">${escapeHtml(m.subject || '(sin asunto)')}</span>
                     <span class="block truncate text-sm text-secondary-foreground">${escapeHtml(m.preview || '')}</span>
                 </span>
                 <span class="shrink-0 self-start text-xs text-mono">${formatDate(m.date)}</span>
@@ -644,7 +643,7 @@
 
     function renderPagination() {
         const pages = Math.ceil(state.total / state.perPage) || 1;
-        pageInfo.textContent = state.total > 0 ? `Page ${state.page} / ${pages} (${state.total})` : '';
+        pageInfo.textContent = state.total > 0 ? `Página ${state.page} de ${pages} · ${state.total}` : '';
         prevBtn.disabled = state.page <= 1;
         nextBtn.disabled = state.page >= pages;
     }
@@ -686,8 +685,8 @@
         readerContent.classList.remove('hidden');
         readerFooter.style.display = '';
 
-        document.getElementById('xmail_reader_subject').textContent = msg.subject || '(no subject)';
-        document.getElementById('xmail_reader_folder_label').textContent = state.folder;
+        document.getElementById('xmail_reader_subject').textContent = msg.subject || '(sin asunto)';
+        document.getElementById('xmail_reader_folder_label').textContent = folderLabel(state.folder);
 
         const fromName = msg.from || msg.from_address || '';
         const ch = avatarChar(fromName);
@@ -695,7 +694,7 @@
         document.getElementById('xmail_article_avatar').textContent = ch;
         document.getElementById('xmail_reader_from_full').textContent = fromName + (msg.from_address && msg.from !== msg.from_address ? ` <${msg.from_address}>` : '');
         document.getElementById('xmail_article_from').textContent = fromName;
-        document.getElementById('xmail_article_to_line').textContent = msg.to ? 'To: ' + (Array.isArray(msg.to) ? msg.to.join(', ') : msg.to) : '';
+        document.getElementById('xmail_article_to_line').textContent = msg.to ? 'Para: ' + (Array.isArray(msg.to) ? msg.to.join(', ') : msg.to) : '';
         document.getElementById('xmail_article_date').textContent = msg.date ? new Date(msg.date).toLocaleString() : '';
 
         // Render body in sandboxed iframe
@@ -714,7 +713,7 @@
             attsDiv.innerHTML = msg.attachments.map(a => `
                 <a class="xmail-attachment flex items-center gap-3 px-4" href="${BASE.attachment}?folder=${encodeURIComponent(state.message.folder)}&uid=${state.message.uid}&part=${encodeURIComponent(a.part)}">
                     <i class="ki-filled ki-folder text-xl text-pink-500"></i>
-                    <span class="min-w-0 grow truncate text-sm font-medium text-mono">${escapeHtml(a.filename || 'attachment')}</span>
+                    <span class="min-w-0 grow truncate text-sm font-medium text-mono">${escapeHtml(a.filename || 'archivo adjunto')}</span>
                     <span class="text-sm text-secondary-foreground">${formatBytes(a.size)}</span>
                 </a>
             `).join('');
@@ -725,12 +724,13 @@
         // Flag button state
         const flagBtn = document.getElementById('xmail_btn_flag');
         flagBtn.classList.toggle('text-yellow-400', !!msg.flagged);
-        flagBtn.title = msg.flagged ? 'Unstar' : 'Star';
+        flagBtn.title = msg.flagged ? 'Quitar destacado' : 'Destacar';
 
         closeCompose();
     }
 
     function showReaderEmpty() {
+        readerEmpty.innerHTML = `<i class="ki-filled ki-sms text-5xl opacity-30"></i><div class="text-center"><p class="font-semibold text-mono">Selecciona un mensaje</p><p class="mt-1 text-sm">El contenido del correo aparecerá aquí.</p></div>`;
         readerEmpty.classList.remove('hidden');
         readerContent.classList.add('hidden');
         readerFooter.style.display = 'none';
@@ -738,7 +738,7 @@
     }
 
     function showReaderLoading() {
-        readerEmpty.innerHTML = `<i class="ki-filled ki-arrows-circle text-4xl opacity-30 animate-spin"></i><p class="text-sm">Loading…</p>`;
+        readerEmpty.innerHTML = `<i class="ki-filled ki-arrows-circle text-4xl opacity-30 animate-spin"></i><p class="text-sm">Cargando…</p>`;
         readerEmpty.classList.remove('hidden');
         readerContent.classList.add('hidden');
         readerFooter.style.display = 'none';
@@ -753,8 +753,8 @@
             state.message.flagged = newVal;
             const flagBtn = document.getElementById('xmail_btn_flag');
             flagBtn.classList.toggle('text-yellow-400', newVal);
-            flagBtn.title = newVal ? 'Unstar' : 'Star';
-            toast(newVal ? 'Starred' : 'Unstarred');
+            flagBtn.title = newVal ? 'Quitar destacado' : 'Destacar';
+            toast(newVal ? 'Mensaje destacado' : 'Destacado eliminado');
         } catch (e) { toast(e.message, true); }
     }
 
@@ -763,7 +763,7 @@
         const trashFolder = state.folders.find(f => f.name.toLowerCase().includes('trash'))?.name || 'Trash';
         try {
             await post(BASE.move, { folder: state.message.folder, uid: state.message.uid, target_folder: trashFolder });
-            toast('Moved to Trash');
+            toast('Mensaje movido a la papelera');
             showReaderEmpty();
             loadMessages();
         } catch (e) { toast(e.message, true); }
@@ -867,7 +867,7 @@
         const statusEl = document.getElementById('xmail_compose_status');
 
         if (!toList.length) { toast('Please add at least one recipient', true); return; }
-        if (!subject) { toast('Subject is required', true); return; }
+        if (!subject) { toast('El asunto es obligatorio', true); return; }
 
         statusEl.textContent = 'Sending…';
         const payload = {
@@ -881,7 +881,7 @@
 
         try {
             await post(BASE.send, payload);
-            toast('Message sent');
+            toast('Mensaje enviado');
             statusEl.textContent = '';
             closeCompose();
         } catch (e) {
@@ -900,12 +900,12 @@
         const statusEl = document.getElementById('xmail_new_status');
 
         if (!toList.length) { toast('Please add at least one recipient', true); return; }
-        if (!subject) { toast('Subject is required', true); return; }
+        if (!subject) { toast('El asunto es obligatorio', true); return; }
 
         statusEl.textContent = 'Sending…';
         try {
             await post(BASE.send, { to: toList, subject, text, cc: [], bcc: [] });
-            toast('Message sent');
+            toast('Mensaje enviado');
             statusEl.textContent = '';
             document.getElementById('xmail_new_compose').classList.remove('is-open');
             newRecipients.clear();

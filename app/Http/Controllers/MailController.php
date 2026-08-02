@@ -20,6 +20,11 @@ class MailController extends Controller
 
         return view('mail.index', [
             'accounts' => $accounts,
+            'mailStats' => [
+                'active' => MailAccount::where('status', 'active')->count(),
+                'domains' => Domain::whereHas('mailAccounts')->count(),
+                'dedicated_ips' => ServerIpAddress::count(),
+            ],
             'mailDomains' => $accounts->getCollection()
                 ->pluck('domain')
                 ->unique('id')

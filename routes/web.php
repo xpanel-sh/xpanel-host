@@ -46,8 +46,14 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WebServerEngineController;
 use App\Http\Controllers\WordPressController;
 use App\Http\Controllers\XMailController;
+use App\Models\ActivityLog;
+use App\Models\Domain;
+use App\Models\MailAccount;
 use App\Models\Site;
+use App\Models\SiteBackup;
+use App\Models\SiteDatabase;
 use App\Models\User;
+use App\Services\ServerContext;
 use App\Support\Permissions;
 use Illuminate\Support\Facades\Route;
 
@@ -84,18 +90,25 @@ Route::middleware('setup.complete')->group(function () {
             $user = auth()->user();
 
             return view('dashboard', [
-                'modules' => array_values(array_filter([
-                    ['label' => 'Sitios', 'description' => 'Dominios, vhosts y despliegues web', 'href' => route('sites.index'), 'count' => Site::whereNull('parent_site_id')->count()],
-                    ['label' => 'Dominios', 'description' => 'Subdominios, redirecciones y DNS', 'href' => route('domains.index')],
-                    ['label' => 'Correos', 'description' => 'Cuentas, SMTP, IMAP y dominios mail', 'href' => route('mail.index')],
-                    ['label' => 'PHP', 'description' => 'Versiones, extensiones y configuracion'],
-                    ['label' => 'Bases de datos', 'description' => 'MariaDB, MySQL y PostgreSQL'],
-                    ['label' => 'SSL', 'description' => 'Certificados y renovacion'],
-                    ['label' => 'Backups', 'description' => 'Copias internas del hosting'],
-                    $user->hasPermission(Permissions::TEAM_MANAGE)
-                        ? ['label' => 'Equipo', 'description' => 'Usuarios, roles y permisos', 'href' => route('team.index'), 'count' => User::count()]
-                        : null,
-                ])),
+                'server' => app(ServerContext::class)->snapshot(),
+                'stats' => [
+                    'sites' => Site::whereNull('parent_site_id')->count(),
+                    'subdomains' => Site::whereNotNull('parent_site_id')->count(),
+                    'domains' => Domain::count(),
+                    'mail_accounts' => MailAccount::count(),
+                    'databases' => SiteDatabase::count(),
+                    'backups' => SiteBackup::where('status', 'completed')->count(),
+                ],
+                'recentSites' => Site::whereNull('parent_site_id')
+                    ->withCount('subdomains')
+                    ->latest()
+                    ->limit(6)
+                    ->get(),
+                'recentActivity' => ActivityLog::with(['site', 'user'])
+                    ->latest('created_at')
+                    ->limit(6)
+                    ->get(),
+                'teamCount' => $user->hasPermission(Permissions::TEAM_MANAGE) ? User::count() : null,
             ]);
         });
 

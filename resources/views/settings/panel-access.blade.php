@@ -3,8 +3,10 @@
 @section('title', 'Acceso al panel - XPanel Host')
 
 @section('content')
-<div class="grow lg:ms-(--sidebar-width) mt-(--header-height) p-5 lg:p-8">
-    <div class="max-w-6xl mx-auto flex flex-col gap-6">
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">
+    <div class="flex flex-col grow kt-scrollable-y-auto lg:[--kt-scrollbar-width:auto] p-5 lg:p-8" id="scrollable_content">
+      <main class="grow">
+       <div class="max-w-6xl mx-auto flex flex-col gap-6">
         <div>
             <div class="text-sm text-secondary-foreground">Ajustes / Acceso al panel</div>
             <h1 class="text-2xl font-semibold text-mono">Dirección de administración</h1>
@@ -52,6 +54,9 @@
         <div class="rounded-xl border border-warning/20 bg-warning/10 p-5 text-sm">
             Al cambiar la dirección se abrirá la nueva URL y tendrás que iniciar sesión nuevamente. No cierres esta página hasta comprobar que la nueva dirección responde.
         </div>
+       </div>
+      </main>
+      @include('layouts.partials.client.footer')
     </div>
 </div>
 @endsection

@@ -264,46 +264,6 @@
                         </div>
                     </section>
 
-                    <div>
-                        <h2 class="text-sm font-semibold text-secondary-foreground uppercase tracking-wide mb-3">Todos los modulos</h2>
-                        <div class="grid gap-7.5">
-                            @foreach ($modules as $sectionKey => $section)
-                                <div>
-                                    <h3 class="text-xs font-semibold text-secondary-foreground uppercase tracking-wide mb-3">{{ $section['label'] }}</h3>
-                                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                                        @foreach ($section['items'] as $key => $item)
-                                            @php $disabled = $item['disabled'] ?? false; @endphp
-                                            @if ($disabled)
-                                                <div class="kt-card opacity-50 cursor-not-allowed">
-                                                    <div class="kt-card-content p-5 flex items-start gap-3">
-                                                        <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent">
-                                                            <i class="ki-filled {{ $item['icon'] }} text-lg text-primary"></i>
-                                                        </div>
-                                                        <div class="min-w-0">
-                                                            <div class="flex items-center gap-2"><div class="text-sm font-semibold text-mono">{{ $item['label'] }}</div>@unless(\App\Support\SiteModules::isReady($sectionKey, $key))<span class="kt-badge kt-badge-sm kt-badge-outline">En preparación</span>@endunless</div>
-                                                            <div class="mt-1 text-xs text-secondary-foreground">{{ $item['description'] }}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            @else
-                                                <a class="kt-card hover:border-primary transition-colors" href="{{ $moduleUrl($sectionKey, $key) }}">
-                                                    <div class="kt-card-content p-5 flex items-start gap-3">
-                                                        <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent">
-                                                            <i class="ki-filled {{ $item['icon'] }} text-lg text-primary"></i>
-                                                        </div>
-                                                        <div class="min-w-0">
-                                                            <div class="flex items-center gap-2"><div class="text-sm font-semibold text-mono">{{ $item['label'] }}</div>@unless(\App\Support\SiteModules::isReady($sectionKey, $key))<span class="kt-badge kt-badge-sm kt-badge-outline">En preparación</span>@endunless</div>
-                                                            <div class="mt-1 text-xs text-secondary-foreground">{{ $item['description'] }}</div>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
                 </div>
             </div>
         </main>

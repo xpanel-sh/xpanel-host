@@ -17,10 +17,13 @@
             <div class="kt-container-fluid">
                 <div class="grid gap-5 lg:gap-7.5">
 
-                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <h1 class="text-2xl font-semibold text-mono">Correos</h1>
-                            <p class="mt-1 text-sm text-secondary-foreground">Crea y gestiona cuentas de correo para tus dominios.</p>
+                    <div class="flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
+                        <div class="flex items-center gap-4">
+                            <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><i class="ki-filled ki-sms text-2xl"></i></span>
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2"><h1 class="text-2xl font-semibold text-mono">Centro de correo</h1><span class="kt-badge kt-badge-success kt-badge-outline">Servicio activo</span></div>
+                                <p class="mt-1 text-sm text-secondary-foreground">Buzones, acceso webmail, entrega y DNS desde un solo lugar.</p>
+                            </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             @if ($roundcubeEnabled)
@@ -59,10 +62,16 @@
                         <div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>
                     @endif
 
-                    <div class="grid md:grid-cols-3 gap-4">
-                        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Servidor</div><div class="mt-2 font-semibold text-mono">{{ config('xpanel.mail_hostname') ?: 'Sin configurar' }}</div></div></div>
-                        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Envío</div><div class="mt-2 font-semibold text-mono">SMTP submission · 587 STARTTLS</div></div></div>
-                        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Recepción</div><div class="mt-2 font-semibold text-mono">IMAP · 993 TLS</div></div></div>
+                    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <div class="kt-card"><div class="kt-card-content flex items-center gap-4 p-5"><span class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><i class="ki-filled ki-sms"></i></span><div><div class="text-2xl font-semibold text-mono">{{ $accounts->total() }}</div><div class="text-xs text-secondary-foreground">Buzones · {{ $mailStats['active'] }} activos</div></div></div></div>
+                        <div class="kt-card"><div class="kt-card-content flex items-center gap-4 p-5"><span class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><i class="ki-filled ki-global"></i></span><div><div class="text-2xl font-semibold text-mono">{{ $mailStats['domains'] }}</div><div class="text-xs text-secondary-foreground">Dominios con correo</div></div></div></div>
+                        <div class="kt-card"><div class="kt-card-content flex items-center gap-4 p-5"><span class="flex size-10 items-center justify-center rounded-xl bg-success/10 text-success"><i class="ki-filled ki-send"></i></span><div><div class="font-semibold text-mono">SMTP 587</div><div class="text-xs text-secondary-foreground">Envío con STARTTLS</div></div></div></div>
+                        <div class="kt-card"><div class="kt-card-content flex items-center gap-4 p-5"><span class="flex size-10 items-center justify-center rounded-xl bg-warning/10 text-warning"><i class="ki-filled ki-cloud"></i></span><div><div class="font-semibold text-mono">IMAP 993</div><div class="text-xs text-secondary-foreground">Recepción cifrada</div></div></div></div>
+                    </div>
+
+                    <div class="grid gap-4 lg:grid-cols-3">
+                        <div class="kt-card lg:col-span-2"><div class="kt-card-content flex flex-col gap-3 p-5 sm:flex-row sm:items-center"><span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-secondary-foreground"><i class="ki-filled ki-router"></i></span><div class="min-w-0 grow"><div class="text-xs text-secondary-foreground">Servidor de correo</div><div class="truncate font-semibold text-mono">{{ config('xpanel.mail_hostname') ?: 'Sin configurar' }}</div></div><span class="kt-badge kt-badge-outline">{{ $mailStats['dedicated_ips'] }} IP dedicada(s)</span></div></div>
+                        <div class="kt-card"><div class="kt-card-content grid gap-2 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-secondary-foreground">Acceso webmail</div>@if($xmailEnabled)<a class="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm font-medium hover:border-primary" href="{{ route('xmail.login') }}" target="_blank"><span class="flex items-center gap-2"><i class="ki-filled ki-sms text-primary"></i>XMail</span><i class="ki-filled ki-exit-right-corner"></i></a>@endif @if($roundcubeEnabled)<a class="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm font-medium hover:border-primary" href="{{ $webmailUrl }}" target="_blank" rel="noopener"><span class="flex items-center gap-2"><i class="ki-filled ki-abstract-26 text-primary"></i>Roundcube</span><i class="ki-filled ki-exit-right-corner"></i></a>@endif</div></div>
                     </div>
 
                     @if (config('xpanel.management_mode') === 'core')
@@ -72,9 +81,9 @@
                     @endif
 
                     @if ($canManage)
-                        <div class="kt-card">
-                            <div class="kt-card-header"><h2 class="kt-card-title">IPs dedicadas para correo saliente</h2></div>
-                            <div class="kt-card-content p-5 grid gap-4">
+                        <details class="kt-card">
+                            <summary class="kt-card-header cursor-pointer list-none"><div><h2 class="kt-card-title">Configuración avanzada de envío</h2><p class="mt-1 text-xs text-secondary-foreground">IPs dedicadas, PTR y HELO por dominio</p></div><i class="ki-filled ki-down"></i></summary>
+                            <div class="kt-card-content border-t border-border p-5 grid gap-4">
                                 <p class="text-sm text-secondary-foreground">Da de alta aquí una IPv4 que ya esté asignada y funcionando en la interfaz de red del servidor (el panel no la asigna por ti), junto con el hostname que va a tener su PTR. Después asígnala a uno o varios dominios desde "DNS del correo" en la tabla de abajo.</p>
                                 @if ($serverIpAddresses->isNotEmpty())
                                     <div class="overflow-x-auto rounded-xl border border-border">
@@ -116,7 +125,7 @@
                                     <button type="submit" class="kt-btn kt-btn-primary">Agregar IP</button>
                                 </form>
                             </div>
-                        </div>
+                        </details>
                     @endif
 
                     @if ($accounts->isEmpty())

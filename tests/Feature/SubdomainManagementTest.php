@@ -139,7 +139,7 @@ class SubdomainManagementTest extends TestCase
         ]);
         $viewer = $this->userWithRole('viewer');
 
-        $this->actingAs($viewer)->get('/sites')->assertOk()->assertSee('example.com')->assertDontSee('blog.example.com');
+        $this->actingAs($viewer)->get('/sites')->assertOk()->assertSee('example.com')->assertSee('blog.example.com');
         $this->actingAs($viewer)->get("/sites/{$parent->domain}/domains/subdomains")->assertOk()->assertSee('blog.example.com');
         $this->actingAs($viewer)->post("/sites/{$parent->domain}/domains/subdomains", ['label' => 'shop'])->assertForbidden();
     }

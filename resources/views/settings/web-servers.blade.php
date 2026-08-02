@@ -3,8 +3,10 @@
 @section('title', 'Motores web - xpanel-host')
 
 @section('content')
-<div class="grow lg:ms-(--sidebar-width) mt-(--header-height) p-5 lg:p-8">
-    <div class="max-w-6xl mx-auto flex flex-col gap-6">
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">
+    <div class="flex flex-col grow kt-scrollable-y-auto lg:[--kt-scrollbar-width:auto] p-5 lg:p-8" id="scrollable_content">
+      <main class="grow">
+       <div class="max-w-6xl mx-auto flex flex-col gap-6">
         <div>
             <div class="text-sm text-secondary-foreground">Ajustes / Software del servidor</div>
             <h1 class="text-2xl font-semibold text-mono">Motores web</h1>
@@ -63,6 +65,9 @@
         <div class="rounded-xl border border-border bg-muted/30 p-5 text-sm text-secondary-foreground">
             Nginx conserva los puertos públicos 80/443. Apache y OpenLiteSpeed escuchan únicamente en loopback y aparecen en el formulario de sitios después de una instalación exitosa. No se permite desinstalar un motor mientras existan sitios que lo utilicen.
         </div>
+       </div>
+      </main>
+      @include('layouts.partials.client.footer')
     </div>
 </div>
 @endsection

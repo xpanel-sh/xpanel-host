@@ -38,7 +38,10 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - PageSpeed Insights móvil/escritorio e historial de diagnóstico técnico del sitio con pruebas locales reales.
 - Editor DNS Cloudflare para A/AAAA/CNAME/MX/TXT y control CDN con proxy y purga de caché.
 - XMail funcional junto a Roundcube: autenticación propia por buzón, carpetas, lectura, envío SMTP autenticado, adjuntos y acciones IMAP.
-- XMail funcional junto a Roundcube: autenticación propia por buzón, carpetas, lectura, envío SMTP autenticado, adjuntos y acciones IMAP.
+
+### Cambiado
+
+- El inicio muestra KPIs, recursos, sitios y actividad real del servidor; correo y XMail tienen una jerarquía visual más clara, ajustes comparte el contenedor principal y la cabecera permite navegar sitios y subdominios por separado.
 
 ### Corregido
 
