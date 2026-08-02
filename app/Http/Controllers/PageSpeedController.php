@@ -16,6 +16,7 @@ class PageSpeedController extends Controller
         return view('sites.performance.page-speed', [
             'site' => $site, 'scans' => $site->pageSpeedScans()->limit(20)->get(),
             'latest' => $site->pageSpeedScans()->where('status', 'completed')->first(),
+            'apiKeyConfigured' => filled(config('services.pagespeed.key')),
         ]);
     }
 

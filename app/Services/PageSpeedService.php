@@ -18,10 +18,20 @@ class PageSpeedService
         if (is_string($key) && $key !== '') {
             $query .= '&key='.rawurlencode($key);
         }
-        $response = Http::acceptJson()->timeout(120)->retry(2, 1000)->get('https://www.googleapis.com/pagespeedonline/v5/runPagespeed?'.$query);
+        // Do not retry quota responses: a 429 is a daily limit, not a transient
+        // failure, and repeating it only consumes more requests.
+        $response = Http::acceptJson()->timeout(120)->get('https://www.googleapis.com/pagespeedonline/v5/runPagespeed?'.$query);
+        if ($response->status() === 429) {
+            throw new RuntimeException($key
+                ? 'La clave configurada para PageSpeed agotó su cuota de Google. Revisa sus límites en Google Cloud o inténtalo cuando la cuota se renueve.'
+                : 'Google agotó la cuota pública de PageSpeed para la IP de este servidor. Configura PAGESPEED_API_KEY para obtener una cuota propia o inténtalo cuando la cuota diaria se renueve.');
+        }
+        if (in_array($response->status(), [401, 403], true) && $key) {
+            throw new RuntimeException('Google rechazó PAGESPEED_API_KEY. Comprueba que la clave sea válida y que PageSpeed Insights API esté habilitada en el proyecto.');
+        }
         if (! $response->successful()) {
             $message = $response->json('error.message');
-            throw new RuntimeException('PageSpeed no pudo analizar el sitio'.(is_string($message) ? ': '.$message : '.'));
+            throw new RuntimeException('PageSpeed no pudo analizar el sitio'.(is_string($message) && $message !== '' ? ': '.str($message)->limit(240) : '.'));
         }
         $lighthouse = $response->json('lighthouseResult');
         if (! is_array($lighthouse)) {

@@ -61,8 +61,27 @@ class PerformanceDiagnosticsTest extends TestCase
     {
         Http::fake(['www.googleapis.com/*' => Http::response(['error' => ['message' => 'quota exceeded']], 429)]);
         $site = $this->site();
-        $this->actingAs($this->owner())->post(route('sites.pagespeed.store', $site), ['strategy' => 'desktop'])->assertSessionHasErrors('server');
+        $this->actingAs($this->owner())->post(route('sites.pagespeed.store', $site), ['strategy' => 'desktop'])
+            ->assertSessionHasErrors(['server' => 'Google agotó la cuota pública de PageSpeed para la IP de este servidor. Configura PAGESPEED_API_KEY para obtener una cuota propia o inténtalo cuando la cuota diaria se renueve.']);
         $this->assertDatabaseHas('page_speed_scans', ['site_id' => $site->id, 'status' => 'failed', 'performance_score' => null]);
+        Http::assertSentCount(1);
+        $site->pageSpeedScans()->firstOrFail()->update(['error' => 'HTTP request returned status code 429: Quota exceeded']);
+        $this->get(route('sites.pagespeed.index', $site))
+            ->assertOk()
+            ->assertSee('Cuota de Google agotada. Configura PAGESPEED_API_KEY o espera su renovación.')
+            ->assertDontSee('quota exceeded');
+    }
+
+    public function test_pagespeed_page_reports_whether_a_private_quota_is_configured(): void
+    {
+        $site = $this->site();
+        $owner = $this->actingAs($this->owner());
+
+        config(['services.pagespeed.key' => null]);
+        $owner->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('Usando cuota pública de Google');
+
+        config(['services.pagespeed.key' => 'private-test-key']);
+        $owner->get(route('sites.pagespeed.index', $site))->assertOk()->assertSee('Cuota propia configurada')->assertDontSee('private-test-key');
     }
 
     public function test_diagnostic_parser_rejects_bad_protocol_and_local_run_persists_real_checks(): void
