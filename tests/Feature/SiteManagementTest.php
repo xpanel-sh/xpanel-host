@@ -25,6 +25,18 @@ class SiteManagementTest extends TestCase
         $this->get('/sites')->assertRedirect('/login');
     }
 
+    public function test_site_list_separates_panel_access_from_editing(): void
+    {
+        $site = Site::create(['domain' => 'panel.example.com', 'document_root' => '/var/www/panel.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+
+        $this->actingAs($this->userWithRole('owner'))->get(route('sites.index'))
+            ->assertOk()
+            ->assertSee('Acceder')
+            ->assertSee(route('sites.show', $site), false)
+            ->assertSee('Editar')
+            ->assertSee(route('sites.edit', $site), false);
+    }
+
     public function test_a_site_can_be_created_with_a_generated_vhost(): void
     {
         $response = $this->actingAs($this->userWithRole('developer'))->post('/sites', [

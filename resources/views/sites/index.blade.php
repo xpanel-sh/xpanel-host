@@ -60,8 +60,15 @@
                                                 </span>
                                             </td>
                                             <td class="p-4 text-sm text-right">
+                                                <a class="kt-btn kt-btn-sm kt-btn-primary" href="{{ route('sites.show', $site) }}">
+                                                    <i class="ki-filled ki-exit-right-corner"></i>
+                                                    Acceder
+                                                </a>
                                                 @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
-                                                    <a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.edit', $site) }}">Editar</a>
+                                                    <a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.edit', $site) }}">
+                                                        <i class="ki-filled ki-notepad-edit"></i>
+                                                        Editar
+                                                    </a>
                                                     <form action="{{ route('sites.destroy', $site) }}" method="POST" class="inline" onsubmit="return confirm('Eliminar {{ $site->domain }}?');">
                                                         @csrf
                                                         @method('DELETE')
