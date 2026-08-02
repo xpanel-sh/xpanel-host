@@ -68,5 +68,24 @@ class SiteResourceUsageServiceTest extends TestCase
         $this->assertStringContainsString('valid_site_identity "$site_user"', $helper);
         $this->assertStringContainsString('find -P "$document_root" -xdev', $helper);
         $this->assertStringContainsString('ps -u "$site_user"', $helper);
+        $this->assertStringContainsString('|| true; } | awk', $helper);
+    }
+
+    public function test_overview_stays_available_when_the_first_server_measurement_fails(): void
+    {
+        $site = Site::create([
+            'domain' => 'unavailable.example.com', 'document_root' => '/var/www/unavailable.example.com',
+            'php_version' => '8.3', 'type' => 'static', 'web_server' => 'nginx', 'status' => 'active',
+        ]);
+        config(['xpanel.apply_system_changes' => true]);
+        $this->mock(ServerCommandRunner::class, function ($mock): void {
+            $mock->shouldReceive('run')->once()->andThrow(new RuntimeException('No hay procesos activos.'));
+        });
+
+        $overview = app(SiteResourceUsageService::class)->overview($site);
+
+        $this->assertSame('No hay procesos activos.', $overview['error']);
+        $this->assertSame(0, $overview['current']->disk_bytes);
+        $this->assertFalse($overview['current']->exists);
     }
 }

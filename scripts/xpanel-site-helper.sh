@@ -680,7 +680,7 @@ resource_snapshot() {
   done
 
   local process_values cpu_percent memory_kib process_count pid io_read_total=0 io_write_total=0 read_value write_value
-  process_values="$(ps -u "$site_user" -o pcpu=,rss= --no-headers 2>/dev/null | awk '{cpu += $1; rss += $2; count++} END {printf "%.2f %d %d", cpu + 0, rss + 0, count + 0}')"
+  process_values="$({ ps -u "$site_user" -o pcpu=,rss= --no-headers 2>/dev/null || true; } | awk '{cpu += $1; rss += $2; count++} END {printf "%.2f %d %d", cpu + 0, rss + 0, count + 0}')"
   read -r cpu_percent memory_kib process_count <<< "$process_values"
   while read -r pid; do
     [[ "$pid" =~ ^[0-9]+$ && -r "/proc/$pid/io" ]] || continue
@@ -688,7 +688,7 @@ resource_snapshot() {
     write_value="$(awk '$1 == "write_bytes:" {print $2}' "/proc/$pid/io" 2>/dev/null || true)"
     [[ "$read_value" =~ ^[0-9]+$ ]] && io_read_total=$((io_read_total + read_value))
     [[ "$write_value" =~ ^[0-9]+$ ]] && io_write_total=$((io_write_total + write_value))
-  done < <(ps -u "$site_user" -o pid= --no-headers 2>/dev/null | awk '{print $1}')
+  done < <({ ps -u "$site_user" -o pid= --no-headers 2>/dev/null || true; } | awk '{print $1}')
 
   local log="/var/log/nginx/$domain-access.log" request_count=0 transfer_bytes=0
   [[ -f "$log" && ! -L "$log" ]] || log="/var/log/xpanel-host/$domain-ols-access.log"

@@ -92,6 +92,21 @@ class SiteModulesTest extends TestCase
             ->assertDontSee('Recursos compartidos del servidor');
     }
 
+    public function test_resource_usage_page_does_not_fail_when_collection_is_temporarily_unavailable(): void
+    {
+        $site = $this->site();
+        config(['xpanel.apply_system_changes' => true]);
+        $this->mock(ServerCommandRunner::class, function ($mock): void {
+            $mock->shouldReceive('run')->once()->andThrow(new \RuntimeException('No active processes.'));
+        });
+
+        $this->actingAs($this->owner())
+            ->get(SiteModules::url($site, 'server', 'usage'))
+            ->assertOk()
+            ->assertSee('No se pudo actualizar la medición')
+            ->assertSee('No active processes.');
+    }
+
     public function test_unknown_section_is_404(): void
     {
         $this->actingAs($this->owner())

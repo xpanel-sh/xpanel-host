@@ -41,6 +41,13 @@
                     <a class="kt-btn kt-btn-outline" href="{{ request()->url() }}?period={{ $period }}&refresh=1"><i class="ki-filled ki-arrows-circle"></i> Recalcular uso</a>
                 </header>
 
+                @if($usage['error'])
+                    <div class="flex items-start gap-3 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-danger" role="alert">
+                        <i class="ki-filled ki-information-2"></i>
+                        <div><strong>No se pudo actualizar la medición.</strong><div class="mt-1 text-sm">{{ $usage['error'] }} La vista permanece disponible y volverá a intentarlo automáticamente.</div></div>
+                    </div>
+                @endif
+
                 <section class="kt-card">
                     <div class="kt-card-content flex items-start gap-4 p-5">
                         <span class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><i class="ki-filled ki-information-2 text-xl"></i></span>

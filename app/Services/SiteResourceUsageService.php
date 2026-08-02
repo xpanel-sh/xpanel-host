@@ -6,6 +6,7 @@ use App\Models\Site;
 use App\Models\SiteResourceSample;
 use Illuminate\Support\Collection;
 use RuntimeException;
+use Throwable;
 
 class SiteResourceUsageService
 {
@@ -30,19 +31,33 @@ class SiteResourceUsageService
         return $sample;
     }
 
-    /** @return array{current: SiteResourceSample, samples: Collection<int, SiteResourceSample>, period: string} */
+    /** @return array{current: SiteResourceSample, samples: Collection<int, SiteResourceSample>, period: string, error: ?string} */
     public function overview(Site $site, string $period = '24h', bool $refresh = false): array
     {
         $period = $period === '30d' ? '30d' : '24h';
         $current = $site->resourceSamples()->first();
+        $error = null;
         if ($refresh || $current === null || $current->sampled_at->lt(now()->subMinutes(4))) {
-            $current = $this->collect($site);
+            try {
+                $current = $this->collect($site);
+            } catch (Throwable $exception) {
+                $error = $exception->getMessage();
+            }
+        }
+        if ($current === null) {
+            $current = new SiteResourceSample([
+                'disk_bytes' => 0, 'inode_count' => 0, 'database_bytes' => 0,
+                'cpu_percent' => null, 'memory_bytes' => 0, 'process_count' => 0,
+                'request_count' => 0, 'transfer_bytes' => 0, 'io_read_bytes' => 0,
+                'io_write_bytes' => 0, 'io_read_total' => 0, 'io_write_total' => 0,
+                'sampled_at' => now(),
+            ]);
         }
 
         $since = $period === '30d' ? now()->subDays(30) : now()->subDay();
         $samples = $site->resourceSamples()->where('sampled_at', '>=', $since)->reorder()->oldest('sampled_at')->get();
 
-        return compact('current', 'samples', 'period');
+        return compact('current', 'samples', 'period', 'error');
     }
 
     /** @return array<string, int|float> */
