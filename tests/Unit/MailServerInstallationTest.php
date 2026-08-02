@@ -80,4 +80,29 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('ssl_reject_handshake on;', $catchall);
         $this->assertStringContainsString('nginx -t', $catchall);
     }
+
+    public function test_terminal_agent_is_rebuilt_by_installs_and_updates_without_a_signing_secret(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $updater = file_get_contents(base_path('scripts/xpanel-update.sh'));
+        $agentConfigurator = file_get_contents(base_path('scripts/configure-terminal-agent.sh'));
+
+        $this->assertStringContainsString('configure-terminal-agent.sh', $installer);
+        $this->assertStringContainsString('configure-terminal-agent.sh', $updater);
+        $this->assertStringContainsString('go build -C "$ROOT/agent"', $agentConfigurator);
+        $this->assertStringContainsString("sed -i '/^XPANEL_TERMINAL_SIGNING_KEY=/d'", $agentConfigurator);
+        $this->assertStringContainsString('xpanel-terminal-authorize', $agentConfigurator);
+        $this->assertStringContainsString('command="/usr/local/bin/xpanel-terminal-authorize %s"', file_get_contents(base_path('scripts/xpanel-site-helper.sh')));
+        $this->assertStringNotContainsString('XPANEL_TERMINAL_SIGNING_KEY=', file_get_contents(base_path('.env.example')));
+    }
+
+    public function test_dedicated_mail_routing_validates_local_ipv4_and_rolls_back_postfix(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('server_ip_validate()', $helper);
+        $this->assertStringContainsString('ip -4 -o address show', $helper);
+        $this->assertStringContainsString('.outbound-rollback.', $helper);
+        $this->assertStringContainsString('the previous configuration was restored', $helper);
+    }
 }

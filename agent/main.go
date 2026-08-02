@@ -1,9 +1,8 @@
 // xpanel-terminal-agent bridges a browser WebSocket to a real SSH session on
 // a specific site's own confined Unix user. It never runs as root, never
-// touches the Laravel database, and never holds APP_KEY — it only trusts a
-// short-lived, single-use token signed with XPANEL_TERMINAL_SIGNING_KEY (see
-// app/Services/TerminalTokenIssuer.php) and burns it via a callback to
-// Laravel before opening the SSH connection. All the actual isolation
+// touches the Laravel database, and holds no Laravel authorization secret. It
+// forwards an opaque token through SSH; a root-owned forced command consumes
+// it in Laravel and verifies the Unix identity before starting the shell.
 // (no forwarding, pubkey-only, per-site Match block) is enforced by sshd
 // itself, exactly as it already is for a human's own registered SSH key —
 // see scripts/xpanel-site-helper.sh::access_sync().

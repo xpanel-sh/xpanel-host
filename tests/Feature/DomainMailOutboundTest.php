@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\ServerIpAddress;
 use App\Models\User;
 use App\Services\MailDnsService;
+use App\Services\MailProvisioner;
 use App\Services\ServerCommandRunner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
@@ -40,6 +41,34 @@ class DomainMailOutboundTest extends TestCase
         $ip = ServerIpAddress::where('ip_address', '203.0.113.10')->firstOrFail();
         $this->actingAs($developer)->delete("/server-ip-addresses/{$ip->id}")->assertRedirect();
         $this->assertDatabaseMissing('server_ip_addresses', ['id' => $ip->id]);
+    }
+
+    public function test_dedicated_mail_ip_must_be_ipv4(): void
+    {
+        $this->actingAs($this->userWithRole('developer'))->post('/server-ip-addresses', [
+            'ip_address' => '2001:db8::10',
+            'ptr_hostname' => 'mail.cliente.com',
+        ])->assertSessionHasErrors('ip_address');
+
+        $this->assertDatabaseCount('server_ip_addresses', 0);
+    }
+
+    public function test_dedicated_mail_ip_is_verified_on_the_server_before_it_is_saved(): void
+    {
+        config()->set('xpanel.apply_system_changes', true);
+        config()->set('xpanel.site_helper', '/opt/xpanel-host/scripts/xpanel-site-helper.sh');
+        $runner = Mockery::mock(ServerCommandRunner::class);
+        $runner->shouldReceive('run')->once()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'server-ip-validate', '203.0.113.11',
+        ])->andReturn('');
+        $this->app->instance(ServerCommandRunner::class, $runner);
+
+        $this->actingAs($this->userWithRole('developer'))->post('/server-ip-addresses', [
+            'ip_address' => '203.0.113.11',
+            'ptr_hostname' => 'mail.cliente.com',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('server_ip_addresses', ['ip_address' => '203.0.113.11']);
     }
 
     public function test_dedicated_ip_cannot_be_deleted_while_a_domain_uses_it(): void
@@ -108,5 +137,20 @@ class DomainMailOutboundTest extends TestCase
 
         $this->assertSame('mail.shared.example.com', $expected['mail_hostname']);
         $this->assertSame('198.51.100.1', $expected['server_ipv4']);
+    }
+
+    public function test_deleting_a_domain_removes_its_staged_outbound_transport_even_without_mailboxes(): void
+    {
+        $domain = $this->domain();
+        $ip = ServerIpAddress::create(['ip_address' => '203.0.113.50', 'ptr_hostname' => 'mail.removed.com']);
+        $domain->mailSettings()->create(['outbound_mode' => 'dedicated', 'server_ip_address_id' => $ip->id]);
+        app(MailProvisioner::class)->syncOutboundRouting();
+        $this->assertStringContainsString('@'.$domain->domain, file_get_contents(storage_path('app/mail/sender-transport')));
+
+        $this->actingAs($this->userWithRole('developer'))
+            ->delete(route('domains.destroy', $domain))
+            ->assertRedirect(route('domains.index'));
+
+        $this->assertStringNotContainsString('@'.$domain->domain, file_get_contents(storage_path('app/mail/sender-transport')));
     }
 }

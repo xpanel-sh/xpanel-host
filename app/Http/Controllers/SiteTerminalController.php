@@ -15,12 +15,16 @@ class SiteTerminalController extends Controller
         $settings = $site->accessSettings()->first();
         abort_unless($settings?->web_terminal_enabled, 422, 'Activa la terminal real en Acceso SSH antes de abrirla.');
 
-        return response()->json(['path' => '/terminal-ws', ...$issuer->issue($site)]);
+        return response()->json([
+            'path' => '/terminal-ws',
+            'system_user' => $site->systemUser(),
+            ...$issuer->issue($site),
+        ]);
     }
 
     /**
-     * Called by the loopback-only Go terminal agent to burn a token before it
-     * opens the real SSH session. Never touched by the browser directly.
+     * Called by the sshd forced-command gate to burn the token immediately
+     * before it opens the real shell. Never touched by the browser directly.
      */
     public function consume(Request $request, TerminalTokenIssuer $issuer): JsonResponse
     {
@@ -30,6 +34,10 @@ class SiteTerminalController extends Controller
         $payload = $token === '' ? null : $issuer->verifyAndConsume($token);
         abort_if($payload === null, 403, 'Token invalido o ya usado.');
 
-        return response()->json(['ok' => true, 'system_user' => $payload['system_user']]);
+        return response()->json([
+            'ok' => true,
+            'site_id' => $payload['site_id'],
+            'system_user' => $payload['system_user'],
+        ]);
     }
 }

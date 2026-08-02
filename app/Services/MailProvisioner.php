@@ -51,9 +51,9 @@ class MailProvisioner
      * a specific IP with a PTR that actually matches, instead of the one
      * shared server-wide hostname/IP every domain uses by default.
      */
-    public function syncOutboundRouting(): void
+    public function syncOutboundRouting(?int $excludeDomainId = null): void
     {
-        $this->stageOutboundRouting();
+        $this->stageOutboundRouting($excludeDomainId);
 
         if (config('xpanel.apply_system_changes')) {
             $this->commands->run([
@@ -62,12 +62,15 @@ class MailProvisioner
         }
     }
 
-    private function stageOutboundRouting(): void
+    private function stageOutboundRouting(?int $excludeDomainId = null): void
     {
-        $settings = DomainMailSettings::with(['domain', 'serverIpAddress'])
+        $query = DomainMailSettings::with(['domain', 'serverIpAddress'])
             ->where('outbound_mode', 'dedicated')
-            ->whereHas('serverIpAddress')
-            ->get();
+            ->whereHas('serverIpAddress');
+        if ($excludeDomainId !== null) {
+            $query->where('domain_id', '!=', $excludeDomainId);
+        }
+        $settings = $query->get();
 
         $directory = storage_path('app/mail');
         if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
@@ -93,8 +96,12 @@ class MailProvisioner
             ->where('domain_id', '!=', $domain->id)
             ->orderBy('domain_id')->orderBy('local_part')->get();
         $this->stage($accounts);
+        $this->stageOutboundRouting($domain->id);
         if (config('xpanel.apply_system_changes')) {
             $this->commands->run(['sudo', '-n', (string) config('xpanel.site_helper'), 'mail-sync']);
+            $this->commands->run([
+                'sudo', '-n', (string) config('xpanel.site_helper'), 'mail-outbound-sync',
+            ]);
             $this->commands->run([
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'mail-remove-domain', $domain->domain,
             ]);

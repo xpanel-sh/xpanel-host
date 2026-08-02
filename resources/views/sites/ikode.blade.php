@@ -2880,9 +2880,9 @@
                         headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
                     });
                     if (!response.ok) throw new Error(await response.text() || `HTTP ${response.status}`);
-                    const { path, token } = await response.json();
+                    const { path, token, system_user: systemUser } = await response.json();
                     const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const socket = new WebSocket(`${scheme}//${location.host}${path}?token=${encodeURIComponent(token)}`);
+                    const socket = new WebSocket(`${scheme}//${location.host}${path}?token=${encodeURIComponent(token)}&user=${encodeURIComponent(systemUser)}`);
                     sshTerminal.socket = socket;
                     socket.onopen = () => sshSetStatus('Conectado');
                     socket.onmessage = (event) => {

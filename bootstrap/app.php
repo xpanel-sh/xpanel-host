@@ -21,9 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
             prepend: [UseXMailSession::class],
             append: [AuditMutations::class],
         );
-        // The Go terminal agent has no browser session/CSRF token; the route
-        // is instead gated by the signed, single-use terminal token itself
-        // and by an IP check in SiteTerminalController::consume().
+        // sshd's forced-command gate has no browser session/CSRF token. This
+        // route is instead gated by an opaque one-use token and loopback IP.
         $middleware->validateCsrfTokens(except: ['internal/terminal/consume']);
         $middleware->alias([
             'permission' => EnsurePermission::class,

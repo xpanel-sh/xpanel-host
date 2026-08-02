@@ -51,23 +51,22 @@ class SiteTerminalTest extends TestCase
 
     public function test_token_endpoint_issues_a_usable_token_when_enabled(): void
     {
-        config(['xpanel.terminal_enabled' => true, 'xpanel.terminal_signing_key' => 'test-signing-key']);
+        config(['xpanel.terminal_enabled' => true]);
         $site = $this->site();
         $site->accessSettings()->create(['web_terminal_enabled' => true]);
 
         $response = $this->actingAs($this->owner())
             ->postJson(route('sites.access.terminal.token', $site))
             ->assertOk()
-            ->assertJsonStructure(['path', 'token', 'expires_in']);
+            ->assertJsonStructure(['path', 'token', 'system_user', 'expires_in']);
 
         $this->assertSame('/terminal-ws', $response->json('path'));
+        $this->assertSame($site->systemUser(), $response->json('system_user'));
         $this->assertNotSame('', $response->json('token'));
     }
 
     public function test_consume_endpoint_rejects_non_loopback_callers(): void
     {
-        config(['xpanel.terminal_signing_key' => 'test-signing-key']);
-
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9'])
             ->post('/internal/terminal/consume', ['token' => 'irrelevant'])
             ->assertForbidden();
@@ -75,7 +74,7 @@ class SiteTerminalTest extends TestCase
 
     public function test_consume_endpoint_burns_the_token_exactly_once(): void
     {
-        config(['xpanel.terminal_enabled' => true, 'xpanel.terminal_signing_key' => 'test-signing-key']);
+        config(['xpanel.terminal_enabled' => true]);
         $site = $this->site();
         $site->accessSettings()->create(['web_terminal_enabled' => true]);
 
@@ -85,7 +84,7 @@ class SiteTerminalTest extends TestCase
 
         $this->post('/internal/terminal/consume', ['token' => $token])
             ->assertOk()
-            ->assertJson(['ok' => true, 'system_user' => $site->systemUser()]);
+            ->assertJson(['ok' => true, 'site_id' => $site->id, 'system_user' => $site->systemUser()]);
 
         $this->post('/internal/terminal/consume', ['token' => $token])
             ->assertForbidden();

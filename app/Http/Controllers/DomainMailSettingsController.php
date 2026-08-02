@@ -26,6 +26,10 @@ class DomainMailSettingsController extends Controller
             $provisioner->syncOutboundRouting();
         } catch (\Throwable $exception) {
             $original === null ? $settings->delete() : $settings->forceFill($original)->save();
+            try {
+                $provisioner->syncOutboundRouting();
+            } catch (\Throwable) {
+            }
 
             return back()->withErrors(['server' => $exception->getMessage()]);
         }

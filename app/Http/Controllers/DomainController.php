@@ -47,12 +47,11 @@ class DomainController extends Controller
         }
         $name = $domain->domain;
         try {
-            if ($domain->mailAccounts()->exists()) {
-                $provisioner->removeDomain($domain);
-            }
+            $provisioner->removeDomain($domain);
         } catch (\Throwable $exception) {
             try {
                 $provisioner->sync();
+                $provisioner->syncOutboundRouting();
             } catch (\Throwable) {
             }
 

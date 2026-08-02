@@ -292,6 +292,6 @@ Route::get('/version', fn () => response()->json([
     'version' => '0.1.0-dev',
 ]));
 
-// Called only by the loopback-only Go terminal agent, never by a browser
-// session — see SiteTerminalController::consume() and app/Services/TerminalTokenIssuer.php.
+// Called only by the loopback sshd forced-command gate, never by a browser
+// session — see SiteTerminalController::consume() and TerminalTokenIssuer.
 Route::post('/internal/terminal/consume', [SiteTerminalController::class, 'consume']);

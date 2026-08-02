@@ -12,12 +12,6 @@ class TerminalTokenIssuerTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        config(['xpanel.terminal_signing_key' => 'test-signing-key-not-app-key']);
-    }
-
     private function site(): Site
     {
         return Site::create([
@@ -43,23 +37,18 @@ class TerminalTokenIssuerTest extends TestCase
         $this->assertNull($second, 'A token must not be usable twice.');
     }
 
-    public function test_a_tampered_token_is_rejected(): void
+    public function test_a_token_that_laravel_never_issued_is_rejected(): void
     {
         $issuer = new TerminalTokenIssuer;
-        ['token' => $token] = $issuer->issue($this->site());
-        [$body, $signature] = explode('.', $token, 2);
-        $tampered = $body.'x.'.$signature;
-
-        $this->assertNull($issuer->verifyAndConsume($tampered));
+        $this->assertNull($issuer->verifyAndConsume(str_repeat('a', 64)));
     }
 
-    public function test_a_token_signed_with_a_different_key_is_rejected(): void
+    public function test_issued_tokens_are_opaque_and_contain_no_site_identity(): void
     {
-        config(['xpanel.terminal_signing_key' => 'key-one']);
         ['token' => $token] = (new TerminalTokenIssuer)->issue($this->site());
 
-        config(['xpanel.terminal_signing_key' => 'key-two']);
-        $this->assertNull((new TerminalTokenIssuer)->verifyAndConsume($token));
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{64}$/', $token);
+        $this->assertStringNotContainsString('.', $token);
     }
 
     public function test_an_expired_token_is_rejected(): void

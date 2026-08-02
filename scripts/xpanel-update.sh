@@ -82,23 +82,33 @@ if [[ -z "$(env_value XPANEL_XMAIL_ENABLED)" ]]; then
 fi
 
 missing_services=()
-for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync sshd vsftpd nft clamscan freshclam flock wp; do
+for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync ip sshd vsftpd nft clamscan freshclam flock wp; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     missing_services+=("$command_name")
   fi
 done
+terminal_enabled="$(env_value XPANEL_TERMINAL_ENABLED)"
+if [[ "$terminal_enabled" == "true" ]]; then
+  go_minor=0
+  if command -v go >/dev/null 2>&1; then
+    go_minor="$(go env GOVERSION 2>/dev/null | sed -E 's/^go1\.([0-9]+).*/\1/')"
+  fi
+  if [[ ! "$go_minor" =~ ^[0-9]+$ ]] || (( go_minor < 22 )); then
+    missing_services+=("go>=1.22")
+  fi
+fi
 
 if (( ${#missing_services[@]} > 0 )); then
   printf 'Aviso: faltan servicios del sistema: %s\n' "${missing_services[*]}" >&2
   printf 'Ejecutando el instalador idempotente para completar la infraestructura...\n' >&2
-  XPANEL_INSTALL_CLI=no bash "$ROOT/install.sh"
+  XPANEL_INSTALL_CLI=no XPANEL_TERMINAL_ENABLED="${terminal_enabled:-false}" bash "$ROOT/install.sh"
   exit 0
 fi
 
 node_major="$(node -p 'process.versions.node.split(".")[0]')"
 if (( node_major < 22 )); then
   echo "Actualizando Node.js para poder compilar el panel..." >&2
-  XPANEL_INSTALL_CLI=no bash "$ROOT/install.sh"
+  XPANEL_INSTALL_CLI=no XPANEL_TERMINAL_ENABLED="${terminal_enabled:-false}" bash "$ROOT/install.sh"
   exit 0
 fi
 
@@ -127,6 +137,9 @@ configure_backup_runtime
 bash "$ROOT/scripts/configure-nginx-catchall.sh"
 sudo -u "$site_user" php "$ROOT/artisan" optimize:clear
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:sites-sync
+if [[ "$terminal_enabled" == "true" ]]; then
+  bash "$ROOT/scripts/configure-terminal-agent.sh"
+fi
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:access-sync
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:mail-sync
 

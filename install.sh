@@ -24,6 +24,10 @@ validate_install_inputs() {
     echo "XPANEL_ACME_EMAIL must be a real email address (for example, admin@example.com)." >&2
     exit 1
   fi
+  if [[ "${XPANEL_TERMINAL_ENABLED:-false}" == "true" && "${XPANEL_TERMINAL_AGENT_HOST:-127.0.0.1}" != "127.0.0.1" ]]; then
+    echo "XPANEL_TERMINAL_AGENT_HOST must remain on 127.0.0.1." >&2
+    exit 1
+  fi
 }
 
 install_base_dependencies() {
@@ -35,7 +39,7 @@ install_base_dependencies() {
   echo "postfix postfix/mailname string ${XPANEL_MAIL_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}" | debconf-set-selections
   echo "postfix postfix/main_mailer_type select Internet Site" | debconf-set-selections
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync acl util-linux openssh-server vsftpd \
+    ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync acl util-linux iproute2 openssh-server vsftpd \
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
     certbot python3-certbot-nginx \
     mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks \
@@ -621,9 +625,8 @@ configure_panel_vhost() {
 
   if [[ "${XPANEL_TERMINAL_ENABLED:-false}" == "true" ]]; then
     local terminal_host="${XPANEL_TERMINAL_AGENT_HOST:-127.0.0.1}" terminal_port="${XPANEL_TERMINAL_AGENT_PORT:-7092}"
-    # /terminal-ws is gated by the signed, single-use token itself (see
-    # SiteTerminalController); /internal/terminal/consume is additionally
-    # restricted to loopback here as defense in depth.
+    # /terminal-ws carries an opaque, single-use token. sshd's forced command
+    # consumes it through a separate loopback-only listener before a shell.
     terminal_nginx_block="$(cat <<NGINX
 
     location /terminal-ws {
@@ -635,12 +638,7 @@ configure_panel_vhost() {
         proxy_read_timeout 3600s;
     }
 
-    location = /internal/terminal/consume {
-        allow 127.0.0.1;
-        allow ::1;
-        deny all;
-        try_files \$uri /index.php?\$query_string;
-    }
+    location = /internal/terminal/consume { return 404; }
 NGINX
 )"
   fi
@@ -683,77 +681,8 @@ configure_terminal_agent() {
   fi
 
   ensure_go_runtime
-
-  local agent_user="${XPANEL_TERMINAL_SERVICE_USER:-xpanel-terminal}"
-  if ! id "$agent_user" >/dev/null 2>&1; then
-    useradd --system --home-dir /var/lib/xpanel-host/terminal-agent --shell /usr/sbin/nologin "$agent_user"
-  fi
-  install -d -o "$agent_user" -g "$agent_user" -m 0750 /var/lib/xpanel-host/terminal-agent
-
-  # Shared with each site's own authorized_keys.terminal (see
-  # access_sync() in xpanel-site-helper.sh) — kept root:root 0755 so
-  # sshd's unprivileged pre-auth lookup can traverse it regardless of
-  # which site or which install step last touched it. Only the agent's
-  # own private half of the keypair needs to stay confidential.
-  install -d -o root -g root -m 0755 /var/lib/xpanel-host/ssh
-  if [[ ! -f /var/lib/xpanel-host/ssh/service_terminal ]]; then
-    ssh-keygen -t ed25519 -N '' -C xpanel-host-terminal-agent -f /var/lib/xpanel-host/ssh/service_terminal >/dev/null
-  fi
-  chown "$agent_user":"$agent_user" /var/lib/xpanel-host/ssh/service_terminal
-  chmod 0600 /var/lib/xpanel-host/ssh/service_terminal
-  chmod 0644 /var/lib/xpanel-host/ssh/service_terminal.pub
-
-  if ! grep -Eq '^XPANEL_TERMINAL_SIGNING_KEY=.+$' "$ROOT/.env" 2>/dev/null; then
-    set_env_var XPANEL_TERMINAL_SIGNING_KEY "$(openssl rand -hex 32)"
-  fi
   set_env_var XPANEL_TERMINAL_ENABLED true
-
-  # agent/ is its own independent Go module (its own go.mod), not a
-  # subpackage of anything at $ROOT, so the build must run with agent/
-  # as the working directory (-C) rather than pointing at it as a path
-  # from outside — otherwise Go looks for a go.mod at $ROOT and fails
-  # with "cannot find main module".
-  go build -C "$ROOT/agent" -o /usr/local/bin/xpanel-terminal-agent .
-  chmod 0755 /usr/local/bin/xpanel-terminal-agent
-
-  local signing_key panel_port
-  signing_key="$(grep '^XPANEL_TERMINAL_SIGNING_KEY=' "$ROOT/.env" | tail -n1 | cut -d= -f2-)"
-  panel_port="${XPANEL_PANEL_PORT:-80}"
-
-  install -d -o root -g root -m 0755 /etc/xpanel-host
-  cat > /etc/xpanel-host/terminal-agent.env <<EOF
-XPANEL_TERMINAL_SIGNING_KEY=$signing_key
-XPANEL_TERMINAL_CONSUME_URL=http://127.0.0.1:$panel_port/internal/terminal/consume
-XPANEL_TERMINAL_LISTEN=${XPANEL_TERMINAL_AGENT_HOST:-127.0.0.1}:${XPANEL_TERMINAL_AGENT_PORT:-7092}
-XPANEL_TERMINAL_SSH_KEY_PATH=/var/lib/xpanel-host/ssh/service_terminal
-XPANEL_TERMINAL_SSH_HOST=127.0.0.1:22
-EOF
-  chmod 0640 /etc/xpanel-host/terminal-agent.env
-  chown root:"$agent_user" /etc/xpanel-host/terminal-agent.env
-
-  cat > /etc/systemd/system/xpanel-terminal-agent.service <<EOF
-[Unit]
-Description=XPanel Host terminal agent
-After=network.target ssh.service
-
-[Service]
-Type=simple
-User=$agent_user
-Group=$agent_user
-EnvironmentFile=/etc/xpanel-host/terminal-agent.env
-ExecStart=/usr/local/bin/xpanel-terminal-agent
-Restart=on-failure
-RestartSec=2
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=yes
-PrivateTmp=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-  systemctl daemon-reload
-  systemctl enable --now xpanel-terminal-agent.service
+  bash "$ROOT/scripts/configure-terminal-agent.sh"
 }
 
 configure_web_server() {
@@ -830,6 +759,7 @@ configure_database_server
 configure_file_access
 configure_malware_scanner
 bash "$ROOT/scripts/install-wp-cli.sh"
+configure_terminal_agent
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:access-sync
 if [[ "${XPANEL_PHPMYADMIN_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-phpmyadmin.sh"
@@ -838,7 +768,6 @@ configure_mail_server
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:mail-sync
 configure_certbot_renewal
 configure_panel_vhost
-configure_terminal_agent
 bash "$ROOT/scripts/configure-panel-uploads.sh"
 
 if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then

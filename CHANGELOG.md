@@ -53,8 +53,10 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Un fallo auxiliar de instalación de la CLI ya no impide mostrar la URL y el estado final del panel.
 - El helper privilegiado se versiona como ejecutable para que el instalador no ensucie el árbol Git ni bloquee `git pull`/`xpanel update`.
 - Primera instalación completamente no interactiva por `IP:80`, sin solicitar dominio/correo ni intentar certificados del panel o webmail.
-- Terminal real por sitio en iKode (`Avanzado → Acceso SSH → Terminal real desde el navegador`), opcional y apagada por defecto (`XPANEL_TERMINAL_ENABLED`). Un agente Go sin privilegios de root (`xpanel-terminal-agent`) hace de puente entre un WebSocket firmado de un solo uso y una sesión SSH real hacia el mismo sshd que ya aísla cada sitio por usuario Unix; el agente nunca toca la base de datos de Laravel ni `APP_KEY`.
+- Terminal real por sitio en iKode (`Avanzado → Acceso SSH → Terminal real desde el navegador`), opcional y apagada por defecto (`XPANEL_TERMINAL_ENABLED`). Un agente Go sin privilegios de root (`xpanel-terminal-agent`) hace de puente entre un token opaco de un solo uso y una sesión SSH real; una orden forzada de sshd consume el token en Laravel y verifica la identidad Unix antes de abrir la shell, por lo que ni la llave de servicio ni el agente pueden autorizar otro sitio por sí solos.
 - La terminal real (SSH por llave propia o terminal web) queda enjaulada con `ChrootDirectory` de sshd: cada sesión solo alcanza el document root propio de ese sitio o subdominio — nada de ningún otro sitio del servidor es visible ni accesible desde ahí, cada identidad Unix queda completamente independiente. Los binarios del sistema montados dentro de la jaula quedan de solo lectura, y el prompt muestra el dominio en vez del usuario críptico del sistema.
+- `xpanel update` recompila y reinicia el agente de terminal de forma atómica, migra las instalaciones antiguas sin conservar la clave HMAC compartida y vuelve a aplicar las restricciones SSH de cada sitio.
+- Las IP dedicadas de correo se limitan a IPv4 realmente asignadas al servidor. Los cambios de Postfix respaldan y restauran `main.cf`, `master.cf` y los mapas si la validación o recarga falla; al eliminar un dominio también se retira su transporte saliente.
 
 ### Corregido
 

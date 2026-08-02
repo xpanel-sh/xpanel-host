@@ -27,6 +27,15 @@ set_root_env() {
   fi
 }
 
+server_ip_validate() {
+  local address="$2"
+  valid_ipv4 "$address" || fail "Dedicated outbound mail requires an IPv4 address."
+  ip -4 -o address show | awk -v expected="$address" '
+    { split($4, value, "/"); if (value[1] == expected) found = 1 }
+    END { exit(found ? 0 : 1) }
+  ' || fail "The dedicated IPv4 address is not assigned to this server."
+}
+
 [[ "$(id -u)" == "0" ]] || fail "xpanel-site-helper must run as root."
 getent passwd "$SITE_USER" >/dev/null || fail "Configured site user does not exist."
 getent group "$SITE_GROUP" >/dev/null || fail "Configured site group does not exist."
@@ -1041,7 +1050,13 @@ access_sync() {
   if [[ "$web_terminal_enabled" == "1" ]]; then
     local service_key="/var/lib/xpanel-host/ssh/service_terminal.pub"
     [[ -f "$service_key" ]] || fail "Terminal service key not installed."
-    install -o root -g root -m 0644 "$service_key" "$terminal_keys_file"
+    local terminal_key
+    terminal_key="$(cat "$service_key")"
+    [[ "$terminal_key" =~ ^ssh-ed25519\ [A-Za-z0-9+/]+={0,3}(\ [^[:cntrl:]]{1,200})?$ ]] || fail "Invalid terminal service key."
+    printf 'no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-user-rc,command="/usr/local/bin/xpanel-terminal-authorize %s" %s\n' \
+      "$site_user" "$terminal_key" > "$terminal_keys_file"
+    chown root:root "$terminal_keys_file"
+    chmod 0644 "$terminal_keys_file"
   else
     rm -f "$terminal_keys_file"
   fi
@@ -1348,41 +1363,63 @@ mail_outbound_sync() {
     fail "Invalid dedicated IP list."
   fi
 
-  install -o root -g root -m 0644 "$source/sender-transport" /etc/xpanel-host/mail/sender-transport
-  postmap /etc/xpanel-host/mail/sender-transport
-
   local master="/etc/postfix/master.cf"
-  local begin_marker="# BEGIN XPANEL-HOST DEDICATED OUTBOUND TRANSPORTS -- managed by xpanel-host, do not edit by hand"
-  local end_marker="# END XPANEL-HOST DEDICATED OUTBOUND TRANSPORTS"
-  local rebuilt
-  rebuilt="$(mktemp "$(dirname "$master")/.xpanel-master.XXXXXX")"
-  awk -v begin="$begin_marker" -v end="$end_marker" '
-    $0 == begin { skip = 1; next }
-    $0 == end { skip = 0; next }
-    !skip { print }
-  ' "$master" > "$rebuilt"
+  local main="/etc/postfix/main.cf" sender="/etc/xpanel-host/mail/sender-transport"
+  local backup_dir had_sender=0 had_sender_db=0
+  backup_dir="$(mktemp -d /etc/xpanel-host/mail/.outbound-rollback.XXXXXX)"
+  cp -a "$master" "$backup_dir/master.cf"
+  cp -a "$main" "$backup_dir/main.cf"
+  if [[ -f "$sender" ]]; then cp -a "$sender" "$backup_dir/sender-transport"; had_sender=1; fi
+  if [[ -f "$sender.db" ]]; then cp -a "$sender.db" "$backup_dir/sender-transport.db"; had_sender_db=1; fi
 
-  if [[ -s "$source/dedicated-ips" ]]; then
-    {
-      echo "$begin_marker"
-      while read -r transport ip hostname; do
-        [[ -z "$transport" ]] && continue
-        printf '%s unix - - n - - smtp\n' "$transport"
-        printf '  -o smtp_bind_address=%s\n' "$ip"
-        printf '  -o smtp_helo_name=%s\n' "$hostname"
-      done < "$source/dedicated-ips"
-      echo "$end_marker"
-    } >> "$rebuilt"
-    postconf -e "sender_dependent_default_transport_maps = hash:/etc/xpanel-host/mail/sender-transport"
-  else
-    postconf -e "sender_dependent_default_transport_maps ="
+  if ! (
+    set -e
+    local begin_marker="# BEGIN XPANEL-HOST DEDICATED OUTBOUND TRANSPORTS -- managed by xpanel-host, do not edit by hand"
+    local end_marker="# END XPANEL-HOST DEDICATED OUTBOUND TRANSPORTS"
+    local rebuilt
+    rebuilt="$(mktemp "$(dirname "$master")/.xpanel-master.XXXXXX")"
+    trap 'rm -f -- "$rebuilt"' EXIT
+
+    install -o root -g root -m 0644 "$source/sender-transport" "$sender"
+    postmap "$sender"
+    awk -v begin="$begin_marker" -v end="$end_marker" '
+      $0 == begin { skip = 1; next }
+      $0 == end { skip = 0; next }
+      !skip { print }
+    ' "$master" > "$rebuilt"
+
+    if [[ -s "$source/dedicated-ips" ]]; then
+      {
+        echo "$begin_marker"
+        while read -r transport ip hostname; do
+          [[ -z "$transport" ]] && continue
+          server_ip_validate mail-outbound-sync "$ip"
+          printf '%s unix - - n - - smtp\n' "$transport"
+          printf '  -o smtp_bind_address=%s\n' "$ip"
+          printf '  -o smtp_helo_name=%s\n' "$hostname"
+        done < "$source/dedicated-ips"
+        echo "$end_marker"
+      } >> "$rebuilt"
+      postconf -e "sender_dependent_default_transport_maps = hash:$sender"
+    else
+      postconf -e "sender_dependent_default_transport_maps ="
+    fi
+    chown root:root "$rebuilt"
+    chmod 0644 "$rebuilt"
+    mv -f "$rebuilt" "$master"
+    postfix check
+    systemctl reload postfix
+  ); then
+    cp -a "$backup_dir/master.cf" "$master"
+    cp -a "$backup_dir/main.cf" "$main"
+    if [[ "$had_sender" == "1" ]]; then cp -a "$backup_dir/sender-transport" "$sender"; else rm -f -- "$sender"; fi
+    if [[ "$had_sender_db" == "1" ]]; then cp -a "$backup_dir/sender-transport.db" "$sender.db"; else rm -f -- "$sender.db"; fi
+    postfix check >/dev/null 2>&1 || true
+    systemctl reload postfix >/dev/null 2>&1 || true
+    rm -rf -- "$backup_dir"
+    fail "Postfix rejected the dedicated outbound routing; the previous configuration was restored."
   fi
-  chown root:root "$rebuilt"
-  chmod 0644 "$rebuilt"
-  mv -f "$rebuilt" "$master"
-
-  postfix check
-  systemctl reload postfix
+  rm -rf -- "$backup_dir"
 }
 
 mail_remove() {
@@ -1508,6 +1545,7 @@ backup_delete() {
 }
 
 case "$ACTION" in
+  server-ip-validate) server_ip_validate "$@" ;;
   panel-access-apply) panel_access_apply "$@" ;;
   panel-ssl-enable) panel_ssl_enable ;;
   apply|remove) site_action "$@" ;;

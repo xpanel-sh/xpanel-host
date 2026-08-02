@@ -48,12 +48,11 @@ return [
 
     /*
      * Real per-site terminal: a loopback-only Go agent bridges a browser
-     * WebSocket to a real SSH session (see agent/README.md). The signing key
-     * is deliberately separate from APP_KEY so the two trust domains never
-     * mix; the agent never talks to the Laravel database or holds APP_KEY.
+     * WebSocket to a real SSH session (see agent/README.md). Laravel issues
+     * opaque, single-use capabilities; the agent holds no signing secret and
+     * sshd forces final consumption/identity verification before the shell.
      */
     'terminal_enabled' => env('XPANEL_TERMINAL_ENABLED', false),
-    'terminal_signing_key' => env('XPANEL_TERMINAL_SIGNING_KEY'),
     'terminal_agent_host' => env('XPANEL_TERMINAL_AGENT_HOST', '127.0.0.1'),
     'terminal_agent_port' => (int) env('XPANEL_TERMINAL_AGENT_PORT', 7092),
     'terminal_service_user' => env('XPANEL_TERMINAL_SERVICE_USER', 'xpanel-terminal'),

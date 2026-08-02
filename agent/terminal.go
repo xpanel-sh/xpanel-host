@@ -13,14 +13,9 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// The token is the real authentication boundary here, not the WS handshake's
-// Origin header — the panel and the agent may not even share a scheme/port
-// once proxied, and a same-origin check would just be security theater on
-// top of a signed, single-use, 20-second-lived capability token.
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 type wsMessage struct {
@@ -30,16 +25,28 @@ type wsMessage struct {
 	Rows int    `json:"rows,omitempty"`
 }
 
+type socketWriter struct {
+	conn *websocket.Conn
+	mu   sync.Mutex
+}
+
+func (w *socketWriter) write(kind, message string) error {
+	frame, err := json.Marshal(wsMessage{Type: kind, Data: message})
+	if err != nil {
+		return err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	return w.conn.WriteMessage(websocket.TextMessage, frame)
+}
+
 func handleTerminal(cfg *config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
-		if token == "" {
-			http.Error(w, "missing token", http.StatusUnauthorized)
-			return
-		}
-		payload, err := consumeToken(r.Context(), cfg, token)
-		if err != nil {
-			http.Error(w, "invalid or expired token", http.StatusForbidden)
+		systemUser := r.URL.Query().Get("user")
+		if !validTerminalRequest(token, systemUser) {
+			http.Error(w, "invalid terminal request", http.StatusForbidden)
 			return
 		}
 
@@ -50,14 +57,15 @@ func handleTerminal(cfg *config) http.HandlerFunc {
 		}
 		defer conn.Close()
 
-		bridgeToSSH(conn, cfg, payload)
+		bridgeToSSH(conn, cfg, tokenPayload{SystemUser: systemUser}, token)
 	}
 }
 
-func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload) {
+func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload, token string) {
+	writer := &socketWriter{conn: conn}
 	signer, err := loadServiceKey(cfg.SSHKeyPath)
 	if err != nil {
-		writeFrame(conn, "error", "No se pudo cargar la llave de servicio del agente.")
+		_ = writer.write("error", "No se pudo cargar la llave de servicio del agente.")
 		return
 	}
 
@@ -74,31 +82,31 @@ func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload) {
 
 	client, err := ssh.Dial("tcp", cfg.SSHHost, sshConfig)
 	if err != nil {
-		writeFrame(conn, "error", "No se pudo conectar por SSH: "+err.Error())
+		_ = writer.write("error", "No se pudo conectar por SSH: "+err.Error())
 		return
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		writeFrame(conn, "error", "No se pudo abrir la sesion SSH.")
+		_ = writer.write("error", "No se pudo abrir la sesion SSH.")
 		return
 	}
 	defer session.Close()
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		writeFrame(conn, "error", "No se pudo conectar la entrada de la terminal.")
+		_ = writer.write("error", "No se pudo conectar la entrada de la terminal.")
 		return
 	}
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		writeFrame(conn, "error", "No se pudo conectar la salida de la terminal.")
+		_ = writer.write("error", "No se pudo conectar la salida de la terminal.")
 		return
 	}
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		writeFrame(conn, "error", "No se pudo conectar la salida de error de la terminal.")
+		_ = writer.write("error", "No se pudo conectar la salida de error de la terminal.")
 		return
 	}
 
@@ -108,11 +116,14 @@ func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload) {
 		ssh.TTY_OP_OSPEED: 14400,
 	}
 	if err := session.RequestPty("xterm-256color", 24, 80, modes); err != nil {
-		writeFrame(conn, "error", "No se pudo asignar una terminal (PTY).")
+		_ = writer.write("error", "No se pudo asignar una terminal (PTY).")
 		return
 	}
-	if err := session.Shell(); err != nil {
-		writeFrame(conn, "error", "No se pudo iniciar la shell.")
+	// The service key is restricted in authorized_keys to a root-owned forced
+	// command. That command consumes the opaque token and checks that Laravel
+	// authorized exactly payload.SystemUser before it execs the login shell.
+	if err := session.Start("xpanel-terminal " + token); err != nil {
+		_ = writer.write("error", "No se pudo iniciar la shell.")
 		return
 	}
 
@@ -120,8 +131,8 @@ func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload) {
 	var closeOnce sync.Once
 	finish := func() { closeOnce.Do(func() { close(done) }) }
 
-	go func() { pipeToSocket(conn, stdout); finish() }()
-	go func() { pipeToSocket(conn, stderr); finish() }()
+	go func() { pipeToSocket(writer, stdout); finish() }()
+	go func() { pipeToSocket(writer, stderr); finish() }()
 	go func() {
 		<-done
 		session.Close()
@@ -151,30 +162,19 @@ func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload) {
 	_ = session.Wait()
 }
 
-func pipeToSocket(conn *websocket.Conn, r io.Reader) {
+func pipeToSocket(writer *socketWriter, r io.Reader) {
 	buf := make([]byte, 4096)
 	for {
 		n, err := r.Read(buf)
 		if n > 0 {
-			frame, marshalErr := json.Marshal(wsMessage{Type: "data", Data: string(buf[:n])})
-			if marshalErr == nil {
-				if writeErr := conn.WriteMessage(websocket.TextMessage, frame); writeErr != nil {
-					return
-				}
+			if writeErr := writer.write("data", string(buf[:n])); writeErr != nil {
+				return
 			}
 		}
 		if err != nil {
 			return
 		}
 	}
-}
-
-func writeFrame(conn *websocket.Conn, kind, message string) {
-	frame, err := json.Marshal(wsMessage{Type: kind, Data: message})
-	if err != nil {
-		return
-	}
-	_ = conn.WriteMessage(websocket.TextMessage, frame)
 }
 
 func loadServiceKey(path string) (ssh.Signer, error) {

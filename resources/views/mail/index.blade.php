@@ -75,7 +75,7 @@
                         <div class="kt-card">
                             <div class="kt-card-header"><h2 class="kt-card-title">IPs dedicadas para correo saliente</h2></div>
                             <div class="kt-card-content p-5 grid gap-4">
-                                <p class="text-sm text-secondary-foreground">Da de alta aquí una IP que ya esté asignada y funcionando en la interfaz de red del servidor (el panel no la asigna por ti), junto con el hostname que va a tener su PTR. Después asígnala a uno o varios dominios desde "DNS del correo" en la tabla de abajo.</p>
+                                <p class="text-sm text-secondary-foreground">Da de alta aquí una IPv4 que ya esté asignada y funcionando en la interfaz de red del servidor (el panel no la asigna por ti), junto con el hostname que va a tener su PTR. Después asígnala a uno o varios dominios desde "DNS del correo" en la tabla de abajo.</p>
                                 @if ($serverIpAddresses->isNotEmpty())
                                     <div class="overflow-x-auto rounded-xl border border-border">
                                         <table class="kt-table w-full">
@@ -102,7 +102,7 @@
                                 <form method="POST" action="{{ route('server-ip-addresses.store') }}" class="flex flex-wrap items-end gap-3">
                                     @csrf
                                     <div class="flex flex-col gap-1">
-                                        <label class="kt-form-label font-normal text-mono text-xs">IP</label>
+                                        <label class="kt-form-label font-normal text-mono text-xs">IPv4</label>
                                         <input class="kt-input" type="text" name="ip_address" placeholder="203.0.113.10" required/>
                                     </div>
                                     <div class="flex flex-col gap-1">
