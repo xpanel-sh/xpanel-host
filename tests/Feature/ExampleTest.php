@@ -46,7 +46,8 @@ class ExampleTest extends TestCase
             ->assertDontSee('[--sidebar-width:290px]', false)
             ->assertSee('Subdominios de example.com')
             ->assertSee('Mostrar subdominios')
-            ->assertSee('data-header-subdomains-list', false)
+            ->assertSee('data-header-subdomain-selector', false)
+            ->assertDontSee('data-header-subdomains-list', false)
             ->assertSee("localStorage.getItem(storageKey) === '1'", false)
             ->assertSee('app.example.com')
             ->assertSee(route('sites.show', $subdomain), false)
@@ -60,6 +61,8 @@ class ExampleTest extends TestCase
         $this->assertStringNotContainsString('ki-router', $subdomainToggle[1]);
         $this->assertStringContainsString('ki-click', $response->getContent());
         $this->assertStringContainsString('ki-router', $response->getContent());
+        $this->assertStringContainsString("selector.classList.toggle('hidden', !toggle.checked)", $response->getContent());
+        $this->assertStringContainsString("selector.classList.toggle('flex', toggle.checked)", $response->getContent());
     }
 
     public function test_first_boot_redirects_to_setup(): void
