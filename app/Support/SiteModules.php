@@ -67,7 +67,6 @@ class SiteModules
                     'auto-installer' => ['label' => 'Instalador automatico', 'icon' => 'ki-package', 'description' => 'Instala apps populares en un clic.'],
                     'migration' => ['label' => 'Migrar sitio web', 'icon' => 'ki-arrow-up-right', 'description' => 'Importa un sitio existente desde otro proveedor.'],
                     'error-pages' => ['label' => 'Paginas de error', 'icon' => 'ki-cross-circle', 'description' => 'Personaliza las paginas 404/500 de este sitio.'],
-                    'builder' => ['label' => 'Creador de sitios', 'icon' => 'ki-color-swatch', 'description' => 'Constructor visual de este sitio sin escribir codigo.'],
                 ],
             ],
             'files' => [

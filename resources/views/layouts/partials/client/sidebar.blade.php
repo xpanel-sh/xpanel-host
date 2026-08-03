@@ -28,12 +28,6 @@
             'url' => route('mail.index'),
             'active' => request()->routeIs('mail.*'),
         ],
-        [
-            'label' => 'Builder',
-            'icon' => 'ki-color-swatch',
-            'url' => route('builder.index'),
-            'active' => request()->routeIs('builder.*'),
-        ],
         $user?->hasPermission(Permissions::TEAM_MANAGE) ? [
             'label' => 'Equipo',
             'icon' => 'ki-people',

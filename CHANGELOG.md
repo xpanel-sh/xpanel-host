@@ -6,6 +6,9 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- Chat interno del equipo en la cabecera, con mensajes persistentes, lectura compartida por usuario e indicador de pendientes.
+- Notificaciones persistentes para acciones administrativas importantes, fallos de backups programados y errores de certificados SSL, con estado leído/no leído.
+
 - Configuración protegida de `PAGESPEED_API_KEY` desde la propia vista PageSpeed: la clave entra al helper por stdin, permanece oculta, actualiza la caché de configuración y restaura `.env` si la activación falla.
 - Medición real por sitio con muestras cada cinco minutos: archivos e inodos del `document_root`, tamaño de sus bases MariaDB, CPU/RAM/procesos e I/O de su identidad Unix, además de solicitudes y transferencia de su access log. La vista conserva 31 días de historial y distingue estas métricas observadas de los límites globales que administra Core.
 - Subcarpeta pública opcional por sitio (`public_path`, ej. `public` para Laravel): la raíz del proyecto sigue siendo el límite del gestor de archivos, SSH/SFTP y la terminal real, mientras nginx/Apache/OpenLiteSpeed, el pool PHP-FPM, el desafío ACME de Certbot y las páginas de error personalizadas sirven únicamente desde esa subcarpeta cuando está configurada.
@@ -42,6 +45,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - XMail funcional junto a Roundcube: autenticación propia por buzón, carpetas, lectura, envío SMTP autenticado, adjuntos y acciones IMAP.
 
 ### Cambiado
+
+- Se retiró por completo el Builder visual abandonado —accesos global y por sitio, ruta y vistas— para no presentar módulos que ya no forman parte del producto.
 
 - Los selectores activos de sitio y subdominio eliminan iconos redundantes para ganar espacio; el desplegable de sitios incorpora un switch persistente que muestra u oculta el selector independiente de subdominios de la cabecera.
 - El ancho del sidebar se declara como una variable CSS inline real, por lo que sus consumidores de ancho y margen heredan `310px` sin depender de que Tailwind haya generado una utilidad arbitraria específica.

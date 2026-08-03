@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\Domain;
 use App\Models\Site;
+use App\Models\User;
+use App\Notifications\PanelActivityNotification;
 use Illuminate\Console\Command;
 
 class SyncCertificateStatus extends Command
@@ -20,6 +22,13 @@ class SyncCertificateStatus extends Command
             if (! is_array($certificate) || ! isset($certificate['validTo_time_t'])) {
                 $site->update(['ssl_status' => 'error']);
                 Domain::where('domain', $site->domain)->update(['ssl_status' => 'error']);
+                User::query()->each(fn (User $user) => $user->notify(new PanelActivityNotification(
+                    'Error al comprobar un certificado SSL',
+                    "No se pudo leer el certificado de {$site->domain}.",
+                    route('sites.module', ['site' => $site, 'section' => 'security', 'module' => 'ssl']),
+                    'danger',
+                    'ki-shield-cross',
+                )));
                 $this->error("No se pudo leer el certificado de {$site->domain}.");
 
                 return;

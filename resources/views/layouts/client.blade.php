@@ -145,40 +145,38 @@
                             <i class="ki-filled ki-magnifier text-lg group-hover:text-primary"></i>
                         </button>
 
-                        <button class="kt-btn kt-btn-ghost kt-btn-icon size-9 rounded-full hover:[&_i]:text-primary"
-                            data-kt-drawer-toggle="#chat_drawer">
+                        <button class="relative kt-btn kt-btn-ghost kt-btn-icon size-9 rounded-full hover:[&_i]:text-primary"
+                            data-kt-drawer-toggle="#chat_drawer" data-team-chat-open aria-label="Abrir chat del equipo">
                             <i class="ki-filled ki-messages text-lg"></i>
+                            <span class="hidden absolute -end-1 -top-1 min-w-4 h-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white" id="team_chat_badge"></span>
                         </button>
                         <div class="hidden kt-drawer kt-drawer-end card flex-col max-w-[90%] w-[400px] top-5 bottom-5 end-5 rounded-xl border border-border"
                             data-kt-drawer="true" data-kt-drawer-container="body" id="chat_drawer">
                             <div class="flex items-center justify-between gap-2.5 text-sm text-mono font-semibold px-5 py-3.5 border-b border-b-border">
-                                Mensajes
-                                <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-drawer-dismiss="true">
+                                <div><div>Chat del equipo</div><div class="mt-0.5 text-xs font-normal text-secondary-foreground">Conversación interna de esta instalación</div></div>
+                                <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-drawer-dismiss="true" data-team-chat-close>
                                     <i class="ki-filled ki-cross"></i>
                                 </button>
                             </div>
-                            <div class="flex flex-col items-center justify-center grow gap-2 p-10 text-center text-sm text-secondary-foreground">
-                                <i class="ki-filled ki-messages text-3xl text-muted-foreground"></i>
-                                Sin mensajes por ahora.
-                            </div>
+                            <div class="kt-scrollable-y-auto grow p-5" id="team_chat_messages"><div class="py-10 text-center text-sm text-secondary-foreground">Cargando conversación…</div></div>
+                            <form class="grid gap-3 border-t border-border p-4" id="team_chat_form">
+                                <textarea class="kt-textarea min-h-20 resize-none" id="team_chat_body" maxlength="2000" placeholder="Escribe un mensaje para el equipo…" required></textarea>
+                                <div class="flex items-center justify-between gap-3"><span class="text-xs text-secondary-foreground" id="team_chat_status">Enter para enviar · Shift+Enter para una línea nueva</span><button class="kt-btn kt-btn-primary" type="submit"><i class="ki-filled ki-send"></i> Enviar</button></div>
+                            </form>
                         </div>
 
-                        <button class="kt-btn kt-btn-ghost kt-btn-icon size-9 rounded-full hover:[&_i]:text-primary"
-                            data-kt-drawer-toggle="#notifications_drawer">
+                        <button class="relative kt-btn kt-btn-ghost kt-btn-icon size-9 rounded-full hover:[&_i]:text-primary"
+                            data-kt-drawer-toggle="#notifications_drawer" data-notifications-open aria-label="Abrir notificaciones">
                             <i class="ki-filled ki-notification-status text-lg"></i>
+                            <span class="hidden absolute -end-1 -top-1 min-w-4 h-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white" id="notifications_badge"></span>
                         </button>
                         <div class="hidden kt-drawer kt-drawer-end card flex-col max-w-[90%] w-[400px] top-5 bottom-5 end-5 rounded-xl border border-border"
                             data-kt-drawer="true" data-kt-drawer-container="body" id="notifications_drawer">
                             <div class="flex items-center justify-between gap-2.5 text-sm text-mono font-semibold px-5 py-3.5 border-b border-b-border">
-                                Notificaciones
-                                <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-drawer-dismiss="true">
-                                    <i class="ki-filled ki-cross"></i>
-                                </button>
+                                <span>Notificaciones</span>
+                                <div class="flex items-center gap-2"><button class="kt-btn kt-btn-sm kt-btn-ghost" id="notifications_read_all" type="button">Marcar leídas</button><button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-drawer-dismiss="true"><i class="ki-filled ki-cross"></i></button></div>
                             </div>
-                            <div class="flex flex-col items-center justify-center grow gap-2 p-10 text-center text-sm text-secondary-foreground">
-                                <i class="ki-filled ki-notification-status text-3xl text-muted-foreground"></i>
-                                Sin notificaciones por ahora.
-                            </div>
+                            <div class="kt-scrollable-y-auto grow divide-y divide-border" id="notifications_list"><div class="p-10 text-center text-sm text-secondary-foreground">Cargando notificaciones…</div></div>
                         </div>
                     </div>
 
@@ -257,6 +255,190 @@
             render();
             toggle.addEventListener('change', () => render(true));
             control?.addEventListener('click', event => event.stopPropagation());
+        })();
+    </script>
+    <script>
+        (() => {
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            const chat = {
+                index: @json(route('team-chat.index')),
+                store: @json(route('team-chat.store')),
+                read: @json(route('team-chat.read')),
+            };
+            const notifications = {
+                index: @json(route('notifications.index')),
+                read: @json(route('notifications.read', '__notification__')),
+                readAll: @json(route('notifications.read-all')),
+            };
+            const requestJson = async (url, options = {}) => {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': csrf, ...(options.headers ?? {})},
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(payload.message ?? 'No se pudo completar la operación.');
+                return payload;
+            };
+            const time = value => value ? new Intl.DateTimeFormat('es', {dateStyle: 'short', timeStyle: 'short'}).format(new Date(value)) : '';
+            const setBadge = (element, count) => {
+                if (!element) return;
+                element.textContent = count > 99 ? '99+' : String(count);
+                element.classList.toggle('hidden', count < 1);
+                element.classList.toggle('flex', count > 0);
+            };
+
+            const chatList = document.getElementById('team_chat_messages');
+            const chatBadge = document.getElementById('team_chat_badge');
+            const chatForm = document.getElementById('team_chat_form');
+            const chatBody = document.getElementById('team_chat_body');
+            const chatStatus = document.getElementById('team_chat_status');
+            let chatOpen = false;
+            const renderChat = messages => {
+                chatList.replaceChildren();
+                if (messages.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'flex h-full flex-col items-center justify-center gap-2 py-10 text-center text-sm text-secondary-foreground';
+                    empty.textContent = 'Aún no hay mensajes. Inicia la conversación del equipo.';
+                    chatList.append(empty);
+                    return;
+                }
+                const stack = document.createElement('div');
+                stack.className = 'grid gap-3';
+                messages.forEach(message => {
+                    const row = document.createElement('div');
+                    row.className = `flex ${message.mine ? 'justify-end' : 'justify-start'}`;
+                    const bubble = document.createElement('div');
+                    bubble.className = `max-w-[85%] rounded-xl px-3 py-2 ${message.mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`;
+                    const meta = document.createElement('div');
+                    meta.className = `mb-1 text-xs font-medium ${message.mine ? 'text-primary-foreground' : 'text-secondary-foreground'}`;
+                    meta.textContent = `${message.sender} · ${time(message.created_at)}`;
+                    const body = document.createElement('div');
+                    body.className = 'whitespace-pre-wrap break-words text-sm';
+                    body.textContent = message.body;
+                    bubble.append(meta, body);
+                    row.append(bubble);
+                    stack.append(row);
+                });
+                chatList.append(stack);
+                chatList.scrollTop = chatList.scrollHeight;
+            };
+            const refreshChat = async () => {
+                try {
+                    const payload = await requestJson(chat.index);
+                    renderChat(payload.messages ?? []);
+                    setBadge(chatBadge, Number(payload.unread ?? 0));
+                    if (chatOpen && Number(payload.unread ?? 0) > 0) await markChatRead();
+                } catch (error) {
+                    chatList.replaceChildren();
+                    const failure = document.createElement('div');
+                    failure.className = 'p-6 text-center text-sm text-danger';
+                    failure.textContent = error.message;
+                    chatList.append(failure);
+                }
+            };
+            const markChatRead = async () => {
+                try {
+                    await requestJson(chat.read, {method: 'POST'});
+                    setBadge(chatBadge, 0);
+                } catch (_) {}
+            };
+            document.querySelector('[data-team-chat-open]')?.addEventListener('click', () => {
+                chatOpen = true;
+                refreshChat().then(markChatRead);
+                setTimeout(() => chatBody?.focus(), 250);
+            });
+            document.querySelector('[data-team-chat-close]')?.addEventListener('click', () => { chatOpen = false; });
+            chatForm?.addEventListener('submit', async event => {
+                event.preventDefault();
+                const body = chatBody.value.trim();
+                if (!body) return;
+                const button = chatForm.querySelector('button[type="submit"]');
+                button.disabled = true;
+                chatStatus.textContent = 'Enviando…';
+                try {
+                    await requestJson(chat.store, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({body})});
+                    chatBody.value = '';
+                    await refreshChat();
+                    await markChatRead();
+                    chatStatus.textContent = 'Mensaje enviado';
+                } catch (error) {
+                    chatStatus.textContent = error.message;
+                } finally {
+                    button.disabled = false;
+                }
+            });
+            chatBody?.addEventListener('keydown', event => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    chatForm?.requestSubmit();
+                }
+            });
+
+            const notificationList = document.getElementById('notifications_list');
+            const notificationBadge = document.getElementById('notifications_badge');
+            const renderNotifications = items => {
+                notificationList.replaceChildren();
+                if (items.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'flex h-full flex-col items-center justify-center gap-2 p-10 text-center text-sm text-secondary-foreground';
+                    empty.textContent = 'No tienes notificaciones.';
+                    notificationList.append(empty);
+                    return;
+                }
+                items.forEach(item => {
+                    const link = document.createElement('a');
+                    link.href = item.url || '/';
+                    link.className = `flex gap-3 p-4 hover:bg-muted ${item.read ? '' : 'bg-primary/5'}`;
+                    const iconBox = document.createElement('span');
+                    iconBox.className = `flex size-9 shrink-0 items-center justify-center rounded-lg ${item.level === 'danger' ? 'bg-danger/10 text-danger' : item.level === 'warning' ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary'}`;
+                    const icon = document.createElement('i');
+                    icon.className = `ki-filled ${item.icon || 'ki-notification-status'}`;
+                    iconBox.append(icon);
+                    const content = document.createElement('span');
+                    content.className = 'min-w-0 grow';
+                    const title = document.createElement('span');
+                    title.className = 'block text-sm font-medium text-mono';
+                    title.textContent = item.title;
+                    const message = document.createElement('span');
+                    message.className = 'mt-1 block text-xs text-secondary-foreground';
+                    message.textContent = item.message || '';
+                    const date = document.createElement('span');
+                    date.className = 'mt-1 block text-xs text-muted-foreground';
+                    date.textContent = time(item.created_at);
+                    content.append(title, message, date);
+                    link.append(iconBox, content);
+                    if (!item.read) link.addEventListener('click', async event => {
+                        event.preventDefault();
+                        try { await requestJson(notifications.read.replace('__notification__', encodeURIComponent(item.id)), {method: 'POST'}); } catch (_) {}
+                        window.location.href = link.href;
+                    });
+                    notificationList.append(link);
+                });
+            };
+            const refreshNotifications = async () => {
+                try {
+                    const payload = await requestJson(notifications.index);
+                    renderNotifications(payload.notifications ?? []);
+                    setBadge(notificationBadge, Number(payload.unread ?? 0));
+                } catch (error) {
+                    notificationList.replaceChildren();
+                    const failure = document.createElement('div');
+                    failure.className = 'p-6 text-center text-sm text-danger';
+                    failure.textContent = error.message;
+                    notificationList.append(failure);
+                }
+            };
+            document.querySelector('[data-notifications-open]')?.addEventListener('click', refreshNotifications);
+            document.getElementById('notifications_read_all')?.addEventListener('click', async () => {
+                try {
+                    await requestJson(notifications.readAll, {method: 'POST'});
+                    await refreshNotifications();
+                } catch (_) {}
+            });
+
+            refreshChat();
+            refreshNotifications();
+            setInterval(() => { if (!document.hidden) { refreshChat(); refreshNotifications(); } }, 15000);
         })();
     </script>
     @stack('scripts')

@@ -4,9 +4,12 @@ namespace App\Http\Middleware;
 
 use App\Models\ActivityLog;
 use App\Models\Site;
+use App\Models\User;
+use App\Notifications\PanelActivityNotification;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\ViewErrorBag;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuditMutations
@@ -32,12 +35,46 @@ class AuditMutations
                         'site' => $site instanceof Site ? $site->domain : null,
                     ],
                 ]);
+                $this->notifyTeam($request, $routeName, $siteExists ? $site : null, $response);
             } catch (\Throwable $exception) {
                 Log::warning('No se pudo registrar una acción administrativa.', ['exception' => $exception->getMessage()]);
             }
         }
 
         return $response;
+    }
+
+    private function notifyTeam(Request $request, string $routeName, ?Site $site, Response $response): void
+    {
+        $routes = [
+            'sites.store', 'sites.update', 'sites.destroy', 'sites.restart',
+            'sites.backups.store', 'sites.backups.restore', 'sites.backups.destroy', 'sites.backups.policy',
+            'sites.ssl.issue', 'sites.ssl.destroy', 'sites.malware.store', 'sites.malware.quarantine',
+            'sites.wordpress.store', 'sites.migrations.store', 'sites.git.deploy',
+            'mail.store', 'mail.destroy', 'team.store', 'team.update', 'team.destroy',
+            'roles.store', 'roles.update', 'roles.destroy', 'settings.panel-access.domain',
+            'settings.panel-access.ip', 'settings.panel-access.ssl', 'settings.web-servers.install',
+        ];
+        if (! in_array($routeName, $routes, true) || $response->getStatusCode() >= 400) {
+            return;
+        }
+        $errors = $request->session()->get('errors');
+        if ($errors instanceof ViewErrorBag && $errors->any()) {
+            return;
+        }
+
+        $description = $this->description($routeName);
+        $actor = $request->user()?->name ?? 'El sistema';
+        $url = $site?->exists ? route('sites.show', $site) : url('/');
+        User::query()->each(function (User $user) use ($description, $actor, $url): void {
+            $user->notify(new PanelActivityNotification(
+                $description,
+                $actor.' realizó esta acción en XPanel Host.',
+                $url,
+                'success',
+                'ki-check-circle',
+            ));
+        });
     }
 
     private function description(string $routeName): string
@@ -94,6 +131,18 @@ class AuditMutations
             'sites.subdomains.store' => 'Creó un subdominio.',
             'sites.subdomains.destroy' => 'Eliminó un subdominio.',
             'sites.access.terminal.token' => 'Abrió una terminal SSH real del sitio.',
+            'mail.store' => 'Creó una cuenta de correo.',
+            'mail.destroy' => 'Eliminó una cuenta de correo.',
+            'team.store' => 'Añadió un miembro al equipo.',
+            'team.update' => 'Actualizó un miembro del equipo.',
+            'team.destroy' => 'Retiró un miembro del equipo.',
+            'roles.store' => 'Creó un rol del equipo.',
+            'roles.update' => 'Actualizó un rol del equipo.',
+            'roles.destroy' => 'Eliminó un rol del equipo.',
+            'settings.panel-access.domain' => 'Cambió el dominio de acceso al panel.',
+            'settings.panel-access.ip' => 'Cambió el acceso del panel a IP y puerto.',
+            'settings.panel-access.ssl' => 'Activó SSL para el panel.',
+            'settings.web-servers.install' => 'Instaló un motor web en el servidor.',
         ][$routeName] ?? 'Ejecutó una acción administrativa: '.$routeName.'.';
     }
 }

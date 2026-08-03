@@ -25,6 +25,7 @@ use App\Http\Controllers\MalwareScanController;
 use App\Http\Controllers\OwnershipController;
 use App\Http\Controllers\PageSpeedController;
 use App\Http\Controllers\PanelAccessController;
+use App\Http\Controllers\PanelNotificationController;
 use App\Http\Controllers\ParkedDomainController;
 use App\Http\Controllers\PhpConfigurationController;
 use App\Http\Controllers\PhpMyAdminController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\SiteMigrationController;
 use App\Http\Controllers\SiteOperationController;
 use App\Http\Controllers\SiteTerminalController;
 use App\Http\Controllers\SubdomainController;
+use App\Http\Controllers\TeamChatController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WebServerEngineController;
 use App\Http\Controllers\WordPressController;
@@ -86,6 +88,17 @@ Route::middleware('setup.complete')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
 
+        Route::prefix('/team-chat')->name('team-chat.')->group(function () {
+            Route::get('/messages', [TeamChatController::class, 'index'])->middleware('throttle:120,1')->name('index');
+            Route::post('/messages', [TeamChatController::class, 'store'])->middleware('throttle:30,1')->name('store');
+            Route::post('/read', [TeamChatController::class, 'read'])->middleware('throttle:60,1')->name('read');
+        });
+        Route::prefix('/notifications')->name('notifications.')->group(function () {
+            Route::get('/', [PanelNotificationController::class, 'index'])->middleware('throttle:120,1')->name('index');
+            Route::post('/read-all', [PanelNotificationController::class, 'readAll'])->middleware('throttle:60,1')->name('read-all');
+            Route::post('/{notification}/read', [PanelNotificationController::class, 'read'])->middleware('throttle:60,1')->name('read');
+        });
+
         Route::get('/', function () {
             $user = auth()->user();
 
@@ -114,8 +127,6 @@ Route::middleware('setup.complete')->group(function () {
 
         Route::middleware('permission:'.Permissions::SITES_VIEW)->group(function () {
             Route::resource('sites', SiteController::class)->only(['index']);
-            Route::get('/builder', fn () => view('builder.index'))->name('builder.index');
-
             // Registered before /domains/{domain} (destroy) below so the literal
             // segments don't get swallowed by the wildcard.
             Route::get('/domains', [DomainController::class, 'index'])->name('domains.index');

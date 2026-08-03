@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\ActivityLog;
 use App\Models\BackupPolicy;
+use App\Models\User;
+use App\Notifications\PanelActivityNotification;
 use App\Services\SiteBackupManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
@@ -40,6 +42,13 @@ class RunScheduledBackups extends Command
                     'description' => 'Falló un backup programado.',
                     'metadata' => ['status' => 'failed', 'error' => Str::limit($exception->getMessage(), 500, '')],
                 ]);
+                User::query()->each(fn (User $user) => $user->notify(new PanelActivityNotification(
+                    'Falló un backup programado',
+                    "No se pudo crear el backup de {$policy->site->domain}: ".Str::limit($exception->getMessage(), 240, ''),
+                    route('sites.backups.index', $policy->site),
+                    'danger',
+                    'ki-cloud-change',
+                )));
                 $this->error("Falló el backup de {$policy->site->domain}: {$exception->getMessage()}");
             }
         });

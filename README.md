@@ -56,7 +56,7 @@ Servidor Linux o MicroVM
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
 | **PHP y tareas** | Límites PHP por sitio, resumen seguro del runtime y tareas Cron administradas sin ejecución como root |
 | **Tráfico y seguridad** | Analítica desde logs, caché, listado de carpetas, protección Hotlink y reglas IPv4/IPv6 por sitio |
-| **Acceso** | Propietario, equipo, roles, permisos, SFTP confinado, FTPS opcional y SSH por llaves |
+| **Acceso y equipo** | Propietario, roles, permisos, chat interno, notificaciones persistentes, SFTP confinado, FTPS opcional y SSH por llaves |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
 | **Despliegue** | Standalone o dentro de una MicroVM administrada por Core |
 
@@ -141,15 +141,13 @@ php artisan xpanel:admin-password --generate
 
 En una MicroVM administrada por Core, cada alias también debe registrarse como dominio de entrada en Core/Traefik. Host configura el servicio interno, pero no modifica automáticamente el enrutamiento del servidor padre.
 
-### Módulos visibles que siguen en preparación
-
-El menú conserva el diseño futuro, pero marca como **En preparación** las funciones que aún no tienen operación de servidor completa: constructor web. Sus botones de mutación permanecen desactivados; no se presentan datos de ejemplo como si fueran reales.
-
 Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio.
 
 **Archivos → Cuentas FTP** habilita SFTP confinado en un jail cuya carpeta `/site` enlaza únicamente el document root. FTPS explícito es opcional, utiliza vsftpd, una allowlist de usuarios y los puertos 21/40000-40100; FTP anónimo o sin TLS permanece desactivado. La contraseña Linux se entrega al helper por entrada estándar y Host sólo registra cuándo se rotó.
 
 **Avanzado → Acceso SSH** habilita terminal exclusivamente después de registrar una llave Ed25519 o RSA. La terminal no acepta contraseña y bloquea forwarding TCP, X11, túneles y gateway ports. Al permitir terminal, SFTP utiliza el mismo usuario y el aislamiento entre sitios depende de los grupos Unix exclusivos y permisos `0750`; sin terminal, SFTP usa además `ChrootDirectory`.
+
+El **chat del equipo** de la cabecera conserva los últimos mensajes de la instalación y mantiene el estado de lectura por usuario. Las **notificaciones** registran acciones administrativas importantes y alertas automáticas de backups o certificados; cada miembro sólo puede modificar el estado de sus propias notificaciones.
 
 ### Escáner de malware
 
