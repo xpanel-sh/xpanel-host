@@ -219,7 +219,7 @@
     </div>
 
     <div class="kt-modal" data-kt-modal="true" id="search_modal">
-        <div class="kt-modal-content max-w-[680px] top-[10%]">
+        <div class="kt-modal-content max-w-[600px] top-[15%]">
             <div class="kt-modal-header py-4 px-5">
                 <i class="ki-filled ki-magnifier text-muted-foreground text-xl"></i>
                 <input class="kt-input kt-input-ghost" id="global_search_input" placeholder="Buscar sitios, módulos, correos, bases de datos..." type="search" autocomplete="off" aria-label="Buscar en xpanel-host" aria-controls="global_search_results" />
@@ -228,7 +228,7 @@
                     <i class="ki-filled ki-cross"></i>
                 </button>
             </div>
-            <div class="kt-modal-body max-h-[60vh] overflow-y-auto p-0" id="global_search_results" aria-live="polite">
+            <div class="kt-modal-body max-h-[60vh] overflow-y-auto py-3" id="global_search_results" aria-live="polite">
                 <div class="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
                     <span class="flex size-12 items-center justify-center rounded-full bg-muted"><i class="ki-filled ki-magnifier text-xl text-secondary-foreground"></i></span>
                     <div class="text-sm font-medium text-mono">Busca en todo el panel</div>
