@@ -89,9 +89,11 @@ Route::middleware('setup.complete')->group(function () {
         Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
 
         Route::prefix('/team-chat')->name('team-chat.')->group(function () {
-            Route::get('/messages', [TeamChatController::class, 'index'])->middleware('throttle:120,1')->name('index');
-            Route::post('/messages', [TeamChatController::class, 'store'])->middleware('throttle:30,1')->name('store');
-            Route::post('/read', [TeamChatController::class, 'read'])->middleware('throttle:60,1')->name('read');
+            Route::get('/conversations', [TeamChatController::class, 'conversations'])->middleware('throttle:120,1')->name('conversations');
+            Route::post('/conversations', [TeamChatController::class, 'createConversation'])->middleware('throttle:20,1')->name('conversations.store');
+            Route::get('/conversations/{conversation}/messages', [TeamChatController::class, 'messages'])->middleware('throttle:120,1')->name('messages');
+            Route::post('/conversations/{conversation}/messages', [TeamChatController::class, 'storeMessage'])->middleware('throttle:30,1')->name('messages.store');
+            Route::post('/conversations/{conversation}/read', [TeamChatController::class, 'read'])->middleware('throttle:60,1')->name('read');
         });
         Route::prefix('/notifications')->name('notifications.')->group(function () {
             Route::get('/', [PanelNotificationController::class, 'index'])->middleware('throttle:120,1')->name('index');

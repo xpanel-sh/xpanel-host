@@ -153,13 +153,11 @@
                         <div class="hidden kt-drawer kt-drawer-end card flex-col max-w-[90%] w-[400px] top-5 bottom-5 end-5 rounded-xl border border-border"
                             data-kt-drawer="true" data-kt-drawer-container="body" id="chat_drawer">
                             <div class="flex items-center justify-between gap-2.5 text-sm text-mono font-semibold px-5 py-3.5 border-b border-b-border">
-                                <div><div>Chat del equipo</div><div class="mt-0.5 text-xs font-normal text-secondary-foreground">Conversación interna de esta instalación</div></div>
-                                <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-drawer-dismiss="true" data-team-chat-close>
-                                    <i class="ki-filled ki-cross"></i>
-                                </button>
+                                <div class="flex min-w-0 items-center gap-2"><button class="hidden kt-btn kt-btn-sm kt-btn-icon kt-btn-ghost" id="team_chat_back" type="button"><i class="ki-filled ki-left"></i></button><div class="min-w-0"><div class="truncate" id="team_chat_title">Chat del equipo</div><div class="mt-0.5 truncate text-xs font-normal text-secondary-foreground" id="team_chat_subtitle">Conversaciones internas de esta instalación</div></div></div>
+                                <div class="flex items-center gap-2"><button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-ghost" id="team_chat_new" type="button" aria-label="Nueva conversación"><i class="ki-filled ki-plus"></i></button><button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-drawer-dismiss="true" data-team-chat-close><i class="ki-filled ki-cross"></i></button></div>
                             </div>
-                            <div class="kt-scrollable-y-auto grow p-5" id="team_chat_messages"><div class="py-10 text-center text-sm text-secondary-foreground">Cargando conversación…</div></div>
-                            <form class="grid gap-3 border-t border-border p-4" id="team_chat_form">
+                            <div class="kt-scrollable-y-auto grow" id="team_chat_messages"><div class="p-10 text-center text-sm text-secondary-foreground">Cargando conversaciones…</div></div>
+                            <form class="hidden grid gap-3 border-t border-border p-4" id="team_chat_form">
                                 <textarea class="kt-textarea min-h-20 resize-none" id="team_chat_body" maxlength="2000" placeholder="Escribe un mensaje para el equipo…" required></textarea>
                                 <div class="flex items-center justify-between gap-3"><span class="text-xs text-secondary-foreground" id="team_chat_status">Enter para enviar · Shift+Enter para una línea nueva</span><button class="kt-btn kt-btn-primary" type="submit"><i class="ki-filled ki-send"></i> Enviar</button></div>
                             </form>
@@ -261,9 +259,11 @@
         (() => {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
             const chat = {
-                index: @json(route('team-chat.index')),
-                store: @json(route('team-chat.store')),
-                read: @json(route('team-chat.read')),
+                conversations: @json(route('team-chat.conversations')),
+                create: @json(route('team-chat.conversations.store')),
+                messages: @json(route('team-chat.messages', '__conversation__')),
+                store: @json(route('team-chat.messages.store', '__conversation__')),
+                read: @json(route('team-chat.read', '__conversation__')),
             };
             const notifications = {
                 index: @json(route('notifications.index')),
@@ -292,14 +292,32 @@
             const chatForm = document.getElementById('team_chat_form');
             const chatBody = document.getElementById('team_chat_body');
             const chatStatus = document.getElementById('team_chat_status');
-            let chatOpen = false;
-            const renderChat = messages => {
+            const chatTitle = document.getElementById('team_chat_title');
+            const chatSubtitle = document.getElementById('team_chat_subtitle');
+            const chatBack = document.getElementById('team_chat_back');
+            const chatNew = document.getElementById('team_chat_new');
+            let activeConversation = null;
+            let chatView = 'list';
+            let teamUsers = [];
+            let conversationCache = [];
+            const conversationUrl = (template, id) => template.replace('__conversation__', encodeURIComponent(id));
+            const setChatHeader = (title, subtitle, inside = false) => {
+                chatTitle.textContent = title;
+                chatSubtitle.textContent = subtitle;
+                chatBack.classList.toggle('hidden', !inside);
+                chatNew.classList.toggle('hidden', inside);
+                chatForm.classList.toggle('hidden', !activeConversation);
+            };
+            const renderMessages = messages => {
                 chatList.replaceChildren();
+                const viewport = document.createElement('div');
+                viewport.className = 'p-5';
                 if (messages.length === 0) {
                     const empty = document.createElement('div');
                     empty.className = 'flex h-full flex-col items-center justify-center gap-2 py-10 text-center text-sm text-secondary-foreground';
-                    empty.textContent = 'Aún no hay mensajes. Inicia la conversación del equipo.';
-                    chatList.append(empty);
+                    empty.textContent = 'Aún no hay mensajes en esta conversación.';
+                    viewport.append(empty);
+                    chatList.append(viewport);
                     return;
                 }
                 const stack = document.createElement('div');
@@ -319,15 +337,58 @@
                     row.append(bubble);
                     stack.append(row);
                 });
-                chatList.append(stack);
+                viewport.append(stack);
+                chatList.append(viewport);
                 chatList.scrollTop = chatList.scrollHeight;
             };
-            const refreshChat = async () => {
+            const renderConversationList = () => {
+                activeConversation = null;
+                chatView = 'list';
+                setChatHeader('Chat del equipo', 'Directos y grupos internos');
+                chatList.replaceChildren();
+                if (conversationCache.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'p-10 text-center text-sm text-secondary-foreground';
+                    empty.textContent = 'No tienes conversaciones. Crea una con el botón +.';
+                    chatList.append(empty);
+                    return;
+                }
+                conversationCache.forEach(conversation => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'flex w-full items-center gap-3 border-b border-border p-4 text-start hover:bg-muted';
+                    const icon = document.createElement('span');
+                    icon.className = 'flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary';
+                    const iconGlyph = document.createElement('i');
+                    iconGlyph.className = `ki-filled ${conversation.type === 'direct' ? 'ki-user' : 'ki-people'}`;
+                    icon.append(iconGlyph);
+                    const content = document.createElement('span');
+                    content.className = 'min-w-0 grow';
+                    const name = document.createElement('span');
+                    name.className = 'block truncate text-sm font-medium text-mono';
+                    name.textContent = conversation.name;
+                    const preview = document.createElement('span');
+                    preview.className = 'mt-1 block truncate text-xs text-secondary-foreground';
+                    preview.textContent = conversation.latest_message ? `${conversation.latest_sender ?? ''}: ${conversation.latest_message}` : conversation.participants.join(', ');
+                    content.append(name, preview);
+                    button.append(icon, content);
+                    if (conversation.unread > 0) {
+                        const unread = document.createElement('span');
+                        unread.className = 'flex min-w-5 h-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground';
+                        unread.textContent = conversation.unread > 99 ? '99+' : String(conversation.unread);
+                        button.append(unread);
+                    }
+                    button.addEventListener('click', () => openConversation(conversation));
+                    chatList.append(button);
+                });
+            };
+            const refreshConversations = async (render = activeConversation === null) => {
                 try {
-                    const payload = await requestJson(chat.index);
-                    renderChat(payload.messages ?? []);
+                    const payload = await requestJson(chat.conversations);
+                    conversationCache = payload.conversations ?? [];
+                    teamUsers = payload.users ?? [];
                     setBadge(chatBadge, Number(payload.unread ?? 0));
-                    if (chatOpen && Number(payload.unread ?? 0) > 0) await markChatRead();
+                    if (render) renderConversationList();
                 } catch (error) {
                     chatList.replaceChildren();
                     const failure = document.createElement('div');
@@ -336,29 +397,109 @@
                     chatList.append(failure);
                 }
             };
-            const markChatRead = async () => {
+            const refreshMessages = async () => {
+                if (!activeConversation) return;
                 try {
-                    await requestJson(chat.read, {method: 'POST'});
-                    setBadge(chatBadge, 0);
+                    const payload = await requestJson(conversationUrl(chat.messages, activeConversation.id));
+                    activeConversation = payload.conversation;
+                    setChatHeader(activeConversation.name, activeConversation.participants.join(', '), true);
+                    renderMessages(payload.messages ?? []);
+                    if (Number(payload.unread ?? 0) > 0) await markChatRead();
+                } catch (error) {
+                    chatStatus.textContent = error.message;
+                }
+            };
+            const markChatRead = async () => {
+                if (!activeConversation) return;
+                try {
+                    await requestJson(conversationUrl(chat.read, activeConversation.id), {method: 'POST'});
+                    await refreshConversations(false);
                 } catch (_) {}
             };
+            const openConversation = async conversation => {
+                activeConversation = conversation;
+                chatView = 'conversation';
+                setChatHeader(conversation.name, conversation.participants.join(', '), true);
+                chatForm.classList.remove('hidden');
+                chatList.innerHTML = '<div class="p-10 text-center text-sm text-secondary-foreground">Cargando mensajes…</div>';
+                await refreshMessages();
+                setTimeout(() => chatBody?.focus(), 100);
+            };
+            const renderCreateConversation = () => {
+                activeConversation = null;
+                chatView = 'create';
+                setChatHeader('Nueva conversación', 'Directa o grupo interno', true);
+                chatForm.classList.add('hidden');
+                chatList.replaceChildren();
+                const form = document.createElement('form');
+                form.className = 'grid gap-4 p-5';
+                const type = document.createElement('select');
+                type.className = 'kt-select';
+                type.innerHTML = '<option value="direct">Mensaje directo</option><option value="group">Crear grupo</option>';
+                const name = document.createElement('input');
+                name.className = 'hidden kt-input';
+                name.placeholder = 'Nombre del grupo';
+                name.maxLength = 80;
+                const users = document.createElement('select');
+                users.className = 'kt-select min-h-40';
+                users.multiple = false;
+                users.size = 6;
+                teamUsers.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.name} · ${user.email}`;
+                    users.append(option);
+                });
+                const help = document.createElement('p');
+                help.className = 'text-xs text-secondary-foreground';
+                help.textContent = 'Para un mensaje directo selecciona una persona. Para un grupo puedes seleccionar varias.';
+                const submit = document.createElement('button');
+                submit.className = 'kt-btn kt-btn-primary w-fit';
+                submit.type = 'submit';
+                submit.textContent = 'Crear conversación';
+                const status = document.createElement('p');
+                status.className = 'text-sm text-danger';
+                type.addEventListener('change', () => {
+                    const group = type.value === 'group';
+                    name.classList.toggle('hidden', !group);
+                    users.multiple = group;
+                    Array.from(users.options).forEach(option => { option.selected = false; });
+                });
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    const participantIds = Array.from(users.selectedOptions).map(option => Number(option.value));
+                    submit.disabled = true;
+                    status.textContent = '';
+                    try {
+                        const payload = await requestJson(chat.create, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({type: type.value, name: name.value, participant_ids: participantIds})});
+                        await refreshConversations(false);
+                        await openConversation(payload.conversation);
+                    } catch (error) {
+                        status.textContent = error.message;
+                    } finally {
+                        submit.disabled = false;
+                    }
+                });
+                form.append(type, name, users, help, submit, status);
+                chatList.append(form);
+            };
             document.querySelector('[data-team-chat-open]')?.addEventListener('click', () => {
-                chatOpen = true;
-                refreshChat().then(markChatRead);
-                setTimeout(() => chatBody?.focus(), 250);
+                refreshConversations(chatView === 'list');
             });
-            document.querySelector('[data-team-chat-close]')?.addEventListener('click', () => { chatOpen = false; });
+            chatBack?.addEventListener('click', renderConversationList);
+            chatNew?.addEventListener('click', renderCreateConversation);
             chatForm?.addEventListener('submit', async event => {
                 event.preventDefault();
+                if (!activeConversation) return;
                 const body = chatBody.value.trim();
                 if (!body) return;
                 const button = chatForm.querySelector('button[type="submit"]');
                 button.disabled = true;
                 chatStatus.textContent = 'Enviando…';
                 try {
-                    await requestJson(chat.store, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({body})});
+                    await requestJson(conversationUrl(chat.store, activeConversation.id), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({body})});
                     chatBody.value = '';
-                    await refreshChat();
+                    await refreshMessages();
                     await markChatRead();
                     chatStatus.textContent = 'Mensaje enviado';
                 } catch (error) {
@@ -436,9 +577,9 @@
                 } catch (_) {}
             });
 
-            refreshChat();
+            refreshConversations();
             refreshNotifications();
-            setInterval(() => { if (!document.hidden) { refreshChat(); refreshNotifications(); } }, 15000);
+            setInterval(async () => { if (!document.hidden) { await refreshConversations(chatView === 'list'); if (chatView === 'conversation') await refreshMessages(); refreshNotifications(); } }, 15000);
         })();
     </script>
     @stack('scripts')

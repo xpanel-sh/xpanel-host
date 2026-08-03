@@ -147,7 +147,7 @@ Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, desplieg
 
 **Avanzado → Acceso SSH** habilita terminal exclusivamente después de registrar una llave Ed25519 o RSA. La terminal no acepta contraseña y bloquea forwarding TCP, X11, túneles y gateway ports. Al permitir terminal, SFTP utiliza el mismo usuario y el aislamiento entre sitios depende de los grupos Unix exclusivos y permisos `0750`; sin terminal, SFTP usa además `ChrootDirectory`.
 
-El **chat del equipo** de la cabecera conserva los últimos mensajes de la instalación y mantiene el estado de lectura por usuario. Las **notificaciones** registran acciones administrativas importantes y alertas automáticas de backups o certificados; cada miembro sólo puede modificar el estado de sus propias notificaciones.
+El **chat del equipo** de la cabecera permite conversaciones directas entre dos usuarios y grupos internos con varios miembros. El grupo general «Equipo» incorpora automáticamente las cuentas locales, conserva los mensajes existentes y mantiene la lectura por usuario y conversación. Las **notificaciones** registran acciones administrativas importantes y alertas automáticas de backups o certificados; cada miembro sólo puede modificar el estado de sus propias notificaciones. La comunicación con usuarios de otro servidor requerirá en el futuro un servicio federado explícito y no está habilitada por defecto.
 
 ### Escáner de malware
 

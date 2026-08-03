@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Models\TeamConversation;
 use App\Models\TeamMessage;
 use App\Models\User;
 use App\Notifications\PanelActivityNotification;
@@ -25,28 +26,70 @@ class TeamChatAndNotificationsTest extends TestCase
     {
         $alice = $this->user('Alice');
         $bob = $this->user('Bob');
+        $conversation = TeamConversation::where('is_default', true)->firstOrFail();
 
-        $this->actingAs($alice)->postJson(route('team-chat.store'), ['body' => 'Hola equipo'])
+        $this->actingAs($alice)->postJson(route('team-chat.messages.store', $conversation), ['body' => 'Hola equipo'])
             ->assertCreated()
             ->assertJsonPath('message.body', 'Hola equipo');
 
-        $this->assertDatabaseHas('team_messages', ['sender_id' => $alice->id, 'body' => 'Hola equipo']);
-        $this->actingAs($bob)->getJson(route('team-chat.index'))
+        $this->assertDatabaseHas('team_messages', ['team_conversation_id' => $conversation->id, 'sender_id' => $alice->id, 'body' => 'Hola equipo']);
+        $this->actingAs($bob)->getJson(route('team-chat.messages', $conversation))
             ->assertOk()
             ->assertJsonPath('unread', 1)
             ->assertJsonPath('messages.0.sender', 'Alice');
 
-        $this->actingAs($bob)->postJson(route('team-chat.read'))->assertOk()->assertJsonPath('unread', 0);
-        $this->actingAs($bob)->getJson(route('team-chat.index'))->assertJsonPath('unread', 0);
+        $this->actingAs($bob)->postJson(route('team-chat.read', $conversation))->assertOk()->assertJsonPath('unread', 0);
+        $this->actingAs($bob)->getJson(route('team-chat.messages', $conversation))->assertJsonPath('unread', 0);
     }
 
     public function test_chat_rejects_empty_and_oversized_messages(): void
     {
         $user = $this->user('Alice');
+        $conversation = TeamConversation::where('is_default', true)->firstOrFail();
 
-        $this->actingAs($user)->postJson(route('team-chat.store'), ['body' => '   '])->assertUnprocessable();
-        $this->actingAs($user)->postJson(route('team-chat.store'), ['body' => str_repeat('a', 2001)])->assertUnprocessable();
+        $this->actingAs($user)->postJson(route('team-chat.messages.store', $conversation), ['body' => '   '])->assertUnprocessable();
+        $this->actingAs($user)->postJson(route('team-chat.messages.store', $conversation), ['body' => str_repeat('a', 2001)])->assertUnprocessable();
         $this->assertSame(0, TeamMessage::count());
+    }
+
+    public function test_users_can_create_direct_and_group_conversations(): void
+    {
+        $alice = $this->user('Alice');
+        $bob = $this->user('Bob');
+        $charlie = $this->user('Charlie');
+
+        $direct = $this->actingAs($alice)->postJson(route('team-chat.conversations.store'), [
+            'type' => 'direct', 'participant_ids' => [$bob->id],
+        ])->assertCreated()->assertJsonPath('conversation.name', 'Bob')->json('conversation.id');
+
+        $this->actingAs($alice)->postJson(route('team-chat.messages.store', $direct), ['body' => 'Privado'])->assertCreated();
+        $this->actingAs($bob)->getJson(route('team-chat.messages', $direct))->assertOk()->assertJsonPath('messages.0.body', 'Privado');
+        $this->actingAs($charlie)->getJson(route('team-chat.messages', $direct))->assertNotFound();
+
+        $group = $this->actingAs($alice)->postJson(route('team-chat.conversations.store'), [
+            'type' => 'group', 'name' => 'Operaciones', 'participant_ids' => [$bob->id, $charlie->id],
+        ])->assertCreated()->assertJsonPath('conversation.name', 'Operaciones')->json('conversation.id');
+
+        $this->actingAs($charlie)->getJson(route('team-chat.messages', $group))->assertOk();
+        $this->assertDatabaseHas('team_conversation_user', ['team_conversation_id' => $group, 'user_id' => $bob->id]);
+    }
+
+    public function test_direct_conversations_are_reused_and_validate_participants(): void
+    {
+        $alice = $this->user('Alice');
+        $bob = $this->user('Bob');
+        $charlie = $this->user('Charlie');
+        $payload = ['type' => 'direct', 'participant_ids' => [$bob->id]];
+
+        $first = $this->actingAs($alice)->postJson(route('team-chat.conversations.store'), $payload)->assertCreated()->json('conversation.id');
+        $second = $this->actingAs($alice)->postJson(route('team-chat.conversations.store'), $payload)->assertCreated()->json('conversation.id');
+        $this->assertSame($first, $second);
+        $this->actingAs($alice)->postJson(route('team-chat.conversations.store'), [
+            'type' => 'direct', 'participant_ids' => [$bob->id, $charlie->id],
+        ])->assertUnprocessable();
+        $this->actingAs($alice)->postJson(route('team-chat.conversations.store'), [
+            'type' => 'group', 'name' => '', 'participant_ids' => [$bob->id],
+        ])->assertUnprocessable();
     }
 
     public function test_notifications_can_be_listed_and_marked_as_read(): void
@@ -102,7 +145,7 @@ class TeamChatAndNotificationsTest extends TestCase
         $this->actingAs($user)->get('/')
             ->assertOk()
             ->assertSee('Chat del equipo')
-            ->assertSee('team-chat\\/messages', false)
+            ->assertSee('team-chat\\/conversations', false)
             ->assertSee('notifications', false)
             ->assertDontSee('Builder')
             ->assertDontSee('Sin mensajes por ahora.')

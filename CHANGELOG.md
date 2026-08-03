@@ -6,7 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
-- Chat interno del equipo en la cabecera, con mensajes persistentes, lectura compartida por usuario e indicador de pendientes.
+- Chat interno del equipo en la cabecera, con conversaciones directas, grupos de varios miembros, mensajes persistentes, lectura independiente por conversación e indicador total de pendientes.
 - Notificaciones persistentes para acciones administrativas importantes, fallos de backups programados y errores de certificados SSL, con estado leído/no leído.
 
 - Configuración protegida de `PAGESPEED_API_KEY` desde la propia vista PageSpeed: la clave entra al helper por stdin, permanece oculta, actualiza la caché de configuración y restaura `.env` si la activación falla.
