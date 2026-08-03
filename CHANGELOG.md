@@ -43,6 +43,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Los selectores activos de sitio y subdominio eliminan iconos redundantes para ganar espacio; el desplegable de sitios incorpora un switch persistente que muestra u oculta el listado completo de subdominios.
 - El ancho del sidebar se declara como una variable CSS inline real, por lo que sus consumidores de ancho y margen heredan `310px` sin depender de que Tailwind haya generado una utilidad arbitraria específica.
 - El historial global de CPU, RAM, solicitudes HTTP, transferencia e I/O vive ahora en «Resumen del servidor»; «Uso de recursos» queda enfocado en la huella real del sitio, con indicadores circulares de disco e inodos y sus métricas propias.
 - El inicio muestra KPIs, recursos, sitios y actividad real del servidor; correo y XMail tienen una jerarquía visual más clara, ajustes comparte el contenedor principal y la cabecera permite navegar sitios y subdominios por separado.

@@ -20,13 +20,15 @@
     $selectedSite = $routeSite instanceof \App\Models\Site ? $routeSite : null;
     $selectedPrimarySite = $selectedSite?->parent_site_id ? $selectedSite->parent : $selectedSite;
     $selectedSubdomain = $selectedSite?->parent_site_id ? $selectedSite : null;
-    $clientSubdomains = auth()->check()
+    $allClientSubdomains = auth()->check()
         ? \App\Models\Site::with('parent:id,domain')
             ->whereNotNull('parent_site_id')
-            ->when($selectedPrimarySite, fn ($query) => $query->where('parent_site_id', $selectedPrimarySite->id))
             ->orderBy('domain')
             ->get(['id', 'parent_site_id', 'domain', 'status'])
         : collect();
+    $clientSubdomains = $selectedPrimarySite
+        ? $allClientSubdomains->where('parent_site_id', $selectedPrimarySite->id)->values()
+        : $allClientSubdomains;
     $selectedSiteDomain = $selectedSite?->domain;
     $hasSecondarySidebar = $selectedSiteDomain !== null;
 @endphp
@@ -65,12 +67,11 @@
                             <div class="kt-menu-item kt-menu-item-dropdown" data-kt-menu-item-offset="0, 10px"
                                 data-kt-menu-item-placement="bottom-start" data-kt-menu-item-toggle="dropdown"
                                 data-kt-menu-item-trigger="hover">
-                                <button class="kt-menu-toggle text-mono font-medium" style="max-width:11rem">
-                                    <i class="ki-filled ki-abstract-26 text-primary"></i>
+                                <button class="kt-menu-toggle text-mono font-medium" style="max-width:11rem" data-header-site-toggle>
                                     <span class="truncate">{{ $selectedPrimarySite?->domain ?? 'Sitios' }}</span>
                                     <span class="kt-menu-arrow"><i class="ki-filled ki-down"></i></span>
                                 </button>
-                                <div class="kt-menu-dropdown w-48 py-2">
+                                <div class="kt-menu-dropdown w-64 py-2">
                                     @forelse ($clientSites as $clientSite)
                                         <div class="kt-menu-item {{ $selectedPrimarySite?->is($clientSite) ? 'active' : '' }}">
                                             <a class="kt-menu-link" href="{{ route('sites.show', $clientSite) }}">
@@ -88,6 +89,25 @@
                                             <span class="kt-menu-title">Crear sitio</span>
                                         </a>
                                     </div>
+                                    <div class="kt-menu-separator"></div>
+                                    <label class="flex cursor-pointer items-center justify-between gap-4 px-3 py-2 text-sm" data-header-subdomains-control>
+                                        <span class="flex min-w-0 items-center gap-2"><i class="ki-filled ki-router text-secondary-foreground"></i><span class="truncate">Mostrar subdominios</span></span>
+                                        <input class="kt-switch" id="header_subdomains_toggle" type="checkbox" aria-controls="header_subdomains_list">
+                                    </label>
+                                    <div class="hidden" id="header_subdomains_list" data-header-subdomains-list>
+                                        <div class="kt-menu-separator"></div>
+                                        <div class="px-3 pb-2 text-xs font-medium uppercase tracking-wide text-secondary-foreground">Subdominios</div>
+                                        @forelse($allClientSubdomains as $headerSubdomain)
+                                            <div class="kt-menu-item {{ $selectedSubdomain?->is($headerSubdomain) ? 'active' : '' }}">
+                                                <a class="kt-menu-link" href="{{ route('sites.show', $headerSubdomain) }}">
+                                                    <span class="kt-menu-icon"><i class="ki-filled ki-router"></i></span>
+                                                    <span class="kt-menu-title min-w-0"><span class="block truncate">{{ $headerSubdomain->domain }}</span><span class="block truncate text-xs text-secondary-foreground">{{ $headerSubdomain->parent?->domain }}</span></span>
+                                                </a>
+                                            </div>
+                                        @empty
+                                            <div class="px-3 py-2 text-xs text-secondary-foreground">Aún no tienes subdominios.</div>
+                                        @endforelse
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -96,8 +116,7 @@
                             <div class="kt-menu-item kt-menu-item-dropdown" data-kt-menu-item-offset="0, 10px"
                                 data-kt-menu-item-placement="bottom-start" data-kt-menu-item-toggle="dropdown"
                                 data-kt-menu-item-trigger="hover">
-                                <button class="kt-menu-toggle text-mono font-medium" style="max-width:12rem">
-                                    <i class="ki-filled ki-router text-primary"></i>
+                                <button class="kt-menu-toggle text-mono font-medium" style="max-width:12rem" data-header-subdomain-toggle>
                                     <span class="truncate">{{ $selectedSubdomain?->domain ?? 'Subdominios' }}</span>
                                     <span class="kt-menu-arrow"><i class="ki-filled ki-down"></i></span>
                                 </button>
@@ -234,6 +253,25 @@
 
     <script src="{{ asset('assets/js/core.bundle.js') }}"></script>
     <script src="{{ asset('assets/vendors/ktui/ktui.min.js') }}"></script>
+    <script>
+        (() => {
+            const toggle = document.getElementById('header_subdomains_toggle');
+            const list = document.getElementById('header_subdomains_list');
+            const control = document.querySelector('[data-header-subdomains-control]');
+            if (!toggle || !list) return;
+
+            const storageKey = 'xpanel-header-show-subdomains';
+            const render = (persist = false) => {
+                list.classList.toggle('hidden', !toggle.checked);
+                if (persist) localStorage.setItem(storageKey, toggle.checked ? '1' : '0');
+            };
+
+            toggle.checked = localStorage.getItem(storageKey) === '1';
+            render();
+            toggle.addEventListener('change', () => render(true));
+            control?.addEventListener('click', event => event.stopPropagation());
+        })();
+    </script>
     @stack('scripts')
 </body>
 
