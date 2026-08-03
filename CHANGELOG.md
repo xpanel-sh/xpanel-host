@@ -51,6 +51,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- `xpanel update` y todos los procesos del servidor fijan el directorio accesible del proyecto antes de ejecutar helpers; iniciar la actualización desde `/root` ya no provoca `proc_open(): posix_spawn() failed: Permission denied` al cambiar a `www-data`.
+
 - PageSpeed ya no reintenta respuestas 429 ni muestra el error JSON de Google: diferencia entre cuota pública agotada, cuota propia agotada y una clave rechazada; la vista informa además qué tipo de cuota está utilizando.
 - Las operaciones de sitios y SSL ya no interrumpen su propia respuesta HTTP al recargar PHP-FPM; la recarga se ejecuta de forma diferida.
 - La sincronización de sitios repara dominios principales ausentes en el portafolio de Dominios.

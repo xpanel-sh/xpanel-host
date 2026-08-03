@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
 INSTALL_DIR="${XPANEL_INSTALL_DIR:-$ROOT}"
 CLI_DIR="${XPANEL_CLI_DIR:-/opt/xpanel-cli}"
 REPO_CLI="${XPANEL_CLI_REPO:-github.com/xpanel-sh/xpanel-cli}"

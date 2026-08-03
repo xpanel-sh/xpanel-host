@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 if [[ "$(id -u)" != "0" ]]; then
   echo "Ejecuta la actualización con sudo: sudo xpanel update" >&2
