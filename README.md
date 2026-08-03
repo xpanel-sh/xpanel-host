@@ -149,6 +149,8 @@ Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, desplieg
 
 El **chat del equipo** de la cabecera permite conversaciones directas entre dos usuarios y grupos internos con varios miembros. El grupo general «Equipo» incorpora automáticamente las cuentas locales, conserva los mensajes existentes y mantiene la lectura por usuario y conversación. Las **notificaciones** registran acciones administrativas importantes y alertas automáticas de backups o certificados; cada miembro sólo puede modificar el estado de sus propias notificaciones. La comunicación con usuarios de otro servidor requerirá en el futuro un servicio federado explícito y no está habilitada por defecto.
 
+El **buscador global** de la cabecera (`Ctrl/Cmd + K`) localiza sitios, subdominios, dominios, buzones, bases de datos, usuarios, páginas y módulos del sitio. Los resultados respetan los permisos de la cuenta activa y pueden recorrerse con las flechas y abrirse con Enter; la búsqueda profunda de contenido permanece dentro de ikode y XMail.
+
 ### Escáner de malware
 
 **Seguridad → Escáner de malware** ejecuta ClamAV sobre el document root real, registra cuántos archivos revisó, conserva los últimos resultados y muestra la firma exacta de cada detección. El escaneo no sigue enlaces simbólicos ni cruza otros sistemas de archivos. Las definiciones se mantienen mediante `clamav-freshclam`.

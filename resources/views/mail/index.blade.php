@@ -148,12 +148,18 @@
                         </div>
                     @else
                         <div class="kt-card overflow-visible">
-                            <div class="kt-card-header min-h-14">
+                            <div class="kt-card-header min-h-14 flex-wrap gap-3 py-3">
                                 <div>
                                     <h2 class="kt-card-title">Cuentas de correo</h2>
                                     <p class="mt-0.5 text-xs text-secondary-foreground">Buzones configurados en Postfix y Dovecot</p>
                                 </div>
-                                <span class="kt-badge kt-badge-outline">{{ $accounts->total() }}</span>
+                                <div class="flex items-center gap-2">
+                                    <form action="{{ route('mail.index') }}" method="GET" class="flex items-center gap-2">
+                                        <input class="kt-input h-9 w-52" name="search" type="search" value="{{ $search }}" placeholder="Buscar correo..." />
+                                        <button class="kt-btn kt-btn-sm kt-btn-outline" type="submit"><i class="ki-filled ki-magnifier"></i></button>
+                                    </form>
+                                    <span class="kt-badge kt-badge-outline">{{ $accounts->total() }}</span>
+                                </div>
                             </div>
 
                             <div class="border-t border-border">

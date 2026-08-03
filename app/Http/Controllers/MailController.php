@@ -14,9 +14,22 @@ use Illuminate\View\View;
 
 class MailController extends Controller
 {
-    public function index(MailDnsService $dns): View
+    public function index(Request $request, MailDnsService $dns): View
     {
-        $accounts = MailAccount::with('domain.mailSettings.serverIpAddress')->orderBy('local_part')->paginate(10);
+        $search = $request->string('search')->trim()->toString();
+        $accounts = MailAccount::with('domain.mailSettings.serverIpAddress')
+            ->when($search !== '', function ($query) use ($search): void {
+                if (str_contains($search, '@')) {
+                    [$localPart, $domain] = explode('@', $search, 2);
+                    $query->where('local_part', 'like', '%'.$localPart.'%')
+                        ->whereHas('domain', fn ($domainQuery) => $domainQuery->where('domain', 'like', '%'.$domain.'%'));
+                } else {
+                    $query->where(fn ($accountQuery) => $accountQuery
+                        ->where('local_part', 'like', '%'.$search.'%')
+                        ->orWhereHas('domain', fn ($domainQuery) => $domainQuery->where('domain', 'like', '%'.$search.'%')));
+                }
+            })
+            ->orderBy('local_part')->paginate(10)->withQueryString();
 
         return view('mail.index', [
             'accounts' => $accounts,
@@ -33,6 +46,7 @@ class MailController extends Controller
                     'records' => $dns->expected($domain),
                 ]]),
             'serverIpAddresses' => ServerIpAddress::orderBy('label')->orderBy('ip_address')->get(),
+            'search' => $search,
         ]);
     }
 

@@ -17,6 +17,7 @@ use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\FolderIndexController;
 use App\Http\Controllers\GitDeploymentController;
 use App\Http\Controllers\GlobalFileManagerController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\HotlinkController;
 use App\Http\Controllers\IpRuleController;
 use App\Http\Controllers\MailController;
@@ -87,6 +88,7 @@ Route::middleware('setup.complete')->group(function () {
 
     Route::middleware('auth')->group(function () {
         Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
+        Route::get('/search', GlobalSearchController::class)->middleware('throttle:120,1')->name('search');
 
         Route::prefix('/team-chat')->name('team-chat.')->group(function () {
             Route::get('/conversations', [TeamChatController::class, 'conversations'])->middleware('throttle:120,1')->name('conversations');

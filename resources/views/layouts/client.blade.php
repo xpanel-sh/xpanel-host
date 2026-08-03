@@ -141,7 +141,7 @@
                 <div class="flex items-center lg:gap-3.5">
                     <div class="flex items-center gap-1.5">
                         <button class="group kt-btn kt-btn-ghost kt-btn-icon size-9 rounded-full hover:[&_i]:text-primary"
-                            data-kt-modal-toggle="#search_modal">
+                            data-kt-modal-toggle="#search_modal" data-global-search-open aria-label="Abrir búsqueda global">
                             <i class="ki-filled ki-magnifier text-lg group-hover:text-primary"></i>
                         </button>
 
@@ -219,16 +219,25 @@
     </div>
 
     <div class="kt-modal" data-kt-modal="true" id="search_modal">
-        <div class="kt-modal-content max-w-[600px] top-[15%]">
+        <div class="kt-modal-content max-w-[680px] top-[10%]">
             <div class="kt-modal-header py-4 px-5">
                 <i class="ki-filled ki-magnifier text-muted-foreground text-xl"></i>
-                <input class="kt-input kt-input-ghost" placeholder="Buscar sitios, dominios..." type="text" />
-                <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-modal-dismiss="true">
+                <input class="kt-input kt-input-ghost" id="global_search_input" placeholder="Buscar sitios, módulos, correos, bases de datos..." type="search" autocomplete="off" aria-label="Buscar en xpanel-host" aria-controls="global_search_results" />
+                <span class="hidden rounded-md border border-border px-2 py-1 text-xs text-secondary-foreground sm:inline">Ctrl K</span>
+                <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim shrink-0" data-kt-modal-dismiss="true" data-global-search-close>
                     <i class="ki-filled ki-cross"></i>
                 </button>
             </div>
-            <div class="kt-modal-body p-5 pt-0 text-sm text-secondary-foreground text-center">
-                Empieza a escribir para buscar.
+            <div class="kt-modal-body max-h-[60vh] overflow-y-auto p-0" id="global_search_results" aria-live="polite">
+                <div class="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
+                    <span class="flex size-12 items-center justify-center rounded-full bg-muted"><i class="ki-filled ki-magnifier text-xl text-secondary-foreground"></i></span>
+                    <div class="text-sm font-medium text-mono">Busca en todo el panel</div>
+                    <div class="text-xs text-secondary-foreground">Escribe al menos 2 caracteres.</div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-secondary-foreground">
+                <span id="global_search_count">Sitios, dominios, correo, bases de datos, equipo y módulos</span>
+                <span class="hidden items-center gap-2 sm:flex"><span>↑↓ navegar</span><span>↵ abrir</span><span>Esc cerrar</span></span>
             </div>
         </div>
     </div>
@@ -253,6 +262,147 @@
             render();
             toggle.addEventListener('change', () => render(true));
             control?.addEventListener('click', event => event.stopPropagation());
+        })();
+    </script>
+    <script>
+        (() => {
+            const endpoint = @json(route('search'));
+            const currentSite = @json($selectedSiteDomain);
+            const openButton = document.querySelector('[data-global-search-open]');
+            const closeButton = document.querySelector('[data-global-search-close]');
+            const input = document.getElementById('global_search_input');
+            const results = document.getElementById('global_search_results');
+            const count = document.getElementById('global_search_count');
+            if (!openButton || !input || !results || !count) return;
+
+            let timer = null;
+            let controller = null;
+            let activeIndex = -1;
+            let resultLinks = [];
+
+            const renderMessage = (message, iconClass = 'ki-information-2') => {
+                resultLinks = [];
+                activeIndex = -1;
+                results.replaceChildren();
+                const state = document.createElement('div');
+                state.className = 'flex flex-col items-center justify-center gap-2 px-6 py-14 text-center text-sm text-secondary-foreground';
+                const icon = document.createElement('i');
+                icon.className = `ki-filled ${iconClass} text-2xl`;
+                const text = document.createElement('span');
+                text.textContent = message;
+                state.append(icon, text);
+                results.append(state);
+            };
+
+            const reset = () => {
+                renderMessage('Escribe al menos 2 caracteres para buscar en todo el panel.', 'ki-magnifier');
+                count.textContent = 'Sitios, dominios, correo, bases de datos, equipo y módulos';
+            };
+
+            const setActive = index => {
+                if (resultLinks.length === 0) return;
+                activeIndex = (index + resultLinks.length) % resultLinks.length;
+                resultLinks.forEach((link, position) => {
+                    link.classList.toggle('bg-muted', position === activeIndex);
+                    link.setAttribute('aria-selected', position === activeIndex ? 'true' : 'false');
+                });
+                resultLinks[activeIndex].scrollIntoView({block: 'nearest'});
+            };
+
+            const render = payload => {
+                const items = payload.results ?? [];
+                results.replaceChildren();
+                if (items.length === 0) {
+                    renderMessage(`No encontramos resultados para “${payload.query ?? input.value.trim()}”.`, 'ki-magnifier');
+                    count.textContent = '0 resultados';
+                    return;
+                }
+
+                let currentGroup = null;
+                let list = null;
+                items.forEach(item => {
+                    if (item.group !== currentGroup) {
+                        currentGroup = item.group;
+                        const heading = document.createElement('div');
+                        heading.className = 'border-t border-border bg-muted/40 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-secondary-foreground first:border-t-0';
+                        heading.textContent = currentGroup;
+                        results.append(heading);
+                        list = document.createElement('div');
+                        list.className = 'py-1';
+                        results.append(list);
+                    }
+                    const link = document.createElement('a');
+                    link.href = item.url;
+                    link.className = 'flex items-center gap-3 px-5 py-3 outline-none hover:bg-muted';
+                    link.setAttribute('role', 'option');
+                    const icon = document.createElement('span');
+                    icon.className = 'flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary';
+                    const glyph = document.createElement('i');
+                    glyph.className = `ki-filled ${item.icon}`;
+                    icon.append(glyph);
+                    const copy = document.createElement('span');
+                    copy.className = 'min-w-0 grow';
+                    const title = document.createElement('span');
+                    title.className = 'block truncate text-sm font-medium text-mono';
+                    title.textContent = item.title;
+                    const subtitle = document.createElement('span');
+                    subtitle.className = 'mt-0.5 block truncate text-xs text-secondary-foreground';
+                    subtitle.textContent = item.subtitle;
+                    const arrow = document.createElement('i');
+                    arrow.className = 'ki-filled ki-right text-muted-foreground';
+                    copy.append(title, subtitle);
+                    link.append(icon, copy, arrow);
+                    list.append(link);
+                });
+                resultLinks = Array.from(results.querySelectorAll('a[role="option"]'));
+                resultLinks.forEach((link, index) => link.addEventListener('mouseenter', () => setActive(index)));
+                count.textContent = `${payload.count ?? items.length} resultado${items.length === 1 ? '' : 's'}`;
+                setActive(0);
+            };
+
+            const search = async () => {
+                const query = input.value.trim();
+                if (query.length < 2) {
+                    controller?.abort();
+                    reset();
+                    return;
+                }
+                controller?.abort();
+                controller = new AbortController();
+                renderMessage('Buscando…', 'ki-loading');
+                count.textContent = 'Buscando';
+                const url = new URL(endpoint, window.location.origin);
+                url.searchParams.set('q', query);
+                if (currentSite) url.searchParams.set('site', currentSite);
+                try {
+                    const response = await fetch(url, {headers: {'Accept': 'application/json'}, signal: controller.signal});
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.message || 'No se pudo realizar la búsqueda.');
+                    render(payload);
+                } catch (error) {
+                    if (error.name === 'AbortError') return;
+                    renderMessage(error.message, 'ki-cross-circle');
+                    count.textContent = 'Error de búsqueda';
+                }
+            };
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(search, 240);
+            });
+            input.addEventListener('keydown', event => {
+                if (event.key === 'ArrowDown') { event.preventDefault(); setActive(activeIndex + 1); }
+                if (event.key === 'ArrowUp') { event.preventDefault(); setActive(activeIndex - 1); }
+                if (event.key === 'Enter' && activeIndex >= 0) { event.preventDefault(); resultLinks[activeIndex]?.click(); }
+                if (event.key === 'Escape') { event.preventDefault(); closeButton?.click(); }
+            });
+            openButton.addEventListener('click', () => setTimeout(() => { input.focus(); input.select(); }, 100));
+            document.addEventListener('keydown', event => {
+                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                    event.preventDefault();
+                    openButton.click();
+                }
+            });
         })();
     </script>
     <script>

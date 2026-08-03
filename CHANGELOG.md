@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- Buscador global funcional con resultados de sitios, subdominios, dominios, correo, bases de datos, equipo, ajustes y módulos; respeta permisos y admite navegación completa con teclado mediante `Ctrl/Cmd + K`.
 - Chat interno del equipo en la cabecera, con conversaciones directas, grupos de varios miembros, mensajes persistentes, lectura independiente por conversación e indicador total de pendientes.
 - Notificaciones persistentes para acciones administrativas importantes, fallos de backups programados y errores de certificados SSL, con estado leído/no leído.
 
