@@ -73,6 +73,10 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- iKode reconoce `.env.local` y variantes `.env.*` como texto editable, dibuja la pestaña antes de leer el archivo y respeta el fondo del tema claro en las previsualizaciones.
+- La terminal real no intenta crear tokens durante el desarrollo visual sin servicios Linux, limita los reintentos desde la interfaz y el agente acepta las identidades Unix de cuenta `xpa*` y de instancia `xhi*` además de los usuarios por sitio.
+- El gestor general deriva de forma segura su usuario y hogar cuando una caché de configuración anterior todavía no contiene las nuevas claves de cuenta.
+
 - `xpanel update` y todos los procesos del servidor fijan el directorio accesible del proyecto antes de ejecutar helpers; iniciar la actualización desde `/root` ya no provoca `proc_open(): posix_spawn() failed: Permission denied` al cambiar a `www-data`.
 
 - PageSpeed ya no reintenta respuestas 429 ni muestra el error JSON de Google: diferencia entre cuota pública agotada, cuota propia agotada y una clave rechazada; la vista informa además qué tipo de cuota está utilizando.

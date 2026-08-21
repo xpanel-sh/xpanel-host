@@ -8,7 +8,12 @@
     $filesDomain = $site?->domain;
     $filesBaseUrl = $site ? route('sites.files.index', $site).'/api' : route('sites.ikode').'/api';
     $filesBackRoute = $site ? route('sites.files.index', $site) : route('sites.index');
-    $webTerminalEnabled = config('xpanel.terminal_enabled') && (! $site || (bool) $site->accessSettings?->web_terminal_enabled);
+    // A real PTY only exists after the native Linux installer enables system
+    // changes and installs the loopback terminal agent. Local visual
+    // development must not mint tokens for an agent that cannot exist there.
+    $webTerminalEnabled = config('xpanel.terminal_enabled')
+        && config('xpanel.apply_system_changes')
+        && (! $site || (bool) $site->accessSettings?->web_terminal_enabled);
     $terminalTokenUrl = $site ? route('sites.access.terminal.token', $site) : route('sites.ikode.terminal.token');
     $accountHomeLabel = isset($accountWorkspace)
         ? $accountWorkspace->systemRoot()
@@ -279,6 +284,10 @@
             gap: 10px;
             justify-items: center;
             max-width: 420px;
+        }
+        .xpanel-file-shell .ikode_file_preview {
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
         }
         .xpanel-file-shell .ikode_tab_close {
             display: inline-flex;
@@ -977,7 +986,7 @@
                                 </div>
                                 <div id="xpanel_ssh_terminal_mount" class="xpanel-ssh-terminal-mount"></div>
                             @else
-                                <div class="xpanel-console-line"><span class="xpanel-console-time">info</span><span class="xpanel-console-text">Terminal real desactivada. Actívala en Avanzado &rarr; Acceso SSH.</span></div>
+                                <div class="xpanel-console-line"><span class="xpanel-console-time">info</span><span class="xpanel-console-text">{{ $site ? 'Terminal real desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal real requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.' }}</span></div>
                             @endif
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="ports">
@@ -1404,7 +1413,13 @@
             const isArchive = (name) => /^(zip|jar|zipx|rar|7z|tar|gz|tgz)$/i.test(ext(name));
             const isExtractable = (name) => /^(zip|jar)$/i.test(ext(name));
             const codeExtensions = new Set(['php', 'js', 'ts', 'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'json', 'yml', 'yaml', 'py', 'sh', 'bash', 'md', 'xml', 'sql', 'txt', 'env', 'gitignore', 'htaccess', 'ini', 'conf', 'log']);
-            const isCode = (name) => codeExtensions.has(ext(name)) || !ext(name);
+            const isCode = (name) => {
+                const normalized = String(name || '').toLowerCase();
+                return codeExtensions.has(ext(normalized))
+                    || !ext(normalized)
+                    || /^\.env(?:\..+)?$/.test(normalized)
+                    || ['dockerfile', 'makefile', 'procfile', 'composer.lock', 'package-lock.json'].includes(normalized);
+            };
             const previewKind = (name) => {
                 if (isImage(name)) return 'image';
                 if (isVideo(name)) return 'video';
@@ -1455,8 +1470,8 @@
             };
             const requireConcreteSiteTarget = (target = currentVirtualSiteRoot()) => {
                 if (!isGlobalSitesRoot() || target !== '/') return target;
-                toast('Selecciona o entra a un dominio antes de crear o mover archivos.', 'error');
-                throw new Error('Selecciona un dominio');
+                toast('Entra en una carpeta de la cuenta antes de crear o mover archivos.', 'error');
+                throw new Error('Selecciona una carpeta de la cuenta');
             };
             const downloadUrl = (path, inline = false) => `${config.baseUrl}/download?domain=${domainParam()}&path=${encodeURIComponent(path)}${inline ? '&inline=1' : ''}`;
 
@@ -2133,6 +2148,8 @@
                 const kind = previewKind(entry.name);
                 const tab = { path: entry.path, name: entry.name, kind, entry, model: null, isDirty: false };
                 state.tabs.push(tab);
+                state.activeTab = entry.path;
+                renderTabs();
                 if (kind === 'code') {
                     try {
                         const payload = await api('GET', `/read?domain=${domainParam()}&path=${encodeURIComponent(entry.path)}`);
@@ -2869,7 +2886,15 @@
                         method: 'POST',
                         headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
                     });
-                    if (!response.ok) throw new Error(await response.text() || `HTTP ${response.status}`);
+                    if (!response.ok) {
+                        let message = `No se pudo iniciar la terminal (HTTP ${response.status}).`;
+                        try {
+                            const payload = await response.json();
+                            if (payload?.message) message = payload.message;
+                        } catch { /* response was not JSON */ }
+                        if (response.status === 429) message = 'Espera unos segundos antes de volver a conectar la terminal.';
+                        throw new Error(message);
+                    }
                     const { path, token, system_user: systemUser } = await response.json();
                     const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const socket = new WebSocket(`${scheme}//${location.host}${path}?token=${encodeURIComponent(token)}&user=${encodeURIComponent(systemUser)}`);
@@ -3147,7 +3172,16 @@
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
             $$('[data-outline-tab]').forEach((button) => button.addEventListener('click', () => switchOutlineTab(button.dataset.outlineTab)));
             $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab)));
-            $('#xpanel_ssh_reconnect')?.addEventListener('click', () => { sshTerminal.socket?.close(); openSshTerminal(); });
+            $('#xpanel_ssh_reconnect')?.addEventListener('click', () => {
+                if (sshTerminal.connecting) return;
+                const reconnect = $('#xpanel_ssh_reconnect');
+                if (reconnect) reconnect.disabled = true;
+                sshTerminal.socket?.close();
+                sshTerminal.socket = null;
+                openSshTerminal().finally(() => {
+                    setTimeout(() => { if (reconnect) reconnect.disabled = false; }, 3000);
+                });
+            });
             $$('[data-right-tab]').forEach((button) => button.addEventListener('click', () => switchRightTab(button.dataset.rightTab)));
             $$('[data-terminal-action]').forEach((button) => button.addEventListener('click', () => terminalAction(button.dataset.terminalAction)));
             $$('[data-clone-action]').forEach((button) => button.addEventListener('click', () => cloneAction(button.dataset.cloneAction)));

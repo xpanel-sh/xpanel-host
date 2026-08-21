@@ -16,7 +16,7 @@ class HostingAccountWorkspace
 
     public function user(): string
     {
-        $user = (string) config('xpanel.account_user');
+        $user = (string) (config('xpanel.account_user') ?: 'xpa'.substr(hash('sha256', (string) config('app.key', 'xpanel-host')), 0, 10));
         if (! preg_match('/^(?:xpa[a-z0-9]{8,24}|xhi[a-f0-9]{12})$/', $user)) {
             throw new \RuntimeException('La cuenta no tiene una identidad Unix válida.');
         }
@@ -26,7 +26,7 @@ class HostingAccountWorkspace
 
     public function systemRoot(): string
     {
-        $root = rtrim((string) config('xpanel.account_home'), '/');
+        $root = rtrim((string) (config('xpanel.account_home') ?: '/home/'.$this->user()), '/');
         if (! preg_match('#^/home/[a-z_][a-z0-9_-]{2,31}$#', $root) || str_contains($root, '..')) {
             throw new \RuntimeException('La raíz de la cuenta debe estar bajo /home.');
         }

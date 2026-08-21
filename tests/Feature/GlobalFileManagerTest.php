@@ -96,7 +96,8 @@ class GlobalFileManagerTest extends TestCase
 
         $this->actingAs($developer)->get(route('sites.ikode'))
             ->assertOk()
-            ->assertSee('Cuenta completa');
+            ->assertSee('Cuenta completa')
+            ->assertSee('/^\\.env(?:\\..+)?$/', false);
     }
 
     public function test_global_list_root_shows_the_account_home_layout(): void

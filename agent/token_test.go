@@ -3,8 +3,11 @@ package main
 import "testing"
 
 func TestValidTerminalRequest(t *testing.T) {
-	if !validTerminalRequest("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "xps1abcdef12") {
-		t.Fatal("valid token and site identity were rejected")
+	identities := []string{"xps1abcdef12", "xpa0123456789", "xhi0123456789ab"}
+	for _, identity := range identities {
+		if !validTerminalRequest("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", identity) {
+			t.Fatalf("valid token and identity were rejected: %s", identity)
+		}
 	}
 }
 
