@@ -64,6 +64,7 @@ class SiteController extends Controller
     {
         return view('sites.create', [
             'phpVersions' => Site::phpVersions(),
+            'nodeVersions' => Site::nodeVersions(),
             'unclaimedDomains' => Domain::whereNull('site_id')->orderBy('domain')->pluck('domain'),
         ]);
     }
@@ -91,6 +92,7 @@ class SiteController extends Controller
         return view('sites.edit', [
             'site' => $site,
             'phpVersions' => Site::phpVersions(),
+            'nodeVersions' => Site::nodeVersions(),
             'unclaimedDomains' => Domain::whereNull('site_id')->orderBy('domain')->pluck('domain'),
         ]);
     }
@@ -226,13 +228,35 @@ class SiteController extends Controller
                 },
             ],
             'php_version' => 'required|string|in:'.implode(',', Site::phpVersions()),
-            'type' => 'required|string|in:php,static',
+            'node_version' => 'nullable|string|in:'.implode(',', Site::nodeVersions()),
+            'node_start_command' => ['nullable', 'string', 'max:255', 'regex:/^(?:npm start|npm run [A-Za-z0-9:_-]+|node [A-Za-z0-9_./-]+\.m?js)$/'],
+            'type' => 'required|string|in:php,static,node',
+            'tenancy_mode' => 'nullable|string|in:none,path,subdomain,custom,hybrid',
+            'wildcard_domain' => 'nullable|boolean',
             'web_server' => 'nullable|string|in:'.implode(',', Site::webServers()),
             'status' => 'required|string|in:active,suspended',
         ]);
 
-        if (empty($data['document_root'])) {
-            $data['document_root'] = '/var/www/'.$data['domain'];
+        $data['tenancy_mode'] = $data['tenancy_mode'] ?? 'none';
+        $data['wildcard_domain'] = $request->boolean('wildcard_domain');
+        if ($data['tenancy_mode'] === 'subdomain' || $data['tenancy_mode'] === 'hybrid') {
+            $data['wildcard_domain'] = true;
+        }
+        if ($data['type'] === 'node') {
+            $data['web_server'] = 'nginx';
+            $data['node_version'] ??= Site::nodeVersions()[0] ?? '22';
+            $data['node_start_command'] = $data['node_start_command'] ?: 'npm start';
+            $data['runtime_port'] = $site?->runtime_port ?: Site::availableRuntimePort($site?->id);
+        } else {
+            $data['node_version'] = null;
+            $data['runtime_port'] = null;
+            $data['node_start_command'] = null;
+        }
+
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            $data['document_root'] = config('xpanel.web_root').'/'.$data['domain'];
+        } elseif (empty($data['document_root'])) {
+            $data['document_root'] = config('xpanel.web_root', '/var/www').'/'.$data['domain'];
         }
 
         if (empty($data['public_path'])) {
@@ -249,4 +273,5 @@ class SiteController extends Controller
 
         return $data;
     }
+
 }

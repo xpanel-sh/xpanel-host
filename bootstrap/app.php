@@ -5,12 +5,13 @@ use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureSetupComplete;
 use App\Http\Middleware\EnsureXMailAuthenticated;
 use App\Http\Middleware\UseXMailSession;
+use App\Support\InstanceContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 
-return Application::configure(basePath: dirname(__DIR__))
+$application = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -42,3 +43,9 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->wantsJson(),
         );
     })->create();
+
+if ($instanceStoragePath = InstanceContext::storagePathFromEnvironment()) {
+    $application->useStoragePath($instanceStoragePath);
+}
+
+return $application;

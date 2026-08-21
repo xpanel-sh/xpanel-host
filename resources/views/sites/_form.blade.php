@@ -34,7 +34,7 @@
     <div class="flex flex-col gap-1">
         <label class="kt-form-label font-normal text-mono">Tipo</label>
         <select class="kt-select" name="type">
-            @foreach (['php' => 'PHP', 'static' => 'Estatico'] as $value => $label)
+            @foreach (['php' => 'PHP / Laravel', 'static' => 'Estático', 'node' => 'Node.js'] as $value => $label)
                 <option value="{{ $value }}" @selected(old('type', $site->type ?? 'php') === $value)>{{ $label }}</option>
             @endforeach
         </select>
@@ -66,5 +66,43 @@
                 <option value="{{ $value }}" @selected(old('status', $site->status ?? 'active') === $value)>{{ $label }}</option>
             @endforeach
         </select>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <div class="flex flex-col gap-1">
+        <label class="kt-form-label font-normal text-mono">Arquitectura tenant de la aplicación</label>
+        <select class="kt-select" name="tenancy_mode">
+            @foreach (['none' => 'Sitio normal', 'path' => 'Tenants por ruta', 'subdomain' => 'Tenants por subdominio', 'custom' => 'Dominios personalizados', 'hybrid' => 'Subdominios + dominios personalizados'] as $value => $label)
+                <option value="{{ $value }}" @selected(old('tenancy_mode', $site->tenancy_mode ?? 'none') === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <p class="kt-form-description">Describe cómo tu propia aplicación identifica a sus clientes. XPanel enviará el Host original sin modificarlo.</p>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label class="kt-form-label font-normal text-mono">Dominio wildcard</label>
+        <label class="flex items-center gap-2 min-h-10">
+            <input type="hidden" name="wildcard_domain" value="0">
+            <input class="kt-checkbox" type="checkbox" name="wildcard_domain" value="1" @checked(old('wildcard_domain', $site->wildcard_domain ?? false))>
+            Aceptar <span class="font-mono">*.{{ old('domain', $site->domain ?? 'tu-dominio.com') }}</span>
+        </label>
+        <p class="kt-form-description">Se activa automáticamente para tenancy por subdominio. Requiere DNS wildcard y, para HTTPS, un certificado wildcard DNS-01.</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    <div class="flex flex-col gap-1">
+        <label class="kt-form-label font-normal text-mono">Versión Node.js</label>
+        <select class="kt-select" name="node_version">
+            @foreach (($nodeVersions ?? \App\Models\Site::nodeVersions()) as $version)
+                <option value="{{ $version }}" @selected(old('node_version', $site->node_version ?? '22') == $version)>Node.js {{ $version }} LTS</option>
+            @endforeach
+        </select>
+    </div>
+    <div class="flex flex-col gap-1 md:col-span-2">
+        <label class="kt-form-label font-normal text-mono">Comando de inicio Node.js</label>
+        <input class="kt-input" type="text" name="node_start_command" value="{{ old('node_start_command', $site->node_start_command ?? 'npm start') }}" placeholder="npm start">
+        <p class="kt-form-description">Permitidos: <code>npm start</code>, <code>npm run nombre</code> o <code>node archivo.js</code>. Se ejecuta aislado con systemd y un puerto interno.</p>
     </div>
 </div>

@@ -32,8 +32,8 @@ class FileAccessInstallationTest extends TestCase
     {
         $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
 
-        $this->assertStringContainsString('setfacl -R -m u:www-data:rwX "$document_root"', $helper);
-        $this->assertStringContainsString('d:u:www-data:rwx', $helper);
+        $this->assertStringContainsString('setfacl -R -m "u:$SITE_USER:rwX" "$document_root"', $helper);
+        $this->assertStringContainsString('"d:u:$SITE_USER:rwx"', $helper);
         $this->assertStringContainsString('grant_panel_file_access "$document_root"', $helper);
     }
 

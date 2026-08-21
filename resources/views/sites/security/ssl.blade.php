@@ -25,14 +25,19 @@
           <p class="mt-2 text-sm text-secondary-foreground">Este Host vive dentro de una MicroVM. El certificado público y la renovación pertenecen al Traefik del servidor Core; el tráfico entra por HTTPS y llega a Host por la red privada.</p>
         </div></section>
       @else
-        <section class="grid md:grid-cols-3 gap-4">
+        <section class="grid md:grid-cols-4 gap-4">
           <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Certificado</div><div class="mt-2 font-semibold text-mono">{{ $site->ssl_status }}</div></div></div>
           <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Vencimiento</div><div class="mt-2 font-semibold text-mono">{{ $site->ssl_expires_at?->format('Y-m-d H:i') ?? '—' }}</div></div></div>
           <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">HTTPS forzado</div><div class="mt-2 font-semibold text-mono">{{ $site->https_redirect ? 'Sí' : 'No' }}</div></div></div>
+          @if($site->wildcard_domain)<div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Wildcard *.{{ $site->domain }}</div><div class="mt-2 font-semibold text-mono">{{ $site->wildcard_ssl_status }}</div></div></div>@endif
         </section>
 
         <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Let's Encrypt / ACME</h2></div><div class="kt-card-content p-5">
-          <p class="mb-5 text-sm text-secondary-foreground">El dominio principal y todos sus dominios aparcados deben resolver a la IP pública de este VDS; el puerto 80 debe ser accesible. Certbot los incluirá en el mismo certificado mediante webroot, sin detener el servidor web.</p>
+          @if($site->wildcard_domain)
+            <p class="mb-5 text-sm text-secondary-foreground">Se emitirá un certificado para {{ $site->domain }} y *.{{ $site->domain }} mediante DNS-01. Conecta primero una zona Cloudflare verificada en Avanzado → Editor DNS; el token se transmite cifrado y sólo por stdin al helper.</p>
+          @else
+            <p class="mb-5 text-sm text-secondary-foreground">El dominio principal y todos sus dominios aparcados deben resolver a la IP pública de este VDS; el puerto 80 debe ser accesible. Certbot los incluirá en el mismo certificado mediante webroot, sin detener el servidor web.</p>
+          @endif
           @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
             <form method="post" action="{{ route('sites.ssl.issue', $site) }}" class="grid md:grid-cols-2 gap-4">
               @csrf

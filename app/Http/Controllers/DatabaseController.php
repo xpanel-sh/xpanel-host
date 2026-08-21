@@ -27,7 +27,10 @@ class DatabaseController extends Controller
             'username' => ['required', 'string', 'max:16', 'regex:/^[a-z0-9_]+$/'],
             'password' => ['required', 'string', 'min:16', 'max:128', 'regex:/^[A-Za-z0-9!@#%^*_=+.,:\-]+$/'],
         ]);
-        $prefix = 'xp_'.substr(hash('sha256', $site->domain), 0, 8).'_';
+        $instancePrefix = config('xpanel.management_mode') === 'vps-instance'
+            ? substr(str_replace('-', '', (string) config('xpanel.instance_id')), 0, 6).'_'
+            : '';
+        $prefix = 'xp_'.$instancePrefix.substr(hash('sha256', $site->domain), 0, 8).'_';
         $database = null;
         try {
             $database = $site->databases()->create([

@@ -13,6 +13,12 @@ return [
      * link back to Core for infrastructure operations.
      */
     'management_mode' => env('XPANEL_MANAGEMENT_MODE', 'standalone'),
+    'instance_id' => env('XPANEL_INSTANCE_ID'),
+    'instance_root' => env('XPANEL_INSTANCE_ROOT'),
+    'control_plane_url' => env('XPANEL_CONTROL_PLANE_URL'),
+    'broker_url' => env('XPANEL_BROKER_URL'),
+    'broker_secret' => env('XPANEL_BROKER_SECRET'),
+    'web_root' => rtrim(env('XPANEL_WEB_ROOT', '/var/www'), '/'),
     'core_url' => env('XPANEL_CORE_URL'),
     'core_service_id' => env('XPANEL_CORE_SERVICE_ID'),
     'panel_domain' => env('XPANEL_PANEL_DOMAIN'),
@@ -45,6 +51,7 @@ return [
     'server_ipv4' => env('XPANEL_SERVER_IPV4'),
     'dkim_selector' => env('XPANEL_DKIM_SELECTOR', 'xpanel'),
     'php_versions' => array_values(array_filter(array_map('trim', explode(',', env('XPANEL_PHP_VERSIONS', '8.1,8.2,8.3,8.4'))))),
+    'node_versions' => array_values(array_filter(array_map('trim', explode(',', env('XPANEL_NODE_VERSIONS', '22'))))),
 
     /*
      * Real per-site terminal: a loopback-only Go agent bridges a browser

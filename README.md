@@ -28,7 +28,7 @@
 
 ## Qué es XPanel Host
 
-XPanel Host funciona de manera independiente en un VPS, VDS o servidor dedicado. También puede instalarse dentro de una MicroVM creada por [XPanel Core](https://github.com/xpanel-sh/xpanel-core), pero Core no es un requisito.
+XPanel Host funciona de manera independiente en un VPS, VDS o servidor dedicado. También puede ejecutarse dentro de una MicroVM creada por [XPanel Core](https://github.com/xpanel-sh/xpanel-core) o como una instancia aislada administrada por XPanel VPS.
 
 Host no vende planes ni crea revendedores. Cada instalación pertenece a un propietario, que puede invitar colaboradores y utilizar los recursos del servidor o los asignados por Core.
 
@@ -36,7 +36,7 @@ Host no vende planes ni crea revendedores. Cada instalación pertenece a un prop
 Servidor Linux o MicroVM
         │
         ├── Nginx público :80/:443
-        ├── PHP-FPM / Apache / OpenLiteSpeed
+        ├── PHP-FPM / Node.js systemd / Apache / OpenLiteSpeed
         ├── MariaDB
         ├── Postfix + Dovecot + OpenDKIM
         ├── Roundcube + XMail
@@ -47,9 +47,9 @@ Servidor Linux o MicroVM
 
 | Área | Incluido actualmente |
 | --- | --- |
-| **Sitios** | PHP y estáticos, document root aislado, subdominios, dominios aparcados, redirecciones y páginas de error |
+| **Sitios** | PHP, Node.js y estáticos, document root aislado, subdominios, dominios aparcados, redirecciones y páginas de error |
 | **Motores web** | Nginx inicial; Apache y OpenLiteSpeed instalables bajo demanda |
-| **SSL** | Let's Encrypt con Certbot, renovación y estado del certificado |
+| **SSL** | Let's Encrypt con Certbot, SAN por HTTP-01 y wildcard DNS-01 mediante Cloudflare |
 | **Bases de datos** | Bases y usuarios MariaDB aislados por sitio, phpMyAdmin y accesos remotos limitados por IPv4 |
 | **Correo** | Postfix, Dovecot, Maildir, Roundcube y XMail, SPF, DKIM, DMARC y verificación DNS |
 | **Archivos** | Gestor de archivos confinado al espacio administrado |
@@ -58,7 +58,13 @@ Servidor Linux o MicroVM
 | **Tráfico y seguridad** | Analítica desde logs, caché, listado de carpetas, protección Hotlink y reglas IPv4/IPv6 por sitio |
 | **Acceso y equipo** | Propietario, roles, permisos, chat interno, notificaciones persistentes, SFTP confinado, FTPS opcional y SSH por llaves |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
-| **Despliegue** | Standalone o dentro de una MicroVM administrada por Core |
+| **Despliegue** | Standalone, MicroVM administrada por Core o instancia aislada administrada por VPS |
+
+## Modo de instancia XPanel VPS
+
+XPanel VPS reutiliza releases inmutables de este repositorio en vez de mantener una copia modificada por cliente. En modo `vps-instance`, el plano de control inyecta `XPANEL_INSTANCE_ID` y `XPANEL_INSTANCE_ROOT`; Host mueve allí storage, SQLite, sesiones y sus cachés compiladas. Cada instancia recibe además un usuario Unix, pool PHP-FPM, socket, dominio y `APP_KEY` distintos.
+
+Este modo no se instala ejecutando `install.sh` dentro de cada cuenta. Lo aprovisiona XPanel VPS. Aunque Host mantiene activado su flujo de cambios, `ServerCommandRunner` intercepta las llamadas al helper y las envía firmadas al broker central: el proceso del cliente nunca recibe sudo. El broker autoriza sitios, runtimes Node, puertos internos, certificados y bases de datos con validación de pertenencia. Los puertos y dominios —incluidos wildcard— se reservan globalmente para impedir cruces entre instancias. VPS inyecta además la slice systemd y el destino PHP-FPM administrado: los pools PHP usan el master independiente de la instancia y las unidades Node.js reciben `Slice=`. Las operaciones globales, como correo, permanecen bloqueadas hasta contar con agregación multi-instancia.
 
 ## Servidor recomendado
 
@@ -125,6 +131,17 @@ php artisan xpanel:admin-password --generate
 7. Crea una base desde **Bases de datos → Administración** si la aplicación la necesita.
 8. Ajusta memoria, subidas y tiempo de ejecución desde **Avanzado → Configuración PHP**.
 9. Si la aplicación necesita procesos periódicos, créalos desde **Avanzado → Cron Jobs**.
+
+### Aplicaciones SaaS y Node.js
+
+Al crear o editar un sitio puedes declarar cómo funciona el tenancy de tu propia aplicación: por ruta, subdominio, dominios personalizados o una combinación. Esta opción no crea clientes dentro de tu SaaS; prepara correctamente el hosting para que Laravel, Node.js u otra aplicación implemente su propia lógica tenant.
+
+- **Por ruta** no necesita DNS adicional (`example.com/cliente`).
+- **Por subdominio** activa `*.example.com`; crea también un registro DNS wildcard hacia el servidor.
+- **Dominios personalizados** se agregan desde **Dominios → Dominios aparcados** y conservan el encabezado `Host` original hacia la aplicación.
+- **Node.js** corre como el usuario Unix del sitio en una unidad systemd propia, escucha sólo en un puerto interno reservado y recibe tráfico de Nginx con WebSockets.
+
+Para HTTPS wildcard conecta primero Cloudflare desde **Avanzado → Editor DNS**. Host usa DNS-01, pasa el token cifrado al helper sólo por stdin y nunca lo guarda en la unidad systemd ni en los argumentos del broker. Sin esa conexión, el panel bloquea la emisión wildcard con una explicación clara.
 
 ### Alias, redirecciones y errores
 

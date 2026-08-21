@@ -9,14 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 
-#[Fillable(['parent_site_id', 'domain', 'document_root', 'public_path', 'system_user', 'php_version', 'type', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
+#[Fillable(['parent_site_id', 'domain', 'document_root', 'public_path', 'system_user', 'php_version', 'node_version', 'runtime_port', 'node_start_command', 'type', 'tenancy_mode', 'wildcard_domain', 'wildcard_ssl_status', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
 class Site extends Model
 {
     protected static function booted(): void
     {
         static::created(function (Site $site): void {
             if ($site->system_user === null) {
-                $site->forceFill(['system_user' => 'xps'.base_convert((string) $site->id, 10, 36).substr(hash('sha256', $site->domain), 0, 8)])->saveQuietly();
+                $site->forceFill(['system_user' => static::identityFor($site)])->saveQuietly();
             }
         });
     }
@@ -25,7 +25,7 @@ class Site extends Model
     {
         $user = $this->system_user;
         if ($user === null && is_string($this->domain) && $this->domain !== '') {
-            $user = 'xps'.base_convert((string) ($this->id ?? 0), 10, 36).substr(hash('sha256', $this->domain), 0, 8);
+            $user = static::identityFor($this);
         }
         if (! is_string($user) || ! preg_match('/^xps[a-z0-9]{9,29}$/', $user)) {
             throw new \RuntimeException('El sitio no tiene una identidad Unix válida.');
@@ -34,17 +34,49 @@ class Site extends Model
         return $user;
     }
 
+    private static function identityFor(Site $site): string
+    {
+        $instance = config('xpanel.management_mode') === 'vps-instance'
+            ? substr(str_replace('-', '', (string) config('xpanel.instance_id')), 0, 6)
+            : '';
+
+        return 'xps'.$instance.base_convert((string) ($site->id ?? 0), 10, 36).substr(hash('sha256', $site->domain), 0, 8);
+    }
+
     protected function casts(): array
     {
         return [
             'ssl_expires_at' => 'datetime',
             'https_redirect' => 'boolean',
+            'wildcard_domain' => 'boolean',
+            'runtime_port' => 'integer',
         ];
     }
 
     public static function phpVersions(): array
     {
         return config('xpanel.php_versions', ['8.1', '8.2', '8.3', '8.4']);
+    }
+
+    public static function nodeVersions(): array
+    {
+        return config('xpanel.node_versions', ['22']);
+    }
+
+    public function wildcardName(): string
+    {
+        return '*.'.$this->domain;
+    }
+
+    public static function availableRuntimePort(?int $exceptId = null): int
+    {
+        for ($attempt = 0; $attempt < 100; $attempt++) {
+            $port = random_int(20000, 49999);
+            if (! static::query()->where('runtime_port', $port)->when($exceptId, fn ($query) => $query->whereKeyNot($exceptId))->exists()) {
+                return $port;
+            }
+        }
+        throw new \RuntimeException('No se pudo reservar un puerto interno para la aplicación Node.js.');
     }
 
     public static function webServers(): array

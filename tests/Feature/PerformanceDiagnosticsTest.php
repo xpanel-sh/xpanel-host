@@ -126,7 +126,7 @@ class PerformanceDiagnosticsTest extends TestCase
 
         $this->assertStringContainsString('pagespeed_key_set()', $helper);
         $this->assertStringContainsString('IFS= read -r key', $helper);
-        $this->assertStringContainsString('cp -a -- "$backup" "$ROOT/.env"', $helper);
+        $this->assertStringContainsString('cp -a -- "$backup" "$ENV_FILE"', $helper);
         $this->assertStringContainsString('pagespeed-key-set) pagespeed_key_set', $helper);
     }
 

@@ -17,6 +17,7 @@ class SiteDiagnosticService
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'site-diagnose',
                 $site->domain, $site->document_root, $site->systemUser(), $site->web_server,
                 $site->type, $site->php_version, (string) (config('xpanel.server_ipv4') ?: '-'),
+                (string) ($site->runtime_port ?? '0'),
             ], timeout: 90))
             : $this->local($site);
 

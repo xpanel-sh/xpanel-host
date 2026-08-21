@@ -80,9 +80,22 @@ CONF);
         return $path;
     }
 
+    public function writeNodeService(Site $site): ?string
+    {
+        $path = $this->nodeServicePath($site);
+        if ($site->type !== 'node') {
+            if (is_file($path)) {
+                unlink($path);
+            }
+            return null;
+        }
+        $this->atomicWrite($path, $this->renderNodeService($site));
+        return $path;
+    }
+
     public function remove(Site $site): void
     {
-        foreach ([$this->vhostPath($site), $this->gatewayPath($site), $this->phpPoolPath($site)] as $path) {
+        foreach ([$this->vhostPath($site), $this->gatewayPath($site), $this->phpPoolPath($site), $this->nodeServicePath($site)] as $path) {
             if (is_file($path)) {
                 unlink($path);
             }
@@ -104,13 +117,22 @@ CONF);
         return storage_path('app/gateways/'.$site->domain.'.conf');
     }
 
+    public function nodeServicePath(Site $site): string
+    {
+        return storage_path('app/systemd/xpanel-node-'.$site->domain.'.service');
+    }
+
     private function renderApache(Site $site): string
     {
         if ($site->status !== 'active') {
             return $this->renderApacheSuspended($site);
         }
 
-        return $site->type === 'static' ? $this->renderApacheStatic($site) : $this->renderApachePhp($site);
+        return match ($site->type) {
+            'static' => $this->renderApacheStatic($site),
+            'node' => $this->renderApacheNode($site),
+            default => $this->renderApachePhp($site),
+        };
     }
 
     private function renderApachePhp(Site $site): string
@@ -164,13 +186,31 @@ CONF;
 CONF;
     }
 
+    private function renderApacheNode(Site $site): string
+    {
+        $aliases = $this->apacheAliases($site);
+        return <<<CONF
+<VirtualHost 127.0.0.1:8082>
+    ServerName {$site->domain}
+{$aliases}
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:{$site->runtime_port}/
+    ProxyPassReverse / http://127.0.0.1:{$site->runtime_port}/
+</VirtualHost>
+CONF;
+    }
+
     private function renderNginx(Site $site): string
     {
         if ($site->status !== 'active') {
             return $this->renderNginxSuspended($site);
         }
 
-        return $site->type === 'static' ? $this->renderNginxStatic($site) : $this->renderNginxPhp($site);
+        return match ($site->type) {
+            'static' => $this->renderNginxStatic($site),
+            'node' => $this->renderNginxNode($site),
+            default => $this->renderNginxPhp($site),
+        };
     }
 
     private function renderNginxPhp(Site $site): string
@@ -230,6 +270,30 @@ server {
     location / {
         autoindex {$autoindex};
         try_files \$uri \$uri/ =404;
+    }
+}
+CONF;
+    }
+
+    private function renderNginxNode(Site $site): string
+    {
+        $serverNames = implode(' ', $this->domainNames($site));
+        return <<<CONF
+server {
+    listen 127.0.0.1:8081;
+    server_name {$serverNames};
+    set_real_ip_from 127.0.0.1;
+    real_ip_header X-Forwarded-For;
+
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_pass http://127.0.0.1:{$site->runtime_port};
     }
 }
 CONF;
@@ -460,14 +524,28 @@ CONF;
         $hotlink = $this->renderHotlinkLocation($site);
         $protected = $this->renderProtectedLocations($site);
         $accessRules = $this->renderAccessRules($site);
-        $handler = $site->type === 'static'
-            ? <<<CONF
+        $handler = match ($site->type) {
+            'static' => <<<CONF
     location / {
         autoindex {$autoindex};
         try_files \$uri \$uri/ =404;
     }
 CONF
-            : <<<CONF
+            ,
+            'node' => <<<CONF
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_pass http://127.0.0.1:{$site->runtime_port};
+    }
+CONF
+            ,
+            default => <<<CONF
     location / {
         autoindex {$autoindex};
         try_files \$uri \$uri/ /index.php?\$query_string;
@@ -479,7 +557,8 @@ CONF
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_intercept_errors on;
     }
-CONF;
+CONF,
+        };
 
         return <<<CONF
 server {
@@ -507,12 +586,16 @@ CONF;
     /** @return array<int, string> */
     private function domainNames(Site $site, bool $onlySecureAliases = false): array
     {
+        $wildcard = $site->wildcard_domain && (! $onlySecureAliases || $site->wildcard_ssl_status === 'active')
+            ? [$site->wildcardName()]
+            : [];
         if (! Schema::hasTable('domains')) {
-            return [$site->domain];
+            return array_merge([$site->domain], $wildcard);
         }
 
         return array_values(array_unique(array_merge(
             [$site->domain],
+            $wildcard,
             $site->parkedDomains()
                 ->when($onlySecureAliases, fn ($query) => $query->where('ssl_status', 'active'))
                 ->pluck('domain')->all(),
@@ -668,6 +751,50 @@ php_admin_value[upload_max_filesize] = {$uploadLimit}
 php_admin_value[post_max_size] = {$postLimit}
 php_admin_value[max_execution_time] = {$executionTime}
 php_admin_flag[display_errors] = {$displayErrors}
+CONF;
+    }
+
+    private function renderNodeService(Site $site): string
+    {
+        if (! is_int($site->runtime_port) || $site->runtime_port < 20000 || $site->runtime_port > 49999) {
+            throw new \RuntimeException('El sitio Node.js no tiene un puerto interno válido.');
+        }
+        $command = trim((string) $site->node_start_command);
+        $exec = match (true) {
+            $command === 'npm start' => '/usr/local/bin/npm start',
+            preg_match('/^npm run ([A-Za-z0-9:_-]+)$/', $command, $match) === 1 => '/usr/local/bin/npm run '.$match[1],
+            preg_match('#^node ([A-Za-z0-9_./-]+\.m?js)$#', $command, $match) === 1 && ! str_contains($match[1], '..') => '/usr/local/bin/node '.$match[1],
+            default => throw new \RuntimeException('El comando de inicio Node.js no es seguro.'),
+        };
+        $user = $site->systemUser();
+        $slice = trim((string) env('XPANEL_SYSTEMD_SLICE', ''));
+        if ($slice !== '' && preg_match('/^xpanel-instance-[a-f0-9-]{36}\.slice$/', $slice) !== 1) {
+            throw new \RuntimeException('La slice systemd configurada no es válida.');
+        }
+        $sliceDirective = $slice === '' ? '' : "Slice={$slice}\n";
+        return <<<CONF
+[Unit]
+Description=XPanel Node.js - {$site->domain}
+After=network.target
+
+[Service]
+Type=simple
+{$sliceDirective}User={$user}
+Group={$user}
+WorkingDirectory={$site->document_root}
+Environment=NODE_ENV=production
+Environment=PORT={$site->runtime_port}
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart={$exec}
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={$site->document_root}
+
+[Install]
+WantedBy=multi-user.target
 CONF;
     }
 

@@ -56,7 +56,11 @@ class SubdomainController extends Controller
             'domain' => $domain,
             'document_root' => ($data['document_root'] ?? null) ?: $documentRootBase.'/'.$domain,
             'php_version' => $site->php_version,
+            'node_version' => $site->type === 'node' ? $site->node_version : null,
+            'runtime_port' => $site->type === 'node' ? Site::availableRuntimePort() : null,
+            'node_start_command' => $site->type === 'node' ? $site->node_start_command : null,
             'type' => $site->type,
+            'tenancy_mode' => 'none',
             'web_server' => $site->web_server,
             'status' => 'active',
         ]);

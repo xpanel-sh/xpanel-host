@@ -2,9 +2,9 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "xpanel-sh/xpanel-host",
     "type": "project",
-    "description": "XPanel Host, a cPanel-like hosting panel for standalone Linux servers or MicroVMs.",
+    "description": "XPanel Host, a cPanel-like panel for standalone servers, MicroVMs, or isolated XPanel VPS instances.",
     "license": "Apache-2.0",
-    "keywords": ["xpanel", "hosting", "laravel", "cpanel", "microvm"],
+    "keywords": ["xpanel", "hosting", "laravel", "cpanel", "microvm", "multi-tenant"],
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.8",

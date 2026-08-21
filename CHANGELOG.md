@@ -6,6 +6,12 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- Contrato de ejecución administrada por XPanel VPS para colocar pools PHP-FPM y servicios Node.js dentro de la slice systemd/cgroups de su instancia.
+
+- Hosting de aplicaciones Node.js 22 LTS mediante servicios systemd por sitio, usuario Unix aislado, puerto loopback reservado, proxy Nginx y WebSockets; los comandos de inicio se limitan a formas seguras de `npm` y `node`.
+- Modos declarativos para aplicaciones multi-tenant por ruta, wildcard de subdominios, dominios personalizados o modo híbrido.
+- Certificados wildcard Let's Encrypt por DNS-01 usando la conexión Cloudflare cifrada del sitio.
+
 - Buscador global funcional con resultados de sitios, subdominios, dominios, correo, bases de datos, equipo, ajustes y módulos; respeta permisos y admite navegación completa con teclado mediante `Ctrl/Cmd + K`.
 - Chat interno del equipo en la cabecera, con conversaciones directas, grupos de varios miembros, mensajes persistentes, lectura independiente por conversación e indicador total de pendientes.
 - Notificaciones persistentes para acciones administrativas importantes, fallos de backups programados y errores de certificados SSL, con estado leído/no leído.

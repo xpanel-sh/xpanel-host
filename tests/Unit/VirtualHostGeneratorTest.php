@@ -143,4 +143,56 @@ class VirtualHostGeneratorTest extends TestCase
         $this->assertStringContainsString('lsapi:lsphp83', $generator->render($site));
         $this->assertStringContainsString('proxy_pass http://127.0.0.1:8083;', $generator->renderGateway($site));
     }
+
+    public function test_node_site_proxies_websockets_and_stages_a_hardened_service(): void
+    {
+        $site = $this->site('nginx', 'node');
+        $site->runtime_port = 32123;
+        $site->node_version = '22';
+        $site->node_start_command = 'npm run serve';
+        $generator = new VirtualHostGenerator;
+
+        $gateway = $generator->renderGateway($site);
+        $servicePath = $generator->writeNodeService($site);
+        $service = file_get_contents($servicePath);
+
+        $this->assertStringContainsString('proxy_pass http://127.0.0.1:32123;', $gateway);
+        $this->assertStringContainsString('proxy_set_header Upgrade $http_upgrade;', $gateway);
+        $this->assertStringContainsString('Environment=PORT=32123', $service);
+        $this->assertStringContainsString('ExecStart=/usr/local/bin/npm run serve', $service);
+        $this->assertStringContainsString('NoNewPrivileges=true', $service);
+        $generator->remove($site);
+    }
+
+    public function test_vps_managed_node_service_joins_the_instance_slice(): void
+    {
+        putenv('XPANEL_SYSTEMD_SLICE=xpanel-instance-01234567-89ab-cdef-0123-456789abcdef.slice');
+        try {
+            $site = $this->site('nginx', 'node');
+            $site->runtime_port = 32123;
+            $site->node_version = '22';
+            $site->node_start_command = 'npm start';
+            $generator = new VirtualHostGenerator;
+            $servicePath = $generator->writeNodeService($site);
+
+            $this->assertStringContainsString('Slice=xpanel-instance-01234567-89ab-cdef-0123-456789abcdef.slice', file_get_contents($servicePath));
+            $generator->remove($site);
+        } finally {
+            putenv('XPANEL_SYSTEMD_SLICE');
+        }
+    }
+
+    public function test_subdomain_tenancy_adds_wildcard_but_not_to_tls_until_dns_certificate_is_active(): void
+    {
+        $site = $this->site('nginx');
+        $site->wildcard_domain = true;
+        $site->wildcard_ssl_status = 'pending';
+        $site->ssl_status = 'active';
+
+        $output = (new VirtualHostGenerator)->renderGateway($site);
+
+        $this->assertStringContainsString('server_name engine-test.example.com *.engine-test.example.com;', $output);
+        $https = substr($output, strpos($output, 'listen 443 ssl;'));
+        $this->assertStringNotContainsString('server_name engine-test.example.com *.engine-test.example.com;', $https);
+    }
 }

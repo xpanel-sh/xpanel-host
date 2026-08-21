@@ -22,6 +22,7 @@ class SiteProvisioner
             || $previous->web_server !== $site->web_server
             || $previous->type !== $site->type
             || $previous->php_version !== $site->php_version
+            || $previous->runtime_port !== $site->runtime_port
         )) {
             $this->remove($previous);
         }
@@ -29,6 +30,7 @@ class SiteProvisioner
         $this->vhosts->write($site);
         $this->vhosts->writeGateway($site);
         $this->vhosts->writePhpPool($site);
+        $this->vhosts->writeNodeService($site);
         $this->vhosts->writeOpenLiteSpeedRegistry();
 
         if (! config('xpanel.apply_system_changes')) {
@@ -47,6 +49,9 @@ class SiteProvisioner
             $site->document_root,
             $site->systemUser(),
             $site->webRoot(),
+            (string) ($site->node_version ?? '-'),
+            (string) ($site->runtime_port ?? '0'),
+            $site->status,
         ]);
     }
 

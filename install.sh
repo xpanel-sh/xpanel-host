@@ -42,7 +42,7 @@ install_base_dependencies() {
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     ca-certificates curl git unzip xz-utils tar gzip sudo composer cron rsync acl util-linux procps iproute2 openssh-server vsftpd \
     php-cli php-fpm php-sqlite3 php-mbstring php-xml php-curl php-zip php-intl php-gd php-imap \
-    certbot python3-certbot-nginx \
+    certbot python3-certbot-nginx python3-certbot-dns-cloudflare \
     mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks \
     clamav clamav-freshclam
 }

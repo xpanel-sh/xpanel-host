@@ -4,11 +4,16 @@ umask 027
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ACTION="${1:-}"
-CONFIGURED_SITE_USER="$(grep '^XPANEL_SITE_USER=' "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
-CONFIGURED_SITE_GROUP="$(grep '^XPANEL_SITE_GROUP=' "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
+STATE_ROOT="${XPANEL_INSTANCE_ROOT:-$ROOT}"
+ENV_FILE="$STATE_ROOT/.env"
+CONFIGURED_SITE_USER="${XPANEL_SITE_USER:-$(grep '^XPANEL_SITE_USER=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+CONFIGURED_SITE_GROUP="${XPANEL_SITE_GROUP:-$(grep '^XPANEL_SITE_GROUP=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 SITE_USER="${CONFIGURED_SITE_USER:-www-data}"
 SITE_GROUP="${CONFIGURED_SITE_GROUP:-www-data}"
-BACKUP_ROOT="/var/lib/xpanel-host/backups"
+BACKUP_ROOT="${XPANEL_BACKUP_ROOT:-$STATE_ROOT/backups}"
+CUSTOM_FPM_POOL_DIR="${XPANEL_FPM_POOL_DIR:-}"
+CUSTOM_FPM_CONFIG="${XPANEL_FPM_CONFIG:-}"
+CUSTOM_FPM_SERVICE="${XPANEL_FPM_SERVICE:-}"
 
 fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
@@ -20,10 +25,10 @@ valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89a
 
 set_root_env() {
   local key="$1" value="$2"
-  if grep -q "^${key}=" "$ROOT/.env" 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$ROOT/.env"
+  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
   else
-    printf '%s=%s\n' "$key" "$value" >> "$ROOT/.env"
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
   fi
 }
 
@@ -40,12 +45,12 @@ pagespeed_key_set() {
   local key="" backup
   IFS= read -r key || true
   [[ -z "$key" || "$key" =~ ^[A-Za-z0-9_-]{20,255}$ ]] || fail "Invalid PageSpeed API key."
-  [[ -f "$ROOT/.env" && ! -L "$ROOT/.env" ]] || fail "XPanel environment file is unavailable."
+  [[ -f "$ENV_FILE" && ! -L "$ENV_FILE" ]] || fail "XPanel environment file is unavailable."
 
-  backup="$(mktemp "$ROOT/.env.pagespeed.XXXXXX")"
-  cp -a -- "$ROOT/.env" "$backup"
+  backup="$(mktemp "$STATE_ROOT/.env.pagespeed.XXXXXX")"
+  cp -a -- "$ENV_FILE" "$backup"
   if ! set_root_env PAGESPEED_API_KEY "$key" || ! sudo -u "$SITE_USER" php "$ROOT/artisan" config:cache --no-interaction >/dev/null; then
-    cp -a -- "$backup" "$ROOT/.env"
+    cp -a -- "$backup" "$ENV_FILE"
     sudo -u "$SITE_USER" php "$ROOT/artisan" config:cache --no-interaction >/dev/null 2>&1 || true
     rm -f -- "$backup"
     fail "Could not activate the PageSpeed API key."
@@ -78,12 +83,50 @@ defer_service_reload() {
   systemd-run --quiet --collect --on-active=2s /bin/systemctl reload "$service"
 }
 
+fpm_pool_path() {
+  local php_version="$1" domain="$2"
+  if [[ -n "$CUSTOM_FPM_POOL_DIR" ]]; then
+    [[ "$CUSTOM_FPM_POOL_DIR" =~ ^/etc/xpanel-vps/instances/[a-f0-9-]{36}/php-fpm-pools$ ]] || fail "Invalid managed PHP-FPM pool directory."
+    printf '%s/xpanel-%s.conf' "$CUSTOM_FPM_POOL_DIR" "$domain"
+  else
+    printf '/etc/php/%s/fpm/pool.d/xpanel-%s.conf' "$php_version" "$domain"
+  fi
+}
+
+test_php_fpm() {
+  local php_version="$1"
+  if [[ -n "$CUSTOM_FPM_CONFIG" ]]; then
+    [[ "$CUSTOM_FPM_CONFIG" =~ ^/etc/xpanel-vps/instances/[a-f0-9-]{36}/php-fpm\.conf$ && -f "$CUSTOM_FPM_CONFIG" && ! -L "$CUSTOM_FPM_CONFIG" ]] || fail "Invalid managed PHP-FPM configuration."
+    "php-fpm$php_version" -t -y "$CUSTOM_FPM_CONFIG"
+  else
+    "php-fpm$php_version" -t
+  fi
+}
+
+reload_php_fpm() {
+  local php_version="$1" service="php$php_version-fpm"
+  if [[ -n "$CUSTOM_FPM_SERVICE" ]]; then
+    [[ "$CUSTOM_FPM_SERVICE" =~ ^xpanel-instance-[a-f0-9-]{36}-fpm\.service$ ]] || fail "Invalid managed PHP-FPM service."
+    service="$CUSTOM_FPM_SERVICE"
+  fi
+  defer_service_reload "$service"
+}
+
+remove_php_pool() {
+  local php_version="$1" pool="$2"
+  if [[ -f "$pool" ]]; then
+    rm -f "$pool"
+    test_php_fpm "$php_version"
+    reload_php_fpm "$php_version"
+  fi
+}
+
 grant_panel_file_access() {
   local document_root="$1"
   valid_document_root "$document_root" || fail "Invalid panel file-access root."
   [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root is unavailable."
-  setfacl -R -m u:www-data:rwX "$document_root"
-  find -P "$document_root" -xdev -type d -exec setfacl -m d:u:www-data:rwx {} +
+  setfacl -R -m "u:$SITE_USER:rwX" "$document_root"
+  find -P "$document_root" -xdev -type d -exec setfacl -m "d:u:$SITE_USER:rwx" {} +
 }
 
 subdomain_root_migrate() {
@@ -177,7 +220,7 @@ EOF
 
 panel_ssl_enable() {
   local domain
-  domain="$(grep '^XPANEL_PANEL_DOMAIN=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
+  domain="$(grep '^XPANEL_PANEL_DOMAIN=' "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
   valid_domain "$domain" || fail "Configure and verify a panel domain first."
   bash "$ROOT/scripts/enable-panel-ssl.sh"
 }
@@ -191,7 +234,7 @@ ensure_site_identity() {
     useradd --system --gid "$site_user" --home-dir "$document_root" --shell /usr/sbin/nologin "$site_user"
   fi
   [[ "$(id -gn "$site_user")" == "$site_user" ]] || fail "Site user has an unexpected primary group."
-  usermod -a -G "$site_user" www-data
+  usermod -a -G "$site_user" "$SITE_USER"
   if id lsadm >/dev/null 2>&1; then usermod -a -G "$site_user" lsadm; fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   chown -R "$site_user:$site_user" "$document_root"
@@ -207,21 +250,33 @@ ensure_site_identity() {
 site_action() {
   local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   local web_root="${8:-$document_root}"
+  local node_version="${9:--}" runtime_port="${10:-0}" site_status="${11:-active}" node_exec=""
   valid_domain "$domain" || fail "Invalid site domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
-  [[ "$type" == "php" || "$type" == "static" ]] || fail "Invalid site type."
+  [[ "$type" == "php" || "$type" == "static" || "$type" == "node" ]] || fail "Invalid site type."
   [[ "$php_version" =~ ^8\.[1-4]$ ]] || fail "Invalid PHP version."
   valid_document_root "$document_root" || fail "Document root must be under /var/www or /srv/www."
   valid_document_root "$web_root" || fail "Web root must be under /var/www or /srv/www."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
+  [[ "$site_status" == "active" || "$site_status" == "suspended" ]] || fail "Invalid site status."
+  if [[ "$type" == "node" ]]; then
+    [[ "$engine" == "nginx" ]] || fail "Node.js sites currently require Nginx."
+    [[ "$node_version" =~ ^(20|22|24)$ ]] || fail "Invalid Node.js version."
+    [[ "$runtime_port" =~ ^[0-9]{5}$ ]] && (( runtime_port >= 20000 && runtime_port <= 49999 )) || fail "Invalid Node.js runtime port."
+  fi
 
-  local vhost_source="$ROOT/storage/app/vhosts/$domain.conf"
-  local gateway_source="$ROOT/storage/app/gateways/$domain.conf"
-  local pool_source="$ROOT/storage/app/php-fpm/$domain.conf"
-  local ols_registry_source="$ROOT/storage/app/openlitespeed/registry.conf"
-  local pool="/etc/php/$php_version/fpm/pool.d/xpanel-$domain.conf"
+  local vhost_source="$STATE_ROOT/storage/app/vhosts/$domain.conf"
+  local gateway_source="$STATE_ROOT/storage/app/gateways/$domain.conf"
+  local pool_source="$STATE_ROOT/storage/app/php-fpm/$domain.conf"
+  local node_source="$STATE_ROOT/storage/app/systemd/xpanel-node-$domain.service"
+  local node_unit="xpanel-node-$domain.service"
+  local ols_registry_source="$STATE_ROOT/storage/app/openlitespeed/registry.conf"
+  local pool
+  pool="$(fpm_pool_path "$php_version" "$domain")"
 
   if [[ "$ACTION" == "remove" ]]; then
+    systemctl disable --now "$node_unit" >/dev/null 2>&1 || true
+    rm -f "/etc/systemd/system/$node_unit"
     rm -f "/etc/nginx/sites-enabled/xpanel-$domain.conf" "/etc/nginx/sites-available/xpanel-$domain.conf"
     rm -f "/etc/nginx/conf.d/xpanel-backend-$domain.conf"
     if [[ "$engine" == "apache" ]]; then
@@ -234,9 +289,9 @@ site_action() {
       install -o root -g root -m 0644 "$ols_registry_source" /usr/local/lsws/conf/xpanel/registry.conf
     fi
     rm -f "/etc/nginx/sites-enabled/xpanel-gateway-$domain.conf" "/etc/nginx/sites-available/xpanel-gateway-$domain.conf"
-    rm -f "$pool"
+    remove_php_pool "$php_version" "$pool"
+    systemctl daemon-reload
     reload_web_server "$engine"
-    defer_service_reload "php$php_version-fpm"
     return
   fi
 
@@ -248,20 +303,47 @@ site_action() {
     if [[ "$engine" != "openlitespeed" ]]; then
       [[ -f "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
       install -o root -g root -m 0644 "$pool_source" "$pool"
-      "php-fpm$php_version" -t
-      defer_service_reload "php$php_version-fpm"
+      test_php_fpm "$php_version"
+      reload_php_fpm "$php_version"
     else
-      rm -f "$pool"
+      remove_php_pool "$php_version" "$pool"
     fi
     if [[ ! -e "$web_root/index.php" && ! -e "$web_root/index.html" ]]; then
       printf '%s\n' '<?php echo "XPanel Host: sitio listo"; ?>' > "$web_root/index.php"
       chown "$site_user:$site_user" "$web_root/index.php"
     fi
-  else
-    rm -f "$pool"
+  elif [[ "$type" == "static" ]]; then
+    remove_php_pool "$php_version" "$pool"
     if [[ ! -e "$web_root/index.html" ]]; then
       printf '%s\n' '<!doctype html><html lang="es"><meta charset="utf-8"><title>Sitio listo</title><h1>XPanel Host: sitio listo</h1></html>' > "$web_root/index.html"
       chown "$site_user:$site_user" "$web_root/index.html"
+    fi
+  else
+    remove_php_pool "$php_version" "$pool"
+    command -v node >/dev/null || fail "Node.js is not installed."
+    [[ "$(node --version)" =~ ^v$node_version\. ]] || fail "Requested Node.js version is not installed."
+    [[ -f "$node_source" && ! -L "$node_source" ]] || fail "Staged Node.js service not found."
+    grep -qxF "User=$site_user" "$node_source" || fail "Invalid Node.js service user."
+    grep -qxF "Group=$site_user" "$node_source" || fail "Invalid Node.js service group."
+    grep -qxF "WorkingDirectory=$document_root" "$node_source" || fail "Invalid Node.js working directory."
+    grep -qxF "Environment=PORT=$runtime_port" "$node_source" || fail "Invalid Node.js service port."
+    grep -Eq '^ExecStart=/usr/local/bin/(npm (start|run [A-Za-z0-9:_-]+)|node [A-Za-z0-9_./-]+\.m?js)$' "$node_source" || fail "Invalid Node.js start command."
+    install -o root -g root -m 0644 "$node_source" "/etc/systemd/system/$node_unit"
+    systemctl daemon-reload
+    if [[ "$site_status" == "active" ]]; then
+      systemctl enable "$node_unit" >/dev/null
+      node_exec="$(grep '^ExecStart=' "$node_source" | cut -d= -f2-)"
+      if [[ "$node_exec" == "/usr/local/bin/npm "* && ! -f "$document_root/package.json" ]]; then
+        systemctl stop "$node_unit" >/dev/null 2>&1 || true
+        printf 'runtime_status=pending-files\n'
+      elif [[ "$node_exec" == "/usr/local/bin/node "* && ! -f "$document_root/${node_exec#/usr/local/bin/node }" ]]; then
+        systemctl stop "$node_unit" >/dev/null 2>&1 || true
+        printf 'runtime_status=pending-files\n'
+      else
+        systemctl restart "$node_unit"
+      fi
+    else
+      systemctl disable --now "$node_unit" >/dev/null 2>&1 || true
     fi
   fi
 
@@ -289,13 +371,16 @@ site_restart() {
   local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   valid_domain "$domain" || fail "Invalid site domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
-  [[ "$type" == "php" || "$type" == "static" ]] || fail "Invalid site type."
+  [[ "$type" == "php" || "$type" == "static" || "$type" == "node" ]] || fail "Invalid site type."
   [[ "$php_version" =~ ^8\.[1-5]$ ]] || fail "Invalid PHP version."
   valid_document_root "$document_root" || fail "Invalid document root."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
   if [[ "$type" == "php" && "$engine" != "openlitespeed" ]]; then
-    "php-fpm$php_version" -t
-    defer_service_reload "php$php_version-fpm"
+    test_php_fpm "$php_version"
+    reload_php_fpm "$php_version"
+  fi
+  if [[ "$type" == "node" ]]; then
+    systemctl restart "xpanel-node-$domain.service"
   fi
   reload_web_server "$engine"
 }
@@ -304,7 +389,7 @@ cron_sync() {
   local domain="$2" document_root="$3" site_user="$4"
   valid_domain "$domain" || fail "Invalid cron domain."
   valid_document_root "$document_root" || fail "Invalid cron document root."
-  local source="$ROOT/storage/app/cron/$domain"
+  local source="$STATE_ROOT/storage/app/cron/$domain"
   local target="/etc/cron.d/xpanel-$domain"
   local log="/var/log/xpanel-host/$domain-cron.log"
   [[ -f "$source" && ! -L "$source" ]] || fail "Staged cron configuration not found."
@@ -341,7 +426,7 @@ error_pages_sync() {
   valid_domain "$domain" || fail "Invalid error page domain."
   valid_document_root "$web_root" || fail "Invalid error page web root."
   valid_site_identity "$site_user" || fail "Invalid error page site user."
-  local source_root="$ROOT/storage/app/error-pages/$domain"
+  local source_root="$STATE_ROOT/storage/app/error-pages/$domain"
   local target_root="$web_root/.xpanel-errors"
   install -d -o "$site_user" -g "$site_user" -m 0755 "$target_root"
   local enabled=() code source
@@ -480,7 +565,7 @@ migration_input_path() {
   local path="$1" resolved
   [[ -f "$path" && ! -L "$path" ]] || return 1
   resolved="$(realpath -e -- "$path")"
-  [[ "$resolved" == "$ROOT/storage/app/migrations/"* ]] || return 1
+  [[ "$resolved" == "$STATE_ROOT/storage/app/migrations/"* ]] || return 1
   printf '%s\n' "$resolved"
 }
 
@@ -600,11 +685,12 @@ diagnostic_check() {
 
 site_diagnose() {
   local domain="$2" document_root="$3" site_user="$4" engine="$5" type="$6" php_version="$7" expected_ipv4="$8"
+  local runtime_port="${9:-0}"
   valid_domain "$domain" || fail "Invalid diagnostic domain."
   valid_document_root "$document_root" || fail "Invalid diagnostic document root."
   valid_site_identity "$site_user" || fail "Invalid diagnostic site identity."
   [[ "$engine" == nginx || "$engine" == apache || "$engine" == openlitespeed ]] || fail "Invalid diagnostic engine."
-  [[ "$type" == php || "$type" == static ]] || fail "Invalid diagnostic site type."
+  [[ "$type" == php || "$type" == static || "$type" == node ]] || fail "Invalid diagnostic site type."
   [[ "$php_version" =~ ^8\.[1-5]$ ]] || fail "Invalid diagnostic PHP version."
   [[ "$expected_ipv4" == - || "$expected_ipv4" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || fail "Invalid expected server address."
 
@@ -614,6 +700,13 @@ site_diagnose() {
     owner="$(stat -c %U "$document_root")"
     [[ "$owner" == "$site_user" ]] && diagnostic_check unix-owner pass "La raíz pertenece al usuario aislado $site_user." \
       || diagnostic_check unix-owner fail "La raíz pertenece a $owner; se esperaba $site_user."
+  elif [[ "$type" == node ]]; then
+    [[ "$runtime_port" =~ ^[0-9]{5}$ ]] && (( runtime_port >= 20000 && runtime_port <= 49999 )) || fail "Invalid diagnostic Node.js port."
+    if systemctl is-active --quiet "xpanel-node-$domain.service" && ss -ltnH "sport = :$runtime_port" | grep -q .; then
+      diagnostic_check node-runtime pass "Node.js está activo y escucha en el puerto interno $runtime_port."
+    else
+      diagnostic_check node-runtime fail "El proceso Node.js no está activo o no escucha en su puerto reservado."
+    fi
   else
     diagnostic_check document-root fail "El document root no existe o es un enlace simbólico."
   fi
@@ -806,7 +899,7 @@ git_remove() {
 auth_sync() {
   local domain="$2" source_root target_root id source
   valid_domain "$domain" || fail "Invalid auth domain."
-  source_root="$ROOT/storage/app/auth/$domain"
+  source_root="$STATE_ROOT/storage/app/auth/$domain"
   target_root="/etc/xpanel-host/auth/$domain"
   install -d -o root -g "$SITE_GROUP" -m 0750 /etc/xpanel-host/auth "$target_root"
   local enabled=()
@@ -877,7 +970,7 @@ install_openlitespeed_engine() {
   rm -f -- "$repository_script"
   apt-get update -y
   DEBIAN_FRONTEND=noninteractive apt-get install -y openlitespeed
-  versions="$(grep '^XPANEL_PHP_VERSIONS=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
+  versions="$(grep '^XPANEL_PHP_VERSIONS=' "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
   versions="${versions:-8.3}"
   IFS=',' read -ra php_versions <<< "$versions"
   for version in "${php_versions[@]}"; do
@@ -893,8 +986,8 @@ install_openlitespeed_engine() {
   if [[ -f /usr/local/lsws/admin/conf/admin_config.conf ]]; then
     sed -i -E 's|^([[:space:]]*address[[:space:]]+)\*?:7080|\1127.0.0.1:7080|' /usr/local/lsws/admin/conf/admin_config.conf
   fi
-  [[ -f "$ROOT/storage/app/openlitespeed/registry.conf" ]] \
-    && install -o root -g root -m 0644 "$ROOT/storage/app/openlitespeed/registry.conf" /usr/local/lsws/conf/xpanel/registry.conf
+  [[ -f "$STATE_ROOT/storage/app/openlitespeed/registry.conf" ]] \
+    && install -o root -g root -m 0644 "$STATE_ROOT/storage/app/openlitespeed/registry.conf" /usr/local/lsws/conf/xpanel/registry.conf
   /usr/local/lsws/bin/openlitespeed -t
   systemctl enable --now lsws
   systemctl restart lsws
@@ -919,7 +1012,7 @@ ssl_action() {
 
   if [[ "$ACTION" == "ssl-delete" ]]; then
     local configured_mail_hostname=""
-    configured_mail_hostname="$(grep '^XPANEL_MAIL_HOSTNAME=' "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
+    configured_mail_hostname="$(grep '^XPANEL_MAIL_HOSTNAME=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
     if [[ "$domain" == "$configured_mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then
       sed -i 's|^ssl_cert = .*|ssl_cert = </etc/ssl/certs/ssl-cert-snakeoil.pem|' /etc/dovecot/conf.d/99-xpanel-host.conf
       sed -i 's|^ssl_key = .*|ssl_key = </etc/ssl/private/ssl-cert-snakeoil.key|' /etc/dovecot/conf.d/99-xpanel-host.conf
@@ -936,6 +1029,12 @@ ssl_action() {
   local email="$5"
   [[ "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || fail "Invalid ACME email."
   local certificate_domains=(-d "$domain") alias
+  local cloudflare_token="" credentials_file=""
+  if [[ "$ACTION" == "ssl-wildcard-issue" ]]; then
+    IFS= read -r cloudflare_token || true
+    [[ "$cloudflare_token" =~ ^[A-Za-z0-9_-]{20,255}$ ]] || fail "Invalid Cloudflare API token."
+    certificate_domains+=(-d "*.$domain")
+  fi
   while IFS= read -r alias; do
     [[ -z "$alias" ]] && continue
     valid_domain "$alias" || fail "Invalid certificate alias."
@@ -943,13 +1042,24 @@ ssl_action() {
     certificate_domains+=(-d "$alias")
   done
   install -d -o "$site_user" -g "$site_user" -m 0755 "$web_root/.well-known/acme-challenge"
-  certbot certonly --non-interactive --agree-tos --no-eff-email \
-    --expand --webroot -w "$web_root" --cert-name "$domain" "${certificate_domains[@]}" -m "$email"
+  if [[ "$ACTION" == "ssl-wildcard-issue" ]]; then
+    credentials_file="$(mktemp /root/.xpanel-cloudflare.XXXXXX)"
+    trap 'rm -f -- "$credentials_file"' RETURN
+    printf 'dns_cloudflare_api_token = %s\n' "$cloudflare_token" > "$credentials_file"
+    chmod 0600 "$credentials_file"
+    certbot certonly --non-interactive --agree-tos --no-eff-email --expand \
+      --dns-cloudflare --dns-cloudflare-credentials "$credentials_file" \
+      --dns-cloudflare-propagation-seconds 30 --cert-name "$domain" "${certificate_domains[@]}" -m "$email"
+    rm -f -- "$credentials_file"
+  else
+    certbot certonly --non-interactive --agree-tos --no-eff-email \
+      --expand --webroot -w "$web_root" --cert-name "$domain" "${certificate_domains[@]}" -m "$email"
+  fi
 
   local certificate="/etc/letsencrypt/live/$domain/fullchain.pem"
   [[ -f "$certificate" ]] || fail "Certbot did not create the expected certificate."
   local configured_mail_hostname=""
-  configured_mail_hostname="$(grep '^XPANEL_MAIL_HOSTNAME=' "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
+  configured_mail_hostname="$(grep '^XPANEL_MAIL_HOSTNAME=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
   if [[ "$domain" == "$configured_mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then
     sed -i "s|^ssl_cert = .*|ssl_cert = </etc/letsencrypt/live/$domain/fullchain.pem|" /etc/dovecot/conf.d/99-xpanel-host.conf
     sed -i "s|^ssl_key = .*|ssl_key = </etc/letsencrypt/live/$domain/privkey.pem|" /etc/dovecot/conf.d/99-xpanel-host.conf
@@ -1027,7 +1137,7 @@ SQL
 }
 
 database_remote_sync() {
-  local source="$ROOT/storage/app/mysql/remote-hosts"
+  local source="$STATE_ROOT/storage/app/mysql/remote-hosts"
   [[ -f "$source" && ! -L "$source" ]] || fail "Staged remote MySQL allowlist not found."
   local addresses=()
   while IFS= read -r address; do
@@ -1106,7 +1216,7 @@ access_sync() {
     printf '%s:%s\n' "$site_user" "$password" | chpasswd
   fi
 
-  local source="$ROOT/storage/app/access/$site_user/authorized_keys"
+  local source="$STATE_ROOT/storage/app/access/$site_user/authorized_keys"
   [[ -f "$source" && ! -L "$source" ]] || fail "Staged SSH keys not found."
   if grep -Ev '^(ssh-ed25519|ssh-rsa) [A-Za-z0-9+/]+={0,3}( [^[:cntrl:]]{1,200})?$|^$' "$source" | grep -q .; then
     fail "Invalid staged SSH public key."
@@ -1365,7 +1475,7 @@ access_remove() {
 }
 
 mail_sync() {
-  local source="$ROOT/storage/app/mail"
+  local source="$STATE_ROOT/storage/app/mail"
   for name in domains mailboxes users sender-login aliases dkim-selector; do
     [[ -f "$source/$name" ]] || fail "Missing staged mail file: $name"
   done
@@ -1430,7 +1540,7 @@ mail_sync() {
 # at install time, but not for a set that changes every time an admin flips a
 # domain's mode). IPv4 only for now (smtp_bind_address, not the IPv6 variant).
 mail_outbound_sync() {
-  local source="$ROOT/storage/app/mail"
+  local source="$STATE_ROOT/storage/app/mail"
   [[ -f "$source/sender-transport" ]] || fail "Missing staged sender-transport map."
   [[ -f "$source/dedicated-ips" ]] || fail "Missing staged dedicated IPs list."
   if grep -Ev '^(@[a-z0-9.-]+ xpanelout-[a-z0-9-]+:)?$' "$source/sender-transport" | grep -q .; then
@@ -1643,7 +1753,7 @@ case "$ACTION" in
   git-deploy) git_deploy "$@" ;;
   git-remove) git_remove "$@" ;;
   auth-sync) auth_sync "$@" ;;
-  ssl-issue|ssl-delete) ssl_action "$@" ;;
+  ssl-issue|ssl-wildcard-issue|ssl-delete) ssl_action "$@" ;;
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;
   database-create|database-password|database-remove) database_action "$@" ;;

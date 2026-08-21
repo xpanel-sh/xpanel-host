@@ -20,20 +20,30 @@ class CertificateProvisioner
             throw new RuntimeException('En modo Core, el certificado publico se administra en Traefik del servidor padre.');
         }
         if (! config('xpanel.apply_system_changes')) {
-            $site->update(['ssl_status' => 'staged', 'https_redirect' => $redirect]);
+            $site->update([
+                'ssl_status' => 'staged',
+                'wildcard_ssl_status' => $site->wildcard_domain ? 'staged' : 'disabled',
+                'https_redirect' => $redirect,
+            ]);
             Domain::where('site_id', $site->id)->whereIn('type', ['primary', 'subdomain', 'alias'])->update(['ssl_status' => 'staged']);
 
             return;
         }
 
+        $connection = $site->wildcard_domain ? $site->dnsConnection()->first() : null;
+        if ($site->wildcard_domain && (! $connection || $connection->provider !== 'cloudflare' || $connection->verified_at === null)) {
+            throw new RuntimeException('Conecta y verifica Cloudflare en el Editor DNS antes de emitir el SSL wildcard.');
+        }
+        $action = $site->wildcard_domain ? 'ssl-wildcard-issue' : 'ssl-issue';
         $command = [
-            'sudo', '-n', (string) config('xpanel.site_helper'), 'ssl-issue',
+            'sudo', '-n', (string) config('xpanel.site_helper'), $action,
             $site->domain, $site->web_server, $site->webRoot(), $email, $site->systemUser(),
         ];
         $aliases = $site->parkedDomains()->pluck('domain')->all();
-        $output = $aliases === []
-            ? $this->commands->run($command)
-            : $this->commands->run($command, implode("\n", $aliases)."\n");
+        $input = $site->wildcard_domain
+            ? $connection->token()."\n".($aliases === [] ? '' : implode("\n", $aliases)."\n")
+            : ($aliases === [] ? null : implode("\n", $aliases)."\n");
+        $output = $input === null ? $this->commands->run($command) : $this->commands->run($command, $input);
         $metadata = $this->metadata($output);
         $original = $site->getAttributes();
         $aliasStatuses = $site->parkedDomains()->pluck('ssl_status', 'id');
@@ -41,6 +51,7 @@ class CertificateProvisioner
             'ssl_status' => 'active',
             'ssl_expires_at' => $metadata['not_after'] ?? now()->addDays(89),
             'ssl_issuer' => $metadata['issuer'] ?? 'Let\'s Encrypt',
+            'wildcard_ssl_status' => $site->wildcard_domain ? 'active' : 'disabled',
             'https_redirect' => $redirect,
         ]);
         Domain::where('site_id', $site->id)->where('type', 'alias')->update(['ssl_status' => 'active']);
@@ -64,6 +75,7 @@ class CertificateProvisioner
             'ssl_status' => 'disabled',
             'ssl_expires_at' => null,
             'ssl_issuer' => null,
+            'wildcard_ssl_status' => 'disabled',
         ]);
         try {
             $this->sites->provision($site);
