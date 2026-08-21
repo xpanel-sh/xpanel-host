@@ -22,7 +22,7 @@ class SiteModules
                 'items' => [
                     'summary' => ['label' => 'Resumen del servidor', 'icon' => 'ki-external-drive', 'description' => 'Modo de administracion y capacidad disponible para todos tus sitios.'],
                     'usage' => ['label' => 'Uso de recursos', 'icon' => 'ki-chart-simple', 'description' => 'CPU, RAM y disco disponibles en el servidor o MicroVM.'],
-                    'external' => ['label' => 'Administracion externa', 'icon' => 'ki-arrow-up-right', 'description' => 'En modo Core, abre el servicio para renovar o cambiar recursos.'],
+                    'external' => ['label' => 'Administracion externa', 'icon' => 'ki-arrow-up-right', 'description' => 'En modo VM, abre el servicio para renovar o cambiar recursos.'],
                 ],
             ],
             'performance' => [

@@ -9,8 +9,8 @@ return [
 
     /*
      * Host never sells plans. In standalone mode it reports the Linux server
-     * resources. In core mode it reports the MicroVM allocation and offers a
-     * link back to Core for infrastructure operations.
+     * resources. In VM mode it reports the MicroVM allocation and offers a
+     * link back to VM for infrastructure operations.
      */
     'management_mode' => env('XPANEL_MANAGEMENT_MODE', 'standalone'),
     'instance_id' => env('XPANEL_INSTANCE_ID'),
@@ -19,8 +19,8 @@ return [
     'broker_url' => env('XPANEL_BROKER_URL'),
     'broker_secret' => env('XPANEL_BROKER_SECRET'),
     'web_root' => rtrim(env('XPANEL_WEB_ROOT', '/var/www'), '/'),
-    'core_url' => env('XPANEL_CORE_URL'),
-    'core_service_id' => env('XPANEL_CORE_SERVICE_ID'),
+    'vm_url' => env('XPANEL_VM_URL'),
+    'vm_service_id' => env('XPANEL_VM_SERVICE_ID'),
     'panel_domain' => env('XPANEL_PANEL_DOMAIN'),
     'panel_access_mode' => env('XPANEL_PANEL_ACCESS_MODE', 'ip'),
     'panel_port' => (int) env('XPANEL_PANEL_PORT', 80),

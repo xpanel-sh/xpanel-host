@@ -242,8 +242,8 @@ configure_management_context() {
   local panel_port="${XPANEL_PANEL_PORT:-80}"
   local server_ipv4="${XPANEL_SERVER_IPV4:-$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')}"
   case "$mode" in
-    standalone|core) ;;
-    *) echo "XPANEL_MANAGEMENT_MODE must be standalone or core." >&2; exit 1 ;;
+    standalone|vm) ;;
+    *) echo "XPANEL_MANAGEMENT_MODE must be standalone or vm." >&2; exit 1 ;;
   esac
 
   if [[ "$mode" == "standalone" && "${XPANEL_ACCESS_CONFIGURED:-}" != "true" ]]; then
@@ -284,7 +284,7 @@ configure_management_context() {
     set_env_var XPANEL_PANEL_DOMAIN "$panel_domain"
     set_env_var XPANEL_PANEL_ACCESS_MODE domain
     set_env_var XPANEL_PANEL_PORT "$panel_port"
-    if [[ "$mode" == "core" ]]; then
+    if [[ "$mode" == "vm" ]]; then
       set_env_var APP_URL "https://$panel_domain"
     else
       set_env_var APP_URL "http://$panel_domain"
@@ -292,10 +292,10 @@ configure_management_context() {
   fi
   set_env_var XPANEL_ACCESS_CONFIGURED true
 
-  if [[ "$mode" == "core" ]]; then
+  if [[ "$mode" == "vm" ]]; then
     local required=(
-      XPANEL_CORE_URL
-      XPANEL_CORE_SERVICE_ID
+      XPANEL_VM_URL
+      XPANEL_VM_SERVICE_ID
       XPANEL_PANEL_DOMAIN
       XPANEL_ASSIGNED_CPU
       XPANEL_ASSIGNED_MEMORY_MIB
@@ -304,7 +304,7 @@ configure_management_context() {
     local key
     for key in "${required[@]}"; do
       if [[ -z "${!key:-}" ]]; then
-        echo "$key is required when XPANEL_MANAGEMENT_MODE=core." >&2
+        echo "$key is required when XPANEL_MANAGEMENT_MODE=vm." >&2
         exit 1
       fi
       set_env_var "$key" "${!key}"

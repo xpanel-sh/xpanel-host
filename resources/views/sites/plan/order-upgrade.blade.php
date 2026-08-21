@@ -15,7 +15,7 @@
         ],
         'cards' => [
             ['title' => 'Servidor independiente', 'body' => 'Los cambios se solicitan al proveedor del VPS/VDS.'],
-            ['title' => 'MicroVM de Core', 'body' => 'Los cambios se realizan desde Core, fuera de Host.'],
+            ['title' => 'MicroVM de VM', 'body' => 'Los cambios se realizan desde VM, fuera de Host.'],
         ],
     ])
 @endsection

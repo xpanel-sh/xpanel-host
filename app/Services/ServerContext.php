@@ -7,7 +7,7 @@ class ServerContext
     /** @return array<string, int|string|bool|null> */
     public function snapshot(): array
     {
-        $managed = config('xpanel.management_mode') === 'core';
+        $managed = config('xpanel.management_mode') === 'vm';
         $cpu = $managed
             ? $this->positiveInt(config('xpanel.assigned_cpu'), $this->detectedCpu())
             : $this->detectedCpu();
@@ -26,8 +26,8 @@ class ServerContext
         $cpuLoadPercent = $this->detectedCpuLoadPercent($cpu);
 
         return [
-            'mode' => $managed ? 'core' : 'standalone',
-            'mode_label' => $managed ? 'Administrado por XPanel Core' : 'Servidor independiente',
+            'mode' => $managed ? 'vm' : 'standalone',
+            'mode_label' => $managed ? 'Administrado por XPanel VM' : 'Servidor independiente',
             'managed' => $managed,
             'cpu' => $cpu,
             'memory_total_mib' => $memoryTotal,
@@ -40,8 +40,8 @@ class ServerContext
             'disk_used_percent' => $diskTotal > 0 ? (int) round(($diskUsedGiB / $diskTotal) * 100) : 0,
             'cpu_load_percent' => $cpuLoadPercent,
             'uptime_seconds' => $this->detectedUptimeSeconds(),
-            'core_url' => $managed ? config('xpanel.core_url') : null,
-            'core_service_id' => $managed ? config('xpanel.core_service_id') : null,
+            'vm_url' => $managed ? config('xpanel.vm_url') : null,
+            'vm_service_id' => $managed ? config('xpanel.vm_service_id') : null,
             'panel_domain' => config('xpanel.panel_domain'),
         ];
     }

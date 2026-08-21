@@ -19,10 +19,10 @@
         <div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>
       @endif
 
-      @if (config('xpanel.management_mode') === 'core')
+      @if (config('xpanel.management_mode') === 'vm')
         <section class="kt-card"><div class="kt-card-content p-6">
-          <h2 class="font-semibold text-mono">TLS administrado por Core</h2>
-          <p class="mt-2 text-sm text-secondary-foreground">Este Host vive dentro de una MicroVM. El certificado público y la renovación pertenecen al Traefik del servidor Core; el tráfico entra por HTTPS y llega a Host por la red privada.</p>
+          <h2 class="font-semibold text-mono">TLS administrado por VM</h2>
+          <p class="mt-2 text-sm text-secondary-foreground">Este Host vive dentro de una MicroVM. El certificado público y la renovación pertenecen al Traefik del servidor VM; el tráfico entra por HTTPS y llega a Host por la red privada.</p>
         </div></section>
       @else
         <section class="grid md:grid-cols-4 gap-4">

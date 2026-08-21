@@ -35,7 +35,7 @@
                                     <div class="min-w-0">
                                         <div class="flex min-w-0 items-center gap-2">
                                             <h2 class="truncate text-lg font-semibold text-mono">{{ $site->domain }}</h2>
-                                            <a class="shrink-0 text-secondary-foreground hover:text-primary" href="{{ $site->ssl_status === 'active' || config('xpanel.management_mode') === 'core' ? 'https' : 'http' }}://{{ $site->domain }}" target="_blank" rel="noopener">
+                                            <a class="shrink-0 text-secondary-foreground hover:text-primary" href="{{ $site->ssl_status === 'active' || config('xpanel.management_mode') === 'vm' ? 'https' : 'http' }}://{{ $site->domain }}" target="_blank" rel="noopener">
                                                 <i class="ki-filled ki-exit-right-corner"></i>
                                             </a>
                                         </div>

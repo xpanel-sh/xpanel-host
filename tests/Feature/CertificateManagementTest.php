@@ -46,7 +46,7 @@ class CertificateManagementTest extends TestCase
 
     public function test_core_mode_refuses_local_certbot(): void
     {
-        config()->set('xpanel.management_mode', 'core');
+        config()->set('xpanel.management_mode', 'vm');
         $site = $this->site();
 
         $this->actingAs($this->owner())->post(route('sites.ssl.issue', $site), [

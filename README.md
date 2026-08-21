@@ -28,9 +28,9 @@
 
 ## Qué es XPanel Host
 
-XPanel Host funciona de manera independiente en un VPS, VDS o servidor dedicado. También puede ejecutarse dentro de una MicroVM creada por [XPanel Core](https://github.com/xpanel-sh/xpanel-core) o como una instancia aislada administrada por XPanel VPS.
+XPanel Host funciona de manera independiente en un VPS, VDS o servidor dedicado. También puede ejecutarse dentro de una MicroVM creada por [XPanel VM](https://github.com/xpanel-sh/xpanel-vm) o como una instancia aislada administrada por XPanel VPS.
 
-Host no vende planes ni crea revendedores. Cada instalación pertenece a un propietario, que puede invitar colaboradores y utilizar los recursos del servidor o los asignados por Core.
+Host no vende planes ni crea revendedores. Cada instalación pertenece a un propietario, que puede invitar colaboradores y utilizar los recursos del servidor o los asignados por VM.
 
 ```text
 Servidor Linux o MicroVM
@@ -58,7 +58,7 @@ Servidor Linux o MicroVM
 | **Tráfico y seguridad** | Analítica desde logs, caché, listado de carpetas, protección Hotlink y reglas IPv4/IPv6 por sitio |
 | **Acceso y equipo** | Propietario, roles, permisos, chat interno, notificaciones persistentes, SFTP confinado, FTPS opcional y SSH por llaves |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
-| **Despliegue** | Standalone, MicroVM administrada por Core o instancia aislada administrada por VPS |
+| **Despliegue** | Standalone, MicroVM administrada por VM o instancia aislada administrada por VPS |
 
 ## Modo de instancia XPanel VPS
 
@@ -156,7 +156,7 @@ Para HTTPS wildcard conecta primero Cloudflare desde **Avanzado → Editor DNS**
 - **Avanzado → Git** despliega ramas de repositorios HTTPS públicos de GitHub, GitLab o Bitbucket. Antes de reemplazar archivos crea un backup `pre_deploy`; publica desde una caché privada, rechaza symlinks y conserva `.env`, ACME, páginas de error y sesiones.
 - **Avanzado → Directorios protegidos** aplica HTTP Basic antes del backend; las contraseñas se almacenan únicamente como hashes bcrypt legibles por Nginx.
 
-En una MicroVM administrada por Core, cada alias también debe registrarse como dominio de entrada en Core/Traefik. Host configura el servicio interno, pero no modifica automáticamente el enrutamiento del servidor padre.
+En una MicroVM administrada por VM, cada alias también debe registrarse como dominio de entrada en VM/Traefik. Host configura el servicio interno, pero no modifica automáticamente el enrutamiento del servidor padre.
 
 Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, despliegues Git, restauraciones y reparaciones de propiedad utilizan ese usuario; Nginx/Apache reciben acceso mediante el grupo del sitio.
 
@@ -190,7 +190,7 @@ El respaldo de base debe ser `.sql.gz`. Host crea una base y usuario nuevos, imp
 
 Cada migración conserva historial, cantidad de archivos, bytes, base creada y token del backup `pre_migration`. Ante un error se intenta restaurar ese backup y retirar la base nueva; si el servidor impide completar el rollback, ambos recursos se conservan y el panel marca la limpieza pendiente. Los paquetes subidos se eliminan del staging al terminar.
 
-El panel configura Nginx y su PHP-FPM para cargas grandes. Cuando Host vive dentro de una MicroVM administrada por Core, el ingress exterior de Core/Traefik también debe permitir el tamaño y tiempo de carga elegidos; Host no puede ampliar por sí solo el límite del servidor padre.
+El panel configura Nginx y su PHP-FPM para cargas grandes. Cuando Host vive dentro de una MicroVM administrada por VM, el ingress exterior de VM/Traefik también debe permitir el tamaño y tiempo de carga elegidos; Host no puede ampliar por sí solo el límite del servidor padre.
 
 ### PageSpeed y diagnóstico
 
@@ -345,21 +345,21 @@ sudo XPANEL_SMOKE_DOMAIN=www.example.com \
 
 La prueba comprueba Nginx y los motores opcionales instalados, MariaDB, Postfix, Dovecot, HTTPS, autenticación, una entrega SMTP → LMTP y el recorrido IMAP/SMTP propio de XMail.
 
-## Instalación dentro de XPanel Core
+## Instalación dentro de XPanel VM
 
-Core utiliza el mismo `install.sh`, pero entrega variables como:
+VM utiliza el mismo `install.sh`, pero entrega variables como:
 
 ```text
-XPANEL_MANAGEMENT_MODE=core
-XPANEL_CORE_URL=https://core.example.com
-XPANEL_CORE_SERVICE_ID=<identificador>
+XPANEL_MANAGEMENT_MODE=vm
+XPANEL_VM_URL=https://vm.example.com
+XPANEL_VM_SERVICE_ID=<identificador>
 XPANEL_PANEL_DOMAIN=host-cliente.example.com
 XPANEL_ASSIGNED_CPU=<cantidad>
 XPANEL_ASSIGNED_MEMORY_MIB=<memoria>
 XPANEL_ASSIGNED_DISK_GIB=<disco>
 ```
 
-Core controla la MicroVM, sus recursos, estado y acceso exterior. Host controla sitios, dominios, correo y bases dentro de la MicroVM. En este modo el TLS público pertenece a Core/Traefik y Host no ejecuta Certbot local para esa entrada.
+VM controla la MicroVM, sus recursos, estado y acceso exterior. Host controla sitios, dominios, correo y bases dentro de la MicroVM. En este modo el TLS público pertenece a VM/Traefik y Host no ejecuta Certbot local para esa entrada.
 
 ## Desarrollo
 

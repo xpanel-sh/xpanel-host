@@ -32,7 +32,7 @@
         <main class="grow" role="content">
             <div class="kt-container-fluid grid gap-5 lg:gap-7.5">
                 <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div><div class="text-sm text-secondary-foreground">Servidor y recursos</div><h1 class="mt-1 text-2xl font-semibold text-mono">Resumen del servidor</h1><p class="mt-1 text-sm text-secondary-foreground">Capacidad actual e historial global del {{ $serverContext['managed'] ? 'entorno asignado por Core' : 'VPS, VDS o servidor independiente' }}.</p></div>
+                    <div><div class="text-sm text-secondary-foreground">Servidor y recursos</div><h1 class="mt-1 text-2xl font-semibold text-mono">Resumen del servidor</h1><p class="mt-1 text-sm text-secondary-foreground">Capacidad actual e historial global del {{ $serverContext['managed'] ? 'entorno asignado por VM' : 'VPS, VDS o servidor independiente' }}.</p></div>
                     <a class="kt-btn kt-btn-outline" href="{{ request()->url() }}?period={{ $period }}&refresh=1"><i class="ki-filled ki-arrows-circle"></i> Recalcular</a>
                 </header>
 

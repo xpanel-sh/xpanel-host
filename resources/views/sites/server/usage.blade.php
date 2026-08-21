@@ -41,7 +41,7 @@
                 <section class="kt-card">
                     <div class="kt-card-content flex items-start gap-4 p-5">
                         <span class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><i class="ki-filled ki-information-2 text-xl"></i></span>
-                        <div><h2 class="font-semibold text-mono">Medición, no límite comercial</h2><p class="mt-1 text-sm text-secondary-foreground">Host independiente no limita recursos por sitio. Core limita la MicroVM completa cuando corresponde. CPU, RAM e I/O se atribuyen mediante el usuario Linux aislado de {{ $site->domain }}; Nginx sigue siendo un servicio compartido.</p></div>
+                        <div><h2 class="font-semibold text-mono">Medición, no límite comercial</h2><p class="mt-1 text-sm text-secondary-foreground">Host independiente no limita recursos por sitio. VM limita la MicroVM completa cuando corresponde. CPU, RAM e I/O se atribuyen mediante el usuario Linux aislado de {{ $site->domain }}; Nginx sigue siendo un servicio compartido.</p></div>
                     </div>
                 </section>
 

@@ -4,6 +4,10 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ## [Sin publicar]
 
+### Cambiado
+
+- El modo de MicroVM administrada pasa de la identidad heredada `core` a `vm`, incluidas las variables `XPANEL_VM_*`, el contexto del servidor, las vistas y las validaciones SSL.
+
 ### Añadido
 
 - Contrato de ejecución administrada por XPanel VPS para colocar pools PHP-FPM y servicios Node.js dentro de la slice systemd/cgroups de su instancia.
@@ -17,7 +21,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Notificaciones persistentes para acciones administrativas importantes, fallos de backups programados y errores de certificados SSL, con estado leído/no leído.
 
 - Configuración protegida de `PAGESPEED_API_KEY` desde la propia vista PageSpeed: la clave entra al helper por stdin, permanece oculta, actualiza la caché de configuración y restaura `.env` si la activación falla.
-- Medición real por sitio con muestras cada cinco minutos: archivos e inodos del `document_root`, tamaño de sus bases MariaDB, CPU/RAM/procesos e I/O de su identidad Unix, además de solicitudes y transferencia de su access log. La vista conserva 31 días de historial y distingue estas métricas observadas de los límites globales que administra Core.
+- Medición real por sitio con muestras cada cinco minutos: archivos e inodos del `document_root`, tamaño de sus bases MariaDB, CPU/RAM/procesos e I/O de su identidad Unix, además de solicitudes y transferencia de su access log. La vista conserva 31 días de historial y distingue estas métricas observadas de los límites globales que administra VM.
 - Subcarpeta pública opcional por sitio (`public_path`, ej. `public` para Laravel): la raíz del proyecto sigue siendo el límite del gestor de archivos, SSH/SFTP y la terminal real, mientras nginx/Apache/OpenLiteSpeed, el pool PHP-FPM, el desafío ACME de Certbot y las páginas de error personalizadas sirven únicamente desde esa subcarpeta cuando está configurada.
 - IP dedicada opcional por dominio de correo (al estilo del `mailips` de cPanel/Exim, adaptado a Postfix): además de la IP/hostname compartidos del servidor, se puede dar de alta una IP ya asignada al servidor con su propio PTR/HELO y asignarla a uno o varios dominios desde "Correos" — Postfix enruta el correo saliente de esos dominios por esa IP mediante `sender_dependent_default_transport_maps`, sin afectar a los dominios que siguen en modo compartido. La guía de registros DNS por dominio ahora refleja la IP/PTR dedicada cuando aplica.
 - Recuperación local de la contraseña del propietario mediante `php artisan xpanel:admin-password --generate`.

@@ -74,8 +74,8 @@
                         <div class="kt-card"><div class="kt-card-content grid gap-2 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-secondary-foreground">Acceso webmail</div>@if($xmailEnabled)<a class="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm font-medium hover:border-primary" href="{{ route('xmail.login') }}" target="_blank"><span class="flex items-center gap-2"><i class="ki-filled ki-sms text-primary"></i>XMail</span><i class="ki-filled ki-exit-right-corner"></i></a>@endif @if($roundcubeEnabled)<a class="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm font-medium hover:border-primary" href="{{ $webmailUrl }}" target="_blank" rel="noopener"><span class="flex items-center gap-2"><i class="ki-filled ki-abstract-26 text-primary"></i>Roundcube</span><i class="ki-filled ki-exit-right-corner"></i></a>@endif</div></div>
                     </div>
 
-                    @if (config('xpanel.management_mode') === 'core')
-                        <div class="rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">En modo Core, SMTP/IMAP necesitan una IP dedicada o reglas TCP/NAT en el servidor padre. Traefik HTTP no publica automáticamente los puertos de correo.</div>
+                    @if (config('xpanel.management_mode') === 'vm')
+                        <div class="rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">En modo VM, SMTP/IMAP necesitan una IP dedicada o reglas TCP/NAT en el servidor padre. Traefik HTTP no publica automáticamente los puertos de correo.</div>
                     @else
                         <div class="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-secondary-foreground">Para recibir correo desde Internet configura MX hacia <strong>{{ config('xpanel.mail_hostname') }}</strong>, un registro A/AAAA, PTR/rDNS y SPF. Emite también SSL para ese hostname desde un sitio con el mismo dominio para reemplazar el certificado inicial del servidor de correo.</div>
                     @endif

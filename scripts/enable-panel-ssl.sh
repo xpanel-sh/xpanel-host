@@ -13,7 +13,7 @@ domain="$(env_value XPANEL_PANEL_DOMAIN)"
 management_mode="$(env_value XPANEL_MANAGEMENT_MODE)"
 email="${1:-$(env_value XPANEL_ACME_EMAIL || true)}"
 
-[[ "$management_mode" != "core" ]] || { echo "Panel TLS is managed by Core/Traefik in core mode." >&2; exit 1; }
+[[ "$management_mode" != "vm" ]] || { echo "Panel TLS is managed by XPanel VM/Traefik in VM mode." >&2; exit 1; }
 [[ "$domain" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$domain" == *.* ]] || { echo "Configure a valid XPANEL_PANEL_DOMAIN first." >&2; exit 1; }
 if [[ -n "$email" && ! "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
   echo "The optional ACME email is invalid." >&2

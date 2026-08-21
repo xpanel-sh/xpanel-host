@@ -16,8 +16,8 @@ class CertificateProvisioner
 
     public function issue(Site $site, string $email, bool $redirect): void
     {
-        if (config('xpanel.management_mode') === 'core') {
-            throw new RuntimeException('En modo Core, el certificado publico se administra en Traefik del servidor padre.');
+        if (config('xpanel.management_mode') === 'vm') {
+            throw new RuntimeException('En modo VM, el certificado publico se administra en Traefik del servidor padre.');
         }
         if (! config('xpanel.apply_system_changes')) {
             $site->update([
@@ -79,7 +79,7 @@ class CertificateProvisioner
         ]);
         try {
             $this->sites->provision($site);
-            if (config('xpanel.apply_system_changes') && config('xpanel.management_mode') !== 'core') {
+            if (config('xpanel.apply_system_changes') && config('xpanel.management_mode') !== 'vm') {
                 $this->commands->run([
                     'sudo', '-n', (string) config('xpanel.site_helper'), 'ssl-delete',
                     $site->domain, $site->web_server, $site->document_root, '-', $site->systemUser(),
