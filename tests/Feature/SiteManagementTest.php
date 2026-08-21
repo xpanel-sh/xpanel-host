@@ -39,6 +39,32 @@ class SiteManagementTest extends TestCase
             ->assertSee(route('sites.edit', $site), false);
     }
 
+    public function test_node_site_editor_is_scrollable_and_only_exposes_its_runtime_section(): void
+    {
+        $site = Site::create([
+            'domain' => 'node.example.com',
+            'document_root' => '/var/www/node.example.com',
+            'php_version' => '8.3',
+            'type' => 'node',
+            'web_server' => 'nginx',
+            'status' => 'active',
+            'node_version' => '22',
+            'node_start_command' => 'npm start',
+        ]);
+
+        $this->actingAs($this->userWithRole('developer'))
+            ->get(route('sites.edit', $site))
+            ->assertOk()
+            ->assertSee('id="scrollable_content"', false)
+            ->assertSee('Configuración del sitio')
+            ->assertSee('data-site-form', false)
+            ->assertSee('data-site-web-server', false)
+            ->assertSee('data-runtime-section="php"', false)
+            ->assertSee('data-runtime-section="node"', false)
+            ->assertSee("webServerSection?.toggleAttribute('hidden', type === 'node')", false)
+            ->assertSee('Runtime Node.js');
+    }
+
     public function test_a_site_can_be_created_with_a_generated_vhost(): void
     {
         $response = $this->actingAs($this->userWithRole('developer'))->post('/sites', [

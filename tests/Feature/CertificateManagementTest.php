@@ -68,7 +68,9 @@ class CertificateManagementTest extends TestCase
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ssl-issue',
             'secure.example.com', 'nginx', '/var/www/secure.example.com', 'admin@example.com', $site->systemUser(),
         ])->andReturn("not_after=2026-10-27T12:00:00Z\nissuer=CN=R13,O=Let's Encrypt");
-        $runner->shouldReceive('run')->once()->with(Mockery::on(fn (array $command) => $command[3] === 'apply'))->andReturn('');
+        $runner->shouldReceive('run')->once()->with(
+            Mockery::on(fn (array $command) => $command[3] === 'apply'), null, 1800
+        )->andReturn('');
         $this->app->instance(ServerCommandRunner::class, $runner);
 
         $this->actingAs($this->owner())->post(route('sites.ssl.issue', $site), [

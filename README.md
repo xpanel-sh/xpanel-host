@@ -168,7 +168,7 @@ Al crear o editar un sitio puedes declarar cómo funciona el tenancy de tu propi
 - **Por ruta** no necesita DNS adicional (`example.com/cliente`).
 - **Por subdominio** activa `*.example.com`; crea también un registro DNS wildcard hacia el servidor.
 - **Dominios personalizados** se agregan desde **Dominios → Dominios aparcados** y conservan el encabezado `Host` original hacia la aplicación.
-- **Node.js** corre como el usuario Unix del sitio en una unidad systemd propia, escucha sólo en un puerto interno reservado y recibe tráfico de Nginx con WebSockets.
+- **Node.js** corre como el usuario Unix del sitio en una unidad systemd propia, escucha sólo en un puerto interno reservado y recibe tráfico de Nginx con WebSockets. Al aprovisionar un proyecto con `package.json`, Host usa `npm ci` cuando existe `package-lock.json` (o `npm install` como alternativa), ejecuta `npm run build` si está declarado y conserva marcas de dependencias/build para no repetir trabajo sin cambios.
 
 Para HTTPS wildcard conecta primero Cloudflare desde **Avanzado → Editor DNS**. Host usa DNS-01, pasa el token cifrado al helper sólo por stdin y nunca lo guarda en la unidad systemd ni en los argumentos del broker. Sin esa conexión, el panel bloquea la emisión wildcard con una explicación clara.
 

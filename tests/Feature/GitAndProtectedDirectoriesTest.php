@@ -119,7 +119,7 @@ class GitAndProtectedDirectoriesTest extends TestCase
                 $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root, $site->systemUser(),
                 $site->webRoot(),
                 '-', '0', 'active',
-            ]);
+            ], null, 1800);
         });
 
         $this->actingAs($this->owner())->post(route('sites.protected-directories.store', $site), [

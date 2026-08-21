@@ -52,7 +52,7 @@ class SiteProvisioner
             (string) ($site->node_version ?? '-'),
             (string) ($site->runtime_port ?? '0'),
             $site->status,
-        ]);
+        ], timeout: 1800);
     }
 
     public function remove(Site $site): void

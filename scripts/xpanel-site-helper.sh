@@ -285,6 +285,60 @@ ensure_site_identity() {
   done
 }
 
+node_project_prepare() {
+  local domain="$1" document_root="$2" site_user="$3" node_port="$4"
+  local state_dir="/var/lib/xpanel-host/node-state/$domain"
+  local cache_dir="/var/lib/xpanel-host/npm-cache/$site_user"
+  local dependency_source dependency_hash installed_hash="" install_mode build_stamp
+  valid_domain "$domain" || fail "Invalid Node.js project domain."
+  valid_document_root "$document_root" || fail "Invalid Node.js project root."
+  valid_site_identity "$site_user" || fail "Invalid Node.js project identity."
+  [[ -f "$document_root/package.json" && ! -L "$document_root/package.json" ]] || return 0
+
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host/node-state "$state_dir"
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache
+  install -d -o "$site_user" -g "$site_user" -m 0750 "$cache_dir"
+  exec 8>"/run/lock/xpanel-node-project-$domain.lock"
+  flock -n 8 || fail "Another Node.js preparation is already running for this site."
+
+  dependency_source="$document_root/package.json"
+  install_mode=install
+  if [[ -f "$document_root/package-lock.json" && ! -L "$document_root/package-lock.json" ]]; then
+    dependency_source="$document_root/package-lock.json"
+    install_mode=ci
+  fi
+  dependency_hash="$(sha256sum "$dependency_source" | awk '{print $1}')"
+  [[ ! -f "$state_dir/dependencies.sha256" ]] || installed_hash="$(tr -d '\r\n' < "$state_dir/dependencies.sha256")"
+  if [[ ! -d "$document_root/node_modules" || "$installed_hash" != "$dependency_hash" ]]; then
+    runuser -u "$site_user" -- env \
+      HOME="$document_root" npm_config_cache="$cache_dir" NODE_ENV=development \
+      /usr/local/bin/npm "$install_mode" --prefix "$document_root" --no-audit --no-fund
+    printf '%s\n' "$dependency_hash" > "$state_dir/dependencies.sha256"
+    chmod 0644 "$state_dir/dependencies.sha256"
+    printf 'dependencies=installed\n'
+  else
+    printf 'dependencies=current\n'
+  fi
+
+  if runuser -u "$site_user" -- /usr/local/bin/node -e \
+    'const p=require(process.argv[1]); process.exit(p.scripts && typeof p.scripts.build === "string" ? 0 : 1)' \
+    "$document_root/package.json"; then
+    build_stamp="$state_dir/build.stamp"
+    if [[ ! -f "$build_stamp" ]] || find -P "$document_root" -xdev \
+      \( -path "$document_root/node_modules" -o -path "$document_root/subdomains" -o -path "$document_root/.git" \) -prune -o \
+      -type f -newer "$build_stamp" -print -quit | grep -q .; then
+      runuser -u "$site_user" -- env \
+        HOME="$document_root" npm_config_cache="$cache_dir" NODE_ENV=production PORT="$node_port" \
+        /usr/local/bin/npm --prefix "$document_root" run build
+      touch "$build_stamp"
+      chmod 0644 "$build_stamp"
+      printf 'build=completed\n'
+    else
+      printf 'build=current\n'
+    fi
+  fi
+}
+
 site_action() {
   local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   local web_root="${8:-$document_root}"
@@ -378,6 +432,9 @@ site_action() {
         systemctl stop "$node_unit" >/dev/null 2>&1 || true
         printf 'runtime_status=pending-files\n'
       else
+        if [[ "$node_exec" == "/usr/local/bin/npm "* ]]; then
+          node_project_prepare "$domain" "$document_root" "$site_user" "$runtime_port"
+        fi
         systemctl restart "$node_unit"
       fi
     else

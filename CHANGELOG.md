@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Los formularios para crear y editar sitios ahora tienen desplazamiento propio, una cabecera informativa y secciones de configuración condicionadas por runtime; Node.js ya no muestra controles de PHP y fija Nginx como proxy.
 - El modo de MicroVM administrada pasa de la identidad heredada `core` a `vm`, incluidas las variables `XPANEL_VM_*`, el contexto del servidor, las vistas y las validaciones SSL.
 
 ### Añadido
@@ -60,6 +61,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Los sitios Node.js preparan automáticamente sus dependencias como el usuario Unix aislado (`npm ci` con lockfile, `npm install` sin él), ejecutan el script `build` cuando existe y evitan reinstalar o recompilar proyectos sin cambios antes de reiniciar su unidad systemd.
 - iKode elimina la terminal simulada y la pestaña duplicada «Terminal real»: el diseño original de sesiones aloja ahora directamente terminales xterm.js conectadas a shells Linux con PTY. El agente Go permanece sólo como transporte sin privilegios y no interpreta comandos.
 - El actualizador conserva `/var/lib/xpanel-host` como un namespace atravesable (`0755`) y restringe sólo su subcarpeta `backups`; esto permite que el usuario aislado de la terminal lea su llave privada sin exponer los respaldos.
 - La sincronización migra ahora también las raíces de dominios principales desde `/var/www` o `/srv/www` al hogar real de la cuenta. Las operaciones destructivas o recursivas de un sitio excluyen su carpeta reservada `subdomains/`, evitando que despliegues, restauraciones o cambios de propietario del padre alteren sitios hijos.
