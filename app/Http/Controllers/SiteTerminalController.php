@@ -34,10 +34,11 @@ class SiteTerminalController extends Controller
         $payload = $token === '' ? null : $issuer->verifyAndConsume($token);
         abort_if($payload === null, 403, 'Token invalido o ya usado.');
 
-        return response()->json([
+        return response()->json(array_filter([
             'ok' => true,
             'site_id' => $payload['site_id'],
             'system_user' => $payload['system_user'],
-        ]);
+            'home' => $payload['home'] ?? null,
+        ], fn ($value) => $value !== null));
     }
 }

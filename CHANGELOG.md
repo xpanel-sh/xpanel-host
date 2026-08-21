@@ -10,6 +10,9 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- Hogar Unix de alojamiento en `/home/<cuenta>` con estructura `public_html`, correo, logs, SSL, temporales y metadatos auxiliares `.xpanel`; el administrador general queda confinado a toda la cuenta y el administrador por dominio a un único proyecto.
+- Terminal general de la cuenta, independiente de las terminales aisladas por sitio.
+
 - Contrato de ejecución administrada por XPanel VPS para colocar pools PHP-FPM y servicios Node.js dentro de la slice systemd/cgroups de su instancia.
 
 - Hosting de aplicaciones Node.js 22 LTS mediante servicios systemd por sitio, usuario Unix aislado, puerto loopback reservado, proxy Nginx y WebSockets; los comandos de inicio se limitan a formas seguras de `npm` y `node`.
@@ -56,6 +59,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - XMail funcional junto a Roundcube: autenticación propia por buzón, carpetas, lectura, envío SMTP autenticado, adjuntos y acciones IMAP.
 
 ### Cambiado
+
+- Los dominios nuevos viven en `public_html/<dominio>` y sus subdominios en `public_html/<dominio>/subdomains/<etiqueta>`; la sincronización migra las raíces planas heredadas y el gestor protege las carpetas estructurales contra borrado o renombrado accidental.
 
 - Se retiró por completo el Builder visual abandonado —accesos global y por sitio, ruta y vistas— para no presentar módulos que ya no forman parte del producto.
 

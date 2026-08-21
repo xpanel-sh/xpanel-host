@@ -74,7 +74,13 @@ response="\$(curl --silent --show-error --fail --max-time 5 --noproxy '*' \\
   'http://127.0.0.1:$internal_port/internal/terminal/consume')" || exit 1
 actual_user="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decode(file_get_contents("php://stdin"), true); if (is_array(\$data) && isset(\$data["system_user"]) && is_string(\$data["system_user"])) echo \$data["system_user"];')"
 [[ "\$actual_user" == "\$expected_user" ]] || exit 1
-unset SSH_ORIGINAL_COMMAND token response actual_user
+workspace_home="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decode(file_get_contents("php://stdin"), true); if (is_array(\$data) && isset(\$data["home"]) && is_string(\$data["home"])) echo \$data["home"];')"
+if [[ -n "\$workspace_home" ]]; then
+  [[ "\$workspace_home" == "/home/\$expected_user" ]] || exit 1
+  cd "\$workspace_home"
+  export HOME="\$workspace_home"
+fi
+unset SSH_ORIGINAL_COMMAND token response actual_user workspace_home
 exec /bin/bash -l
 EOF
 chown root:root /usr/local/bin/xpanel-terminal-authorize

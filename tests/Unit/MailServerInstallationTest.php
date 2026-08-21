@@ -64,7 +64,7 @@ class MailServerInstallationTest extends TestCase
         $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
 
         $this->assertStringContainsString('systemd-run --quiet --collect --on-active=2s', $helper);
-        $this->assertStringContainsString('defer_service_reload "php$php_version-fpm"', $helper);
+        $this->assertStringContainsString('defer_service_reload "$service"', $helper);
         $this->assertStringNotContainsString('systemctl reload "php$php_version-fpm"', $helper);
     }
 

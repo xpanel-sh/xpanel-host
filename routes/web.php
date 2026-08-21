@@ -14,6 +14,7 @@ use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainMailSettingsController;
 use App\Http\Controllers\ErrorPageController;
 use App\Http\Controllers\FileManagerController;
+use App\Http\Controllers\AccountTerminalController;
 use App\Http\Controllers\FolderIndexController;
 use App\Http\Controllers\GitDeploymentController;
 use App\Http\Controllers\GlobalFileManagerController;
@@ -228,6 +229,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/access/ssh-keys', [SiteAccessController::class, 'storeKey'])->name('sites.access.keys.store');
             Route::delete('/sites/{site}/access/ssh-keys/{sshKey}', [SiteAccessController::class, 'destroyKey'])->name('sites.access.keys.destroy');
             Route::post('/sites/{site}/access/terminal-token', [SiteTerminalController::class, 'token'])->middleware('throttle:10,1')->name('sites.access.terminal.token');
+            Route::post('/sites/ikode/terminal-token', [AccountTerminalController::class, 'token'])->middleware('throttle:10,1')->name('sites.ikode.terminal.token');
             Route::put('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'update'])->name('sites.php.configuration.update');
             Route::post('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'store'])->name('sites.cron.store');
             Route::put('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'update'])->name('sites.cron.update');

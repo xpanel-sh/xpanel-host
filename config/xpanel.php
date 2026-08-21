@@ -19,6 +19,8 @@ return [
     'broker_url' => env('XPANEL_BROKER_URL'),
     'broker_secret' => env('XPANEL_BROKER_SECRET'),
     'web_root' => rtrim(env('XPANEL_WEB_ROOT', '/var/www'), '/'),
+    'account_user' => env('XPANEL_ACCOUNT_USER', 'xpa'.substr(hash('sha256', (string) env('APP_KEY', 'xpanel-host')), 0, 10)),
+    'account_home' => env('XPANEL_ACCOUNT_HOME', '/home/'.env('XPANEL_ACCOUNT_USER', 'xpa'.substr(hash('sha256', (string) env('APP_KEY', 'xpanel-host')), 0, 10))),
     'vm_url' => env('XPANEL_VM_URL'),
     'vm_service_id' => env('XPANEL_VM_SERVICE_ID'),
     'panel_domain' => env('XPANEL_PANEL_DOMAIN'),

@@ -18,7 +18,7 @@ class SyncSiteConfigurations extends Command
     {
         Site::query()->orderBy('id')->each(function (Site $site) use ($provisioner, $subdomainRoots): void {
             if ($subdomainRoots->migrateLegacyRoot($site)) {
-                $this->line("Moved {$site->domain} to its independent document root.");
+                $this->line("Moved {$site->domain} into the account public_html tree.");
             }
             $provisioner->provision($site);
             Domain::updateOrCreate(['domain' => $site->domain], [

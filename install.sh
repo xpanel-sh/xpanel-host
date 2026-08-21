@@ -223,7 +223,7 @@ load_existing_configuration() {
     XPANEL_MANAGEMENT_MODE XPANEL_PANEL_DOMAIN XPANEL_PANEL_ACCESS_MODE XPANEL_PANEL_PORT XPANEL_ACCESS_CONFIGURED XPANEL_WEB_SERVER \
     XPANEL_MAIL_HOSTNAME XPANEL_WEBMAIL_HOSTNAME XPANEL_WEBMAIL_URL XPANEL_ROUNDCUBE_ENABLED XPANEL_PHPMYADMIN_ENABLED \
     XPANEL_MAIL_UID XPANEL_MAIL_GID XPANEL_SERVER_IPV4 XPANEL_DKIM_SELECTOR \
-    XPANEL_SITE_USER XPANEL_SITE_GROUP; do
+    XPANEL_SITE_USER XPANEL_SITE_GROUP XPANEL_ACCOUNT_USER XPANEL_ACCOUNT_HOME; do
     [[ -z "${!key:-}" ]] || continue
     value="$(grep -E "^${key}=" "$ROOT/.env" | tail -n1 | cut -d= -f2- || true)"
     value="${value%\"}"
@@ -242,8 +242,8 @@ configure_management_context() {
   local panel_port="${XPANEL_PANEL_PORT:-80}"
   local server_ipv4="${XPANEL_SERVER_IPV4:-$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')}"
   case "$mode" in
-    standalone|vm) ;;
-    *) echo "XPANEL_MANAGEMENT_MODE must be standalone or vm." >&2; exit 1 ;;
+    standalone|vm|vps-instance) ;;
+    *) echo "XPANEL_MANAGEMENT_MODE must be standalone, vm or vps-instance." >&2; exit 1 ;;
   esac
 
   if [[ "$mode" == "standalone" && "${XPANEL_ACCESS_CONFIGURED:-}" != "true" ]]; then
@@ -310,6 +310,62 @@ configure_management_context() {
       set_env_var "$key" "${!key}"
     done
   fi
+}
+
+configure_account_workspace() {
+  local mode="${XPANEL_MANAGEMENT_MODE:-standalone}"
+  local account_user="${XPANEL_ACCOUNT_USER:-}"
+  local account_home="${XPANEL_ACCOUNT_HOME:-}"
+  local panel_user="${XPANEL_SITE_USER:-www-data}"
+  local seed
+
+  if [[ -z "$account_user" ]]; then
+    if [[ "$mode" == "vps-instance" ]]; then
+      account_user="$panel_user"
+    else
+      seed="$(hostname):$(grep '^APP_KEY=' "$ROOT/.env" | tail -n1)"
+      account_user="xpa$(printf '%s' "$seed" | sha256sum | cut -c1-10)"
+    fi
+  fi
+  [[ "$account_user" =~ ^xpa[a-z0-9]{8,24}$ || "$account_user" =~ ^xhi[a-f0-9]{12}$ ]] || {
+    echo "XPANEL_ACCOUNT_USER has an invalid hosting-account identity." >&2
+    exit 1
+  }
+
+  account_home="${account_home:-/home/$account_user}"
+  [[ "$account_home" == "/home/$account_user" ]] || {
+    echo "XPANEL_ACCOUNT_HOME must be /home/$account_user." >&2
+    exit 1
+  }
+
+  getent group "$account_user" >/dev/null || groupadd --system "$account_user"
+  if ! id "$account_user" >/dev/null 2>&1; then
+    useradd --system --gid "$account_user" --home-dir "$account_home" --create-home --shell /usr/sbin/nologin "$account_user"
+  else
+    usermod --home "$account_home" "$account_user"
+  fi
+  usermod -a -G "$account_user" "$panel_user"
+
+  install -d -o "$account_user" -g "$account_user" -m 0750 \
+    "$account_home" "$account_home/etc" "$account_home/logs" "$account_home/mail" \
+    "$account_home/public_ftp" "$account_home/public_ftp/incoming" "$account_home/public_html" \
+    "$account_home/ssl" "$account_home/ssl/certs" "$account_home/ssl/csrs" "$account_home/tmp" "$account_home/.trash"
+  install -d -o "$account_user" -g "$account_user" -m 0700 "$account_home/.xpanel"
+  if [[ ! -f "$account_home/.xpanel/README.txt" ]]; then
+    printf '%s\n' 'Datos auxiliares de XPanel. No se guardan aquí secretos vitales del panel.' > "$account_home/.xpanel/README.txt"
+    chown "$account_user:$account_user" "$account_home/.xpanel/README.txt"
+    chmod 0600 "$account_home/.xpanel/README.txt"
+  fi
+
+  setfacl -m "u:$panel_user:--x" "$account_home"
+  setfacl -R -m "u:$panel_user:rwX" "$account_home"
+  find -P "$account_home" -xdev -type d -exec setfacl -m "d:u:$panel_user:rwx" {} +
+
+  XPANEL_ACCOUNT_USER="$account_user"
+  XPANEL_ACCOUNT_HOME="$account_home"
+  export XPANEL_ACCOUNT_USER XPANEL_ACCOUNT_HOME
+  set_env_var XPANEL_ACCOUNT_USER "$account_user"
+  set_env_var XPANEL_ACCOUNT_HOME "$account_home"
 }
 
 configure_site_helper() {
@@ -684,6 +740,14 @@ configure_terminal_agent() {
   ensure_go_runtime
   set_env_var XPANEL_TERMINAL_ENABLED true
   bash "$ROOT/scripts/configure-terminal-agent.sh"
+  local account_user="${XPANEL_ACCOUNT_USER:?missing account user}"
+  local account_home="${XPANEL_ACCOUNT_HOME:?missing account home}"
+  local panel_user="${XPANEL_SITE_USER:-www-data}"
+  local panel_group="${XPANEL_SITE_GROUP:-www-data}"
+  local key_stage="$ROOT/storage/app/access/$account_user"
+  install -d -o "$panel_user" -g "$panel_group" -m 0750 "$key_stage"
+  install -o "$panel_user" -g "$panel_group" -m 0640 /dev/null "$key_stage/authorized_keys"
+  bash "$ROOT/scripts/xpanel-site-helper.sh" access-sync "$account_user" "$account_home" 0 0 0 1
 }
 
 configure_web_server() {
@@ -748,6 +812,7 @@ set_env_var XPANEL_PHP_VERSIONS "$php_version"
 if ! grep -Eq '^APP_KEY=.+$' "$ROOT/.env"; then
   php "$ROOT/artisan" key:generate --force
 fi
+configure_account_workspace
 php "$ROOT/artisan" migrate --force
 php "$ROOT/artisan" optimize:clear
 php "$ROOT/artisan" storage:link >/dev/null 2>&1 || true

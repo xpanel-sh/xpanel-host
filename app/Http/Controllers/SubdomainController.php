@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Domain;
 use App\Models\Site;
 use App\Services\CertificateProvisioner;
+use App\Services\HostingAccountWorkspace;
 use App\Services\ServerContext;
 use App\Services\SiteAccessProvisioner;
 use App\Services\SiteProvisioner;
@@ -38,8 +39,8 @@ class SubdomainController extends Controller
                 'string',
                 'max:255',
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    if ($value !== null && $value !== '' && (! preg_match('#^/(?:var|srv)/www/[A-Za-z0-9._/-]+$#', $value) || str_contains($value, '..'))) {
-                        $fail('El document root debe estar dentro de /var/www o /srv/www.');
+                    if ($value !== null && $value !== '' && ! app(HostingAccountWorkspace::class)->acceptsDocumentRoot((string) $value)) {
+                        $fail('La carpeta debe estar dentro de public_html de la cuenta; /var/www y /srv/www solo se aceptan para instalaciones heredadas.');
                     }
                 },
             ],
@@ -49,12 +50,12 @@ class SubdomainController extends Controller
         Validator::make(['domain' => $domain], [
             'domain' => ['unique:sites,domain', 'unique:domains,domain'],
         ])->validate();
-        $documentRootBase = str_starts_with($site->document_root, '/srv/www/') ? '/srv/www' : '/var/www';
+        $workspace = app(HostingAccountWorkspace::class);
 
         $subdomain = Site::create([
             'parent_site_id' => $site->id,
             'domain' => $domain,
-            'document_root' => ($data['document_root'] ?? null) ?: $documentRootBase.'/'.$domain,
+            'document_root' => ($data['document_root'] ?? null) ?: $workspace->subdomainRoot($site->domain, $data['label']),
             'php_version' => $site->php_version,
             'node_version' => $site->type === 'node' ? $site->node_version : null,
             'runtime_port' => $site->type === 'node' ? Site::availableRuntimePort() : null,

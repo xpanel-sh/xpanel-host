@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
 use App\Services\ServerCommandRunner;
+use App\Services\HostingAccountWorkspace;
 use App\Services\SubdomainRootMigrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -42,7 +43,10 @@ class SubdomainManagementTest extends TestCase
 
         $child = Site::where('domain', 'blog.example.com')->firstOrFail();
         $this->assertSame($parent->id, $child->parent_site_id);
-        $this->assertSame('/var/www/blog.example.com', $child->document_root);
+        $this->assertSame(
+            app(HostingAccountWorkspace::class)->subdomainRoot('example.com', 'blog'),
+            $child->document_root
+        );
         $this->assertSame('nginx', $child->web_server);
         $this->assertDatabaseHas('domains', ['domain' => 'blog.example.com', 'site_id' => $child->id]);
         $this->assertFileExists(storage_path('app/vhosts/blog.example.com.conf'));
@@ -144,13 +148,13 @@ class SubdomainManagementTest extends TestCase
         $this->actingAs($viewer)->post("/sites/{$parent->domain}/domains/subdomains", ['label' => 'shop'])->assertForbidden();
     }
 
-    public function test_site_sync_flattens_the_previous_nested_subdomain_root(): void
+    public function test_site_sync_moves_an_old_flat_subdomain_root_into_the_account_tree(): void
     {
         $parent = $this->parentSite();
         $child = Site::create([
             'parent_site_id' => $parent->id,
             'domain' => 'legacy.example.com',
-            'document_root' => '/var/www/example.com/subdomains/legacy',
+            'document_root' => '/var/www/legacy.example.com',
             'php_version' => '8.3',
             'type' => 'php',
             'web_server' => 'nginx',
@@ -158,10 +162,13 @@ class SubdomainManagementTest extends TestCase
         ]);
 
         $this->artisan('xpanel:sites-sync')
-            ->expectsOutput('Moved legacy.example.com to its independent document root.')
+            ->expectsOutput('Moved legacy.example.com into the account public_html tree.')
             ->assertSuccessful();
 
-        $this->assertSame('/var/www/legacy.example.com', $child->fresh()->document_root);
+        $this->assertSame(
+            app(HostingAccountWorkspace::class)->subdomainRoot('example.com', 'legacy'),
+            $child->fresh()->document_root
+        );
         $this->assertDatabaseHas('domains', ['domain' => 'legacy.example.com', 'site_id' => $child->id]);
     }
 
@@ -172,19 +179,20 @@ class SubdomainManagementTest extends TestCase
         $child = Site::create([
             'parent_site_id' => $parent->id,
             'domain' => 'legacy.example.com',
-            'document_root' => '/var/www/example.com/subdomains/legacy',
+            'document_root' => '/var/www/legacy.example.com',
             'php_version' => '8.3',
             'type' => 'php',
             'web_server' => 'nginx',
             'status' => 'active',
         ]);
+        $canonicalRoot = app(HostingAccountWorkspace::class)->subdomainRoot('example.com', 'legacy');
         $commands = \Mockery::mock(ServerCommandRunner::class);
         $commands->shouldReceive('run')->once()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'subdomain-root-migrate',
-            '/var/www/example.com/subdomains/legacy', '/var/www/legacy.example.com', $child->systemUser(),
+            '/var/www/legacy.example.com', $canonicalRoot, $child->systemUser(),
         ])->andReturn('');
 
-        $this->assertTrue((new SubdomainRootMigrator($commands))->migrateLegacyRoot($child));
-        $this->assertSame('/var/www/legacy.example.com', $child->fresh()->document_root);
+        $this->assertTrue((new SubdomainRootMigrator($commands, app(HostingAccountWorkspace::class)))->migrateLegacyRoot($child));
+        $this->assertSame($canonicalRoot, $child->fresh()->document_root);
     }
 }

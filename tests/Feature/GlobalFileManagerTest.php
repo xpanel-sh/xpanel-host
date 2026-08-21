@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
+use App\Services\HostingAccountWorkspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -28,12 +29,30 @@ class GlobalFileManagerTest extends TestCase
         ]);
     }
 
+    private function accountRoot(): string
+    {
+        return app(HostingAccountWorkspace::class)->localRoot();
+    }
+
+    private function siteDirectory(string $domain): string
+    {
+        $directory = $this->accountRoot().'/public_html/'.$domain;
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        return $directory;
+    }
+
     protected function tearDown(): void
     {
         foreach (glob(storage_path('app/sites/*')) ?: [] as $dir) {
             if (is_dir($dir)) {
                 $this->removeDir($dir);
             }
+        }
+        if (is_dir(storage_path('app/account-home'))) {
+            $this->removeDir(storage_path('app/account-home'));
         }
         parent::tearDown();
     }
@@ -77,33 +96,33 @@ class GlobalFileManagerTest extends TestCase
 
         $this->actingAs($developer)->get(route('sites.ikode'))
             ->assertOk()
-            ->assertSee('Todos los sitios');
+            ->assertSee('Cuenta completa');
     }
 
-    public function test_global_list_root_shows_every_site_as_a_folder(): void
+    public function test_global_list_root_shows_the_account_home_layout(): void
     {
-        $siteA = $this->site('a-'.uniqid().'.example.com');
-        $siteB = $this->site('b-'.uniqid().'.example.com');
         $developer = $this->userWithRole('developer');
 
         $this->actingAs($developer)->getJson(route('sites.ikode.api.list', ['path' => '/']))
             ->assertOk()
-            ->assertJsonFragment(['name' => $siteA->domain, 'is_dir' => true])
-            ->assertJsonFragment(['name' => $siteB->domain, 'is_dir' => true]);
+            ->assertJsonFragment(['name' => 'public_html', 'is_dir' => true])
+            ->assertJsonFragment(['name' => '.xpanel', 'is_dir' => true])
+            ->assertJsonFragment(['name' => 'mail', 'is_dir' => true]);
     }
 
     public function test_global_write_and_list_work_inside_a_specific_site(): void
     {
         $site = $this->site('write-'.uniqid().'.example.com');
+        $this->siteDirectory($site->domain);
         $developer = $this->userWithRole('developer');
 
         $this->actingAs($developer)->postJson(route('sites.ikode.api.write'), [
-            'path' => "/{$site->domain}/index.php", 'content' => '<?php echo "hi";',
+            'path' => "/public_html/{$site->domain}/index.php", 'content' => '<?php echo "hi";',
         ])->assertOk();
 
-        $this->actingAs($developer)->getJson(route('sites.ikode.api.list', ['path' => "/{$site->domain}"]))
+        $this->actingAs($developer)->getJson(route('sites.ikode.api.list', ['path' => "/public_html/{$site->domain}"]))
             ->assertOk()
-            ->assertJsonFragment(['name' => 'index.php', 'path' => "/{$site->domain}/index.php", 'is_dir' => false]);
+            ->assertJsonFragment(['name' => 'index.php', 'path' => "/public_html/{$site->domain}/index.php", 'is_dir' => false]);
     }
 
     public function test_global_mutation_at_the_bare_root_is_rejected(): void
@@ -115,19 +134,35 @@ class GlobalFileManagerTest extends TestCase
         ])->assertUnprocessable();
     }
 
-    public function test_global_rename_across_different_sites_is_blocked(): void
+    public function test_global_manager_can_move_files_inside_the_same_account_home(): void
     {
         $siteA = $this->site('move-a-'.uniqid().'.example.com');
         $siteB = $this->site('move-b-'.uniqid().'.example.com');
         $developer = $this->userWithRole('developer');
+        $this->siteDirectory($siteA->domain);
+        $this->siteDirectory($siteB->domain);
 
         $this->actingAs($developer)->postJson(route('sites.ikode.api.write'), [
-            'path' => "/{$siteA->domain}/file.txt", 'content' => 'hi',
+            'path' => "/public_html/{$siteA->domain}/file.txt", 'content' => 'hi',
         ])->assertOk();
 
         $this->actingAs($developer)->postJson(route('sites.ikode.api.rename'), [
-            'old_path' => "/{$siteA->domain}/file.txt",
-            'new_path' => "/{$siteB->domain}/file.txt",
+            'old_path' => "/public_html/{$siteA->domain}/file.txt",
+            'new_path' => "/public_html/{$siteB->domain}/file.txt",
+        ])->assertOk();
+    }
+
+    public function test_account_structure_roots_cannot_be_deleted_or_renamed(): void
+    {
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->postJson(route('sites.ikode.api.delete'), [
+            'path' => '/public_html',
+        ])->assertUnprocessable();
+
+        $this->actingAs($developer)->postJson(route('sites.ikode.api.rename'), [
+            'old_path' => '/.xpanel',
+            'new_path' => '/.xpanel-old',
         ])->assertUnprocessable();
     }
 
@@ -137,19 +172,20 @@ class GlobalFileManagerTest extends TestCase
         $developer = $this->userWithRole('developer');
 
         $this->actingAs($developer)
-            ->getJson(route('sites.ikode.api.list', ['path' => "/{$site->domain}/../"]))
+                ->getJson(route('sites.ikode.api.list', ['path' => "/public_html/{$site->domain}/../../../"]))
             ->assertForbidden();
     }
 
     public function test_global_viewer_can_list_but_not_write(): void
     {
         $site = $this->site('viewer-'.uniqid().'.example.com');
+        $this->siteDirectory($site->domain);
         $viewer = $this->userWithRole('viewer');
 
         $this->actingAs($viewer)->getJson(route('sites.ikode.api.list', ['path' => '/']))->assertOk();
 
         $this->actingAs($viewer)->postJson(route('sites.ikode.api.write'), [
-            'path' => "/{$site->domain}/evil.php", 'content' => 'evil',
+            'path' => "/public_html/{$site->domain}/evil.php", 'content' => 'evil',
         ])->assertForbidden();
     }
 }

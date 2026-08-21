@@ -17,7 +17,7 @@
                                 </div>
                                 <h1 class="text-2xl font-semibold text-mono">Administrador de archivos</h1>
                                 <p class="mt-1 text-sm text-secondary-foreground">
-                                    Elige si quieres trabajar solo con este dominio o abrir la raiz completa de tus sitios.
+                                    Elige el alcance antes de entrar. Dentro de Ikode ya no hay selector que pueda cambiarlo accidentalmente.
                                 </p>
                             </div>
 
@@ -55,10 +55,10 @@
                                     </div>
                                     <div class="min-w-0">
                                         <h2 class="text-xl font-semibold text-mono group-hover:text-primary">
-                                            Acceder a todos los archivos de tus sitios
+                                            Abrir la cuenta completa
                                         </h2>
                                         <p class="mt-2 text-sm text-secondary-foreground">
-                                            Accede a todos los archivos de tus sitios web en un solo lugar.
+                                            Abre el home de la cuenta con public_html, mail, logs, ssl, tmp y .xpanel.
                                         </p>
                                     </div>
                                 </div>

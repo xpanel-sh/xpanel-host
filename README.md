@@ -52,7 +52,7 @@ Servidor Linux o MicroVM
 | **SSL** | Let's Encrypt con Certbot, SAN por HTTP-01 y wildcard DNS-01 mediante Cloudflare |
 | **Bases de datos** | Bases y usuarios MariaDB aislados por sitio, phpMyAdmin y accesos remotos limitados por IPv4 |
 | **Correo** | Postfix, Dovecot, Maildir, Roundcube y XMail, SPF, DKIM, DMARC y verificación DNS |
-| **Archivos** | Gestor de archivos confinado al espacio administrado |
+| **Archivos** | Gestor general confinado al hogar de la cuenta y gestor independiente confinado por dominio |
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
 | **PHP y tareas** | Límites PHP por sitio, resumen seguro del runtime y tareas Cron administradas sin ejecución como root |
 | **Tráfico y seguridad** | Analítica desde logs, caché, listado de carpetas, protección Hotlink y reglas IPv4/IPv6 por sitio |
@@ -131,6 +131,33 @@ php artisan xpanel:admin-password --generate
 7. Crea una base desde **Bases de datos → Administración** si la aplicación la necesita.
 8. Ajusta memoria, subidas y tiempo de ejecución desde **Avanzado → Configuración PHP**.
 9. Si la aplicación necesita procesos periódicos, créalos desde **Avanzado → Cron Jobs**.
+
+### Cuenta de alojamiento y gestores de archivos
+
+Cada instalación dispone de una cuenta Unix de alojamiento con raíz en `/home/<cuenta>`. El código de XPanel y sus releases permanece en `/opt`; los archivos del cliente nunca se guardan allí.
+
+```text
+/home/<cuenta>/
+├── .trash/
+├── .xpanel/             # metadatos auxiliares, nunca secretos vitales
+├── etc/
+├── logs/
+├── mail/
+├── public_ftp/incoming/
+├── public_html/
+│   └── example.com/
+│       └── subdomains/
+│           └── blog/
+├── ssl/{certs,csrs}/
+└── tmp/
+```
+
+Host ofrece dos accesos al mismo motor de archivos, sin selector ambiguo dentro del editor:
+
+- **Administrador general** abre `/home/<cuenta>` y permite trabajar con todo el alojamiento. Las carpetas estructurales no pueden eliminarse ni renombrarse.
+- **Administrador del dominio** abre únicamente el proyecto del dominio o subdominio seleccionado y no puede salir de esa raíz.
+
+La terminal general inicia en el hogar de la cuenta; la terminal de dominio utiliza la identidad Unix y la raíz de ese sitio. Directorios propios de productos no instalados —como `.cagefs`, `.softaculous` o `.spamassassin`— no se simulan.
 
 ### Aplicaciones SaaS y Node.js
 
@@ -215,6 +242,8 @@ El instalador añade phpMyAdmin desde los paquetes mantenidos por Debian/Ubuntu 
 ### Subdominios
 
 Desde **Sitio → Dominios → Subdominios** escribe sólo la etiqueta (`blog`, `tienda`, `api`). Host crea un sitio hijo como `blog.example.com`, su document root y su configuración web. El hijo hereda inicialmente el motor, tipo y versión PHP del sitio principal, pero conserva administración propia para archivos, bases de datos y SSL.
+
+Su proyecto queda agrupado bajo `public_html/<dominio-principal>/subdomains/<etiqueta>`. La sincronización reconoce las raíces heredadas `/var/www/<subdominio>` y las migra a esta estructura de cuenta cuando se aplican cambios reales del sistema.
 
 Para publicarlo debes crear fuera de Host un registro DNS `A`/`AAAA` hacia la IP del servidor, o un wildcard como `*.example.com`. Cuando resuelva, entra en la ficha del subdominio y emite su certificado en **Seguridad → SSL**. Crear el subdominio en Host no registra automáticamente DNS en Cloudflare ni en otro proveedor; esa integración requerirá credenciales/API del proveedor en una fase posterior.
 

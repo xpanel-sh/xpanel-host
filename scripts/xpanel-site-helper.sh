@@ -8,8 +8,10 @@ STATE_ROOT="${XPANEL_INSTANCE_ROOT:-$ROOT}"
 ENV_FILE="$STATE_ROOT/.env"
 CONFIGURED_SITE_USER="${XPANEL_SITE_USER:-$(grep '^XPANEL_SITE_USER=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 CONFIGURED_SITE_GROUP="${XPANEL_SITE_GROUP:-$(grep '^XPANEL_SITE_GROUP=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+CONFIGURED_ACCOUNT_USER="${XPANEL_ACCOUNT_USER:-$(grep '^XPANEL_ACCOUNT_USER=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 SITE_USER="${CONFIGURED_SITE_USER:-www-data}"
 SITE_GROUP="${CONFIGURED_SITE_GROUP:-www-data}"
+ACCOUNT_USER="${CONFIGURED_ACCOUNT_USER:-}"
 BACKUP_ROOT="${XPANEL_BACKUP_ROOT:-$STATE_ROOT/backups}"
 CUSTOM_FPM_POOL_DIR="${XPANEL_FPM_POOL_DIR:-}"
 CUSTOM_FPM_CONFIG="${XPANEL_FPM_CONFIG:-}"
@@ -17,9 +19,26 @@ CUSTOM_FPM_SERVICE="${XPANEL_FPM_SERVICE:-}"
 
 fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
-valid_document_root() { [[ "$1" =~ ^/(var|srv)/www/[A-Za-z0-9._/-]+$ && "$1" != *".."* ]]; }
+valid_document_root() {
+  [[ "$1" != *".."* ]] && {
+    [[ "$1" =~ ^/(var|srv)/www/[A-Za-z0-9._/-]+$ ]] ||
+      [[ "$1" =~ ^/home/[a-z_][a-z0-9_-]{2,31}/public_html/[A-Za-z0-9._/-]+$ ]]
+  }
+}
 valid_identifier() { [[ "$1" =~ ^[a-z0-9_]{1,64}$ ]]; }
 valid_site_identity() { [[ "$1" =~ ^xps[a-z0-9]{9,29}$ ]]; }
+valid_account_identity() { [[ "$1" =~ ^xpa[a-z0-9]{8,24}$ || "$1" =~ ^xhi[a-f0-9]{12}$ ]]; }
+valid_hosting_root() {
+  local identity="$1" path="$2"
+  if valid_account_identity "$identity"; then
+    [[ "$path" == "/home/$identity" ]]
+  else
+    valid_site_identity "$identity" && valid_document_root "$path"
+  fi
+}
+valid_file_access_root() {
+  valid_document_root "$1" || { [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && [[ "$1" == "/home/$ACCOUNT_USER" ]]; }
+}
 valid_ipv4() { [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && php -r 'exit(filter_var($argv[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? 0 : 1);' "$1"; }
 valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; }
 
@@ -123,10 +142,14 @@ remove_php_pool() {
 
 grant_panel_file_access() {
   local document_root="$1"
-  valid_document_root "$document_root" || fail "Invalid panel file-access root."
+  valid_file_access_root "$document_root" || fail "Invalid panel file-access root."
   [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root is unavailable."
   setfacl -R -m "u:$SITE_USER:rwX" "$document_root"
   find -P "$document_root" -xdev -type d -exec setfacl -m "d:u:$SITE_USER:rwx" {} +
+  if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
+    setfacl -R -m "u:$ACCOUNT_USER:rwX" "$document_root"
+    find -P "$document_root" -xdev -type d -exec setfacl -m "d:u:$ACCOUNT_USER:rwx" {} +
+  fi
 }
 
 subdomain_root_migrate() {
@@ -227,21 +250,26 @@ panel_ssl_enable() {
 
 ensure_site_identity() {
   local site_user="$1" document_root="$2"
-  valid_site_identity "$site_user" || fail "Invalid site Unix identity."
-  valid_document_root "$document_root" || fail "Invalid identity document root."
+  { valid_site_identity "$site_user" || valid_account_identity "$site_user"; } || fail "Invalid hosting Unix identity."
+  valid_hosting_root "$site_user" "$document_root" || fail "Invalid hosting identity root."
   getent group "$site_user" >/dev/null || groupadd --system "$site_user"
   if ! id "$site_user" >/dev/null 2>&1; then
     useradd --system --gid "$site_user" --home-dir "$document_root" --shell /usr/sbin/nologin "$site_user"
   fi
   [[ "$(id -gn "$site_user")" == "$site_user" ]] || fail "Site user has an unexpected primary group."
   usermod -a -G "$site_user" "$SITE_USER"
+  if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
+    usermod -a -G "$site_user" "$ACCOUNT_USER"
+  fi
   if id lsadm >/dev/null 2>&1; then usermod -a -G "$site_user" lsadm; fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
-  chown -R "$site_user:$site_user" "$document_root"
+  if valid_site_identity "$site_user"; then
+    chown -R "$site_user:$site_user" "$document_root"
+  fi
   grant_panel_file_access "$document_root"
   local ancestor
   ancestor="$(dirname "$document_root")"
-  while [[ "$ancestor" == /var/www/* || "$ancestor" == /srv/www/* ]]; do
+  while [[ "$ancestor" == /var/www/* || "$ancestor" == /srv/www/* || "$ancestor" == /home/* ]]; do
     setfacl -m "u:$site_user:--x" "$ancestor"
     ancestor="$(dirname "$ancestor")"
   done
@@ -255,8 +283,8 @@ site_action() {
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   [[ "$type" == "php" || "$type" == "static" || "$type" == "node" ]] || fail "Invalid site type."
   [[ "$php_version" =~ ^8\.[1-4]$ ]] || fail "Invalid PHP version."
-  valid_document_root "$document_root" || fail "Document root must be under /var/www or /srv/www."
-  valid_document_root "$web_root" || fail "Web root must be under /var/www or /srv/www."
+  valid_document_root "$document_root" || fail "Document root must be under the account public_html tree or a supported legacy web root."
+  valid_document_root "$web_root" || fail "Web root must be under the account public_html tree or a supported legacy web root."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
   [[ "$site_status" == "active" || "$site_status" == "suspended" ]] || fail "Invalid site status."
   if [[ "$type" == "node" ]]; then
@@ -1204,8 +1232,8 @@ EOF
 
 access_sync() {
   local site_user="$2" document_root="$3" sftp_enabled="$4" ftp_enabled="$5" ssh_enabled="$6" web_terminal_enabled="${7:-0}"
-  valid_site_identity "$site_user" || fail "Invalid access site user."
-  valid_document_root "$document_root" || fail "Invalid access document root."
+  { valid_site_identity "$site_user" || valid_account_identity "$site_user"; } || fail "Invalid access hosting user."
+  valid_hosting_root "$site_user" "$document_root" || fail "Invalid access hosting root."
   for flag in "$sftp_enabled" "$ftp_enabled" "$ssh_enabled" "$web_terminal_enabled"; do [[ "$flag" == "0" || "$flag" == "1" ]] || fail "Invalid access flag."; done
   ensure_site_identity "$site_user" "$document_root"
 

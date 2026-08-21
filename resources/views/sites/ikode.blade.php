@@ -1,22 +1,19 @@
 @extends('layouts.client')
 
-@section('title', $site ? "Gestor de archivos - {$site->domain}" : 'Gestor de archivos - Todos los sitios')
+@section('title', $site ? "Gestor de archivos - {$site->domain}" : 'Gestor de archivos - Cuenta completa')
 
 @php
-    // $site is bound when opened from a specific website (site-scoped root);
-    // it's null when opened from "administrar todos los sitios" (virtual root
-    // across every site, first path segment = domain).
+    // The same Ikode shell has two explicit scopes. A site route is confined
+    // to that project's root; the global route is confined to account home.
     $filesDomain = $site?->domain;
     $filesBaseUrl = $site ? route('sites.files.index', $site).'/api' : route('sites.ikode').'/api';
     $filesBackRoute = $site ? route('sites.files.index', $site) : route('sites.index');
-    $webTerminalEnabled = $site && config('xpanel.terminal_enabled') && (bool) $site->accessSettings?->web_terminal_enabled;
-    $terminalTokenUrl = $site ? route('sites.access.terminal.token', $site) : null;
-    $filesSites = \App\Models\Site::orderBy('domain')->get()
-        ->when($site, fn ($collection) => $collection->reject(fn ($item) => $item->is($site)))
-        ->map(fn ($item) => [
-            'domain' => $item->domain,
-            'url' => route('sites.files.ikode', $item),
-        ])->values();
+    $webTerminalEnabled = config('xpanel.terminal_enabled') && (! $site || (bool) $site->accessSettings?->web_terminal_enabled);
+    $terminalTokenUrl = $site ? route('sites.access.terminal.token', $site) : route('sites.ikode.terminal.token');
+    $accountHomeLabel = isset($accountWorkspace)
+        ? $accountWorkspace->systemRoot()
+        : app(\App\Services\HostingAccountWorkspace::class)->systemRoot();
+    $scopeLabel = $site ? $site->domain : $accountHomeLabel;
 @endphp
 
 @push('styles')
@@ -704,21 +701,14 @@
                     <div class="xpanel-search-wrap">
                         <button class="kt-input max-w-96 ikode_quick_btn" type="button" id="xpanel_quick_focus">
                             <i class="ki-outline ki-magnifier"></i>
-                            <span class="xpanel-search-scope" id="xpanel_search_scope_label">{{ $filesDomain ?: 'www/' }} -</span>
+                            <span class="xpanel-search-scope" id="xpanel_search_scope_label">{{ $scopeLabel }} -</span>
                             <span class="xpanel-search-button-text" id="xpanel_search_button_text">Buscar archivo, carpeta o contenido</span>
                         </button>
                         <div class="xpanel-search-popover hidden" id="xpanel_search_popover">
                             <div class="xpanel-search-input-row">
-                                <select id="xpanel_site_jump" class="kt-select xpanel-search-scope-select text-primary" title="Raiz del gestor">
-                                    <option value="{{ $site ? route('sites.files.ikode', $site) : route('sites.ikode') }}" selected>
-                                        {{ $site ? $filesDomain : 'Todos los sitios' }}
-                                    </option>
-                                    @foreach($filesSites as $fileSite)
-                                        <option value="{{ $fileSite['url'] }}">
-                                            {{ $fileSite['domain'] }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <span class="kt-badge kt-badge-outline kt-badge-primary shrink-0" title="Alcance fijo del gestor">
+                                    {{ $site ? 'Dominio' : 'Cuenta' }}
+                                </span>
                                 <label class="xpanel-search-field">
                                     <i class="ki-outline ki-magnifier"></i>
                                     <input id="xpanel_file_filter" placeholder="Buscar archivo, carpeta o contenido" type="text" autocomplete="off">
@@ -945,7 +935,7 @@
                             <div class="xpanel-console-line"><span class="xpanel-console-time">hint</span><span class="xpanel-console-text">Las validaciones reales se conectaran al agente del sitio.</span></div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="output">
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">xpanel</span><span class="xpanel-console-text">Esperando tareas del sitio {{ $filesDomain ?: 'www/' }}.</span></div>
+                            <div class="xpanel-console-line"><span class="xpanel-console-time">xpanel</span><span class="xpanel-console-text">Esperando tareas en {{ $scopeLabel }}.</span></div>
                             <div id="xpanel_output_log"></div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="logs">
@@ -1027,9 +1017,9 @@
                     <div class="ikode_panel">
                         <div class="ikode_panel_title">Contexto</div>
                         <div class="grid gap-2 text-sm">
-                            <div class="xpanel-file-meta"><span>Scope</span><strong>{{ $site ? 'Sitio' : 'Todos los sitios' }}</strong></div>
-                            <div class="xpanel-file-meta"><span>Raiz</span><strong>{{ $filesDomain ?: 'www/' }}</strong></div>
-                            <div class="xpanel-file-meta"><span>Sitios</span><strong>{{ $filesSites->count() }}</strong></div>
+                            <div class="xpanel-file-meta"><span>Scope</span><strong>{{ $site ? 'Dominio' : 'Cuenta completa' }}</strong></div>
+                            <div class="xpanel-file-meta"><span>Raiz</span><strong>{{ $scopeLabel }}</strong></div>
+                            <div class="xpanel-file-meta"><span>Acceso</span><strong>{{ $site ? 'Solo este dominio' : 'Todo el alojamiento' }}</strong></div>
                         </div>
                     </div>
                     <div class="ikode_panel">
@@ -1078,7 +1068,7 @@
                     <div class="ikode_panel">
                         <div class="ikode_panel_title">Contexto de agente</div>
                         <div class="grid gap-2 text-sm text-secondary-foreground">
-                            <div class="xpanel-file-meta"><span>Raiz</span><strong>{{ $filesDomain ?: 'www/' }}</strong></div>
+                            <div class="xpanel-file-meta"><span>Raiz</span><strong>{{ $scopeLabel }}</strong></div>
                             <div class="xpanel-file-meta"><span>Archivo</span><strong id="xpanel_agent_active" class="text-end break-all">-</strong></div>
                             <div class="xpanel-file-meta"><span>Modo</span><strong id="xpanel_agent_mode">Lectura</strong></div>
                         </div>
@@ -1131,7 +1121,7 @@
         window.XPANEL_FILE_MANAGER_CONFIG = {
             baseUrl: @json($filesBaseUrl),
             domain: @json($filesDomain),
-            rootLabel: @json($filesDomain ?: 'www/'),
+            rootLabel: @json($scopeLabel),
             scope: @json('client'),
             webTerminalEnabled: @json($webTerminalEnabled),
             terminalTokenUrl: @json($terminalTokenUrl),
@@ -3190,9 +3180,6 @@
             hydrateSettings();
             bindSettings();
 
-            $('#xpanel_site_jump')?.addEventListener('change', (event) => {
-                window.location.href = event.target.value;
-            });
             $('#xpanel_quick_focus')?.addEventListener('click', openSearchLauncher);
             $('#xpanel_file_filter').addEventListener('input', queueSearch);
             $('#xpanel_file_filter').addEventListener('focus', renderSearchResults);

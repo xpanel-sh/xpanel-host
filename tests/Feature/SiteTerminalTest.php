@@ -89,4 +89,30 @@ class SiteTerminalTest extends TestCase
         $this->post('/internal/terminal/consume', ['token' => $token])
             ->assertForbidden();
     }
+
+    public function test_account_terminal_uses_the_fixed_hosting_home(): void
+    {
+        config([
+            'xpanel.terminal_enabled' => true,
+            'xpanel.account_user' => 'xpa0123456789',
+            'xpanel.account_home' => '/home/xpa0123456789',
+        ]);
+
+        $response = $this->actingAs($this->owner())
+            ->postJson(route('sites.ikode.terminal.token'))
+            ->assertOk()
+            ->assertJson([
+                'path' => '/terminal-ws',
+                'system_user' => 'xpa0123456789',
+                'home' => '/home/xpa0123456789',
+            ]);
+
+        $this->post('/internal/terminal/consume', ['token' => $response->json('token')])
+            ->assertOk()
+            ->assertJson([
+                'ok' => true,
+                'system_user' => 'xpa0123456789',
+                'home' => '/home/xpa0123456789',
+            ]);
+    }
 }

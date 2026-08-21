@@ -29,6 +29,19 @@ class TerminalTokenIssuer
         return ['token' => $token, 'expires_in' => self::TTL_SECONDS];
     }
 
+    public function issueAccount(string $systemUser, string $home): array
+    {
+        $token = Str::random(64);
+        Cache::put($this->payloadKey($token), [
+            'scope' => 'account',
+            'site_id' => null,
+            'system_user' => $systemUser,
+            'home' => $home,
+        ], self::TTL_SECONDS);
+
+        return ['token' => $token, 'expires_in' => self::TTL_SECONDS];
+    }
+
     /**
      * Verifies the signature/expiry and atomically marks the token as used.
      * Returns the decoded payload on first (and only) success, null otherwise.
@@ -45,8 +58,9 @@ class TerminalTokenIssuer
         }
         $payload = Cache::pull($this->payloadKey($token));
         if (! is_array($payload)
-            || ! array_key_exists('site_id', $payload) || ! is_int($payload['site_id'])
+            || ! array_key_exists('site_id', $payload) || (! is_int($payload['site_id']) && $payload['site_id'] !== null)
             || ! array_key_exists('system_user', $payload) || ! is_string($payload['system_user']) || $payload['system_user'] === ''
+            || (isset($payload['home']) && (! is_string($payload['home']) || ! str_starts_with($payload['home'], '/home/')))
         ) {
             return null;
         }

@@ -6,7 +6,10 @@ use App\Models\Site;
 
 class SubdomainRootMigrator
 {
-    public function __construct(private readonly ServerCommandRunner $commands) {}
+    public function __construct(
+        private readonly ServerCommandRunner $commands,
+        private readonly HostingAccountWorkspace $workspace,
+    ) {}
 
     public function migrateLegacyRoot(Site $site): bool
     {
@@ -26,13 +29,18 @@ class SubdomainRootMigrator
             return false;
         }
 
-        $legacyRoot = rtrim($parent->document_root, '/').'/subdomains/'.$label;
-        if (rtrim($site->document_root, '/') !== $legacyRoot) {
+        $legacyRoot = rtrim($site->document_root, '/');
+        $knownLegacyRoots = [
+            '/var/www/'.$site->domain,
+            '/srv/www/'.$site->domain,
+            rtrim($parent->document_root, '/').'/subdomains/'.$label,
+        ];
+        $canonicalRoot = $this->workspace->subdomainRoot($parent->domain, $label);
+
+        if ($legacyRoot === $canonicalRoot || ! in_array($legacyRoot, $knownLegacyRoots, true)) {
             return false;
         }
 
-        $documentRootBase = str_starts_with($parent->document_root, '/srv/www/') ? '/srv/www' : '/var/www';
-        $canonicalRoot = $documentRootBase.'/'.$site->domain;
         if (config('xpanel.apply_system_changes')) {
             $this->commands->run([
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'subdomain-root-migrate',

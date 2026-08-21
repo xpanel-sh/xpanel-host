@@ -49,7 +49,7 @@ class SiteManagementTest extends TestCase
         $response->assertRedirect('/sites');
         $this->assertDatabaseHas('sites', [
             'domain' => 'cliente.example.com',
-            'document_root' => '/var/www/cliente.example.com',
+            'document_root' => app(\App\Services\HostingAccountWorkspace::class)->siteRoot('cliente.example.com'),
         ]);
         $this->assertFileExists(storage_path('app/vhosts/cliente.example.com.conf'));
         $this->assertFileExists(storage_path('app/gateways/cliente.example.com.conf'));

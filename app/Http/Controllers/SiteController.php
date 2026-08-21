@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Domain;
 use App\Models\Site;
 use App\Services\CertificateProvisioner;
+use App\Services\HostingAccountWorkspace;
 use App\Services\ServerContext;
 use App\Services\ServerResourceUsageService;
 use App\Services\SiteAccessProvisioner;
@@ -212,8 +213,8 @@ class SiteController extends Controller
                 'string',
                 'max:255',
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    if ($value !== '' && (! preg_match('#^/(?:var|srv)/www/[A-Za-z0-9._/-]+$#', $value) || str_contains($value, '..'))) {
-                        $fail('El document root debe estar dentro de /var/www o /srv/www.');
+                    if ($value !== '' && ! app(HostingAccountWorkspace::class)->acceptsDocumentRoot((string) $value)) {
+                        $fail('La carpeta debe estar dentro de public_html de la cuenta; /var/www y /srv/www solo se aceptan para instalaciones heredadas.');
                     }
                 },
             ],
@@ -253,10 +254,8 @@ class SiteController extends Controller
             $data['node_start_command'] = null;
         }
 
-        if (config('xpanel.management_mode') === 'vps-instance') {
-            $data['document_root'] = config('xpanel.web_root').'/'.$data['domain'];
-        } elseif (empty($data['document_root'])) {
-            $data['document_root'] = config('xpanel.web_root', '/var/www').'/'.$data['domain'];
+        if (empty($data['document_root']) || config('xpanel.management_mode') === 'vps-instance') {
+            $data['document_root'] = app(HostingAccountWorkspace::class)->siteRoot($data['domain']);
         }
 
         if (empty($data['public_path'])) {

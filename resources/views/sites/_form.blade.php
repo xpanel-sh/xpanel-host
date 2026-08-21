@@ -20,8 +20,8 @@
 
 <div class="flex flex-col gap-1">
     <label class="kt-form-label font-normal text-mono">Raíz del proyecto</label>
-    <input class="kt-input" type="text" name="document_root" value="{{ old('document_root', $site->document_root ?? '') }}" placeholder="/var/www/cliente.example.com"/>
-    <p class="kt-form-description">Carpeta completa del sitio: aquí viven el gestor de archivos, SSH/SFTP y la terminal, sin importar la subcarpeta pública que uses abajo.</p>
+    <input class="kt-input" type="text" name="document_root" value="{{ old('document_root', $site->document_root ?? '') }}" placeholder="{{ app(\App\Services\HostingAccountWorkspace::class)->siteRoot('cliente.example.com') }}"/>
+    <p class="kt-form-description">Carpeta completa del proyecto dentro de <code>public_html</code>. El gestor y la terminal del dominio quedan confinados aquí.</p>
 </div>
 
 <div class="flex flex-col gap-1">

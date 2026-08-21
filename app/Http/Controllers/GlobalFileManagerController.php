@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Site;
+use App\Services\HostingAccountWorkspace;
 use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,39 +12,30 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Virtual "all sites" view of the file manager: the first path segment is a
- * site's domain, the rest is the path inside that site's own sandboxed root.
+ * Account-level file manager. Every operation is confined to the hosting
+ * account home; sites live below public_html instead of becoming separate
+ * roots selected from the UI.
  */
 class GlobalFileManagerController extends Controller
 {
     use ResolvesSandboxedPath;
 
+    public function __construct(private readonly HostingAccountWorkspace $workspace) {}
+
     public function ikode(): View
     {
-        return view('sites.ikode', ['site' => null]);
+        return view('sites.ikode', [
+            'site' => null,
+            'accountWorkspace' => $this->workspace,
+        ]);
     }
 
     public function list(Request $request): JsonResponse
     {
         $path = '/'.trim($request->query('path', '/'), '/');
 
-        if ($path === '/') {
-            $entries = Site::orderBy('domain')->get()->map(fn (Site $item) => [
-                'name' => $item->domain,
-                'path' => '/'.$item->domain,
-                'is_dir' => true,
-                'size' => null,
-                'modified' => optional($item->updated_at)->format('Y-m-d H:i') ?? '-',
-            ])->values();
-
-            return response()->json(['path' => '/', 'entries' => $entries]);
-        }
-
-        [$site, $rest] = $this->splitVirtualPath($path);
-        $dir = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
+        $dir = $this->resolveWithinRoot($this->workspace->localRoot(), $path, mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta no es una carpeta.');
-
-        $prefix = '/'.$site->domain.($rest === '/' ? '' : rtrim($rest, '/'));
 
         $entries = [];
         foreach (scandir($dir) ?: [] as $name) {
@@ -55,7 +46,7 @@ class GlobalFileManagerController extends Controller
             $isDir = is_dir($full);
             $entries[] = [
                 'name' => $name,
-                'path' => $prefix.'/'.$name,
+                'path' => rtrim($path, '/').'/'.$name,
                 'is_dir' => $isDir,
                 'size' => $isDir ? null : filesize($full),
                 'modified' => date('Y-m-d H:i', filemtime($full)),
@@ -69,8 +60,7 @@ class GlobalFileManagerController extends Controller
 
     public function read(Request $request): JsonResponse
     {
-        [$site, $rest] = $this->splitVirtualPath($request->query('path', ''));
-        $path = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
+        $path = $this->resolveWithinRoot($this->workspace->localRoot(), $request->query('path', ''), mustExist: true);
         abort_if(is_dir($path), 422, 'No se puede abrir una carpeta como archivo.');
         abort_if(filesize($path) > 2 * 1024 * 1024, 422, 'Archivo demasiado grande para editar aqui (max 2MB).');
 
@@ -87,8 +77,7 @@ class GlobalFileManagerController extends Controller
             'content' => 'present|string',
         ]);
 
-        [$site, $rest] = $this->splitVirtualPath($data['path']);
-        $path = $this->resolveWithinRoot($site->localRoot(), $rest);
+        $path = $this->resolveWithinRoot($this->workspace->localRoot(), $data['path']);
         abort_if(is_dir($path), 422, 'No se puede escribir sobre una carpeta.');
         abort_unless(is_dir(dirname($path)), 404, 'La carpeta destino no existe.');
 
@@ -106,8 +95,7 @@ class GlobalFileManagerController extends Controller
         ]);
 
         $this->assertSafeName($data['name']);
-        [$site, $rest] = $this->splitVirtualPath($data['path']);
-        $dir = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
+        $dir = $this->resolveWithinRoot($this->workspace->localRoot(), $data['path'], mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta base no es una carpeta.');
 
         $target = $dir.DIRECTORY_SEPARATOR.$data['name'];
@@ -126,8 +114,7 @@ class GlobalFileManagerController extends Controller
     {
         $data = $request->validate(['path' => 'required|string']);
 
-        [$site, $rest] = $this->splitVirtualPath($data['path']);
-        $target = $this->resolveWithinRoot($site->localRoot(), $rest);
+        $target = $this->resolveWithinRoot($this->workspace->localRoot(), $data['path']);
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
@@ -144,14 +131,12 @@ class GlobalFileManagerController extends Controller
             'new_path' => 'required|string',
         ]);
 
-        [$siteOld, $restOld] = $this->splitVirtualPath($data['old_path']);
-        [$siteNew, $restNew] = $this->splitVirtualPath($data['new_path']);
-        abort_unless($siteOld->is($siteNew), 422, 'No se puede mover archivos entre sitios distintos.');
+        $root = $this->workspace->localRoot();
+        $path = $this->resolveWithinRoot($root, $data['old_path'], mustExist: true);
+        abort_if(rtrim($path, '/\\') === rtrim($root, '/\\'), 422, 'No se puede mover la raíz de la cuenta.');
+        abort_if($this->isProtectedRoot($root, $path), 422, 'Esta carpeta forma parte de la estructura de la cuenta y no se puede renombrar.');
 
-        $path = $this->resolveWithinRoot($siteOld->localRoot(), $restOld, mustExist: true);
-        abort_if(rtrim($path, '/\\') === rtrim($siteOld->localRoot(), '/\\'), 422, 'No se puede mover la raiz del sitio.');
-
-        $target = $this->resolveWithinRoot($siteNew->localRoot(), $restNew);
+        $target = $this->resolveWithinRoot($root, $data['new_path']);
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
@@ -163,9 +148,10 @@ class GlobalFileManagerController extends Controller
 
     public function destroy(Request $request): JsonResponse
     {
-        [$site, $rest] = $this->splitVirtualPath($request->input('path', ''));
-        $path = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
-        abort_if(rtrim($path, '/\\') === rtrim($site->localRoot(), '/\\'), 422, 'No se puede eliminar la raiz del sitio.');
+        $root = $this->workspace->localRoot();
+        $path = $this->resolveWithinRoot($root, $request->input('path', ''), mustExist: true);
+        abort_if(rtrim($path, '/\\') === rtrim($root, '/\\'), 422, 'No se puede eliminar la raíz de la cuenta.');
+        abort_if($this->isProtectedRoot($root, $path), 422, 'Esta carpeta forma parte de la estructura de la cuenta y no se puede eliminar.');
 
         if (is_dir($path)) {
             $this->deleteDirectory($path);
@@ -183,8 +169,7 @@ class GlobalFileManagerController extends Controller
         // same one the site migration upload already relies on.
         $request->validate(['path' => 'required|string', 'file' => 'required|file|max:2097152']);
 
-        [$site, $rest] = $this->splitVirtualPath($request->input('path', '/'));
-        $dir = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
+        $dir = $this->resolveWithinRoot($this->workspace->localRoot(), $request->input('path', '/'), mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta destino no es una carpeta.');
 
         $file = $request->file('file');
@@ -197,8 +182,7 @@ class GlobalFileManagerController extends Controller
 
     public function download(Request $request): BinaryFileResponse|StreamedResponse
     {
-        [$site, $rest] = $this->splitVirtualPath($request->query('path', ''));
-        $path = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
+        $path = $this->resolveWithinRoot($this->workspace->localRoot(), $request->query('path', ''), mustExist: true);
         abort_if(is_dir($path), 422, 'No se puede descargar una carpeta.');
 
         if ($request->boolean('inline')) {
@@ -218,16 +202,12 @@ class GlobalFileManagerController extends Controller
         ]);
 
         $path = '/'.trim($data['path'] ?? '/', '/');
-        abort_if($path === '/', 422, 'Selecciona un sitio antes de buscar.');
-
-        [$site, $rest] = $this->splitVirtualPath($path);
-        $root = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
+        $accountRoot = $this->workspace->localRoot();
+        $root = $this->resolveWithinRoot($accountRoot, $path, mustExist: true);
         abort_unless(is_dir($root), 422, 'La ruta no es una carpeta.');
 
-        $siteRoot = str_replace('\\', '/', realpath($site->localRoot()) ?: $site->localRoot());
-        [$results, $truncated] = $this->searchWithin($root, $siteRoot, $data);
-
-        $results = array_map(fn ($result) => [...$result, 'path' => '/'.$site->domain.$result['path']], $results);
+        $normalizedRoot = str_replace('\\', '/', realpath($accountRoot) ?: $accountRoot);
+        [$results, $truncated] = $this->searchWithin($root, $normalizedRoot, $data);
 
         return response()->json(['results' => $results, 'truncated' => $truncated]);
     }
@@ -236,28 +216,19 @@ class GlobalFileManagerController extends Controller
     {
         $data = $request->validate(['path' => 'required|string', 'overwrite' => 'nullable|boolean']);
 
-        [$site, $rest] = $this->splitVirtualPath($data['path']);
-        $path = $this->resolveWithinRoot($site->localRoot(), $rest, mustExist: true);
+        $path = $this->resolveWithinRoot($this->workspace->localRoot(), $data['path'], mustExist: true);
 
         return response()->json($this->extractArchive($path, $request->boolean('overwrite')));
     }
 
-    /**
-     * @return array{0: Site, 1: string}
-     */
-    private function splitVirtualPath(string $path): array
+    private function isProtectedRoot(string $root, string $path): bool
     {
-        $segments = array_values(array_filter(
-            explode('/', str_replace('\\', '/', $path)),
-            fn ($part) => $part !== '' && $part !== '.'
-        ));
+        $relative = str_replace('\\', '/', ltrim(substr($path, strlen($root)), '/\\'));
 
-        abort_if($segments === [], 422, 'Selecciona un sitio antes de continuar.');
-
-        $domain = array_shift($segments);
-        $site = Site::where('domain', $domain)->firstOrFail();
-        $rest = $segments === [] ? '/' : '/'.implode('/', $segments);
-
-        return [$site, $rest];
+        return in_array($relative, array_filter(
+            $this->workspace->directories(),
+            fn (string $directory): bool => ! str_contains($directory, '/')
+        ), true);
     }
+
 }
