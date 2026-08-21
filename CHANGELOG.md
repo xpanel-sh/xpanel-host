@@ -60,6 +60,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- iKode elimina la terminal simulada y la pestaña duplicada «Terminal real»: el diseño original de sesiones aloja ahora directamente terminales xterm.js conectadas a shells Linux con PTY. El agente Go permanece sólo como transporte sin privilegios y no interpreta comandos.
 - El actualizador conserva `/var/lib/xpanel-host` como un namespace atravesable (`0755`) y restringe sólo su subcarpeta `backups`; esto permite que el usuario aislado de la terminal lea su llave privada sin exponer los respaldos.
 - La sincronización migra ahora también las raíces de dominios principales desde `/var/www` o `/srv/www` al hogar real de la cuenta. Las operaciones destructivas o recursivas de un sitio excluyen su carpeta reservada `subdomains/`, evitando que despliegues, restauraciones o cambios de propietario del padre alteren sitios hijos.
 - Los dominios nuevos viven en `public_html/<dominio>` y sus subdominios en `public_html/<dominio>/subdomains/<etiqueta>`; la sincronización migra las raíces planas heredadas y el gestor protege las carpetas estructurales contra borrado o renombrado accidental.

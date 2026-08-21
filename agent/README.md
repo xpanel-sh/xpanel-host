@@ -1,6 +1,6 @@
 # xpanel-terminal-agent
 
-Bridges a browser WebSocket (opened from ikode's "Terminal real" tab) to a
+Bridges a browser WebSocket (opened from ikode's single "Terminal" workspace) to a
 real SSH session on a site's own confined Unix user. It never runs as root,
 never touches the Laravel database, and holds no Laravel authorization secret.
 The service key alone cannot open a shell: `authorized_keys` forces every
@@ -10,6 +10,10 @@ opaque token in Laravel and checks the exact target Unix identity.
 See the plan/context in `app/Services/TerminalTokenIssuer.php` and
 `scripts/xpanel-site-helper.sh::access_sync()` for the opaque token flow and the
 sshd-side isolation this agent relies on instead of reimplementing.
+
+The agent is not a command interpreter. The browser's xterm.js instance sends
+keystrokes and terminal resize events; the agent only transports the resulting
+PTY byte stream to and from the real login shell.
 
 ## Environment variables
 

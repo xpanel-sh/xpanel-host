@@ -357,13 +357,7 @@
             color: hsl(var(--foreground));
         }
         .xpanel-terminal-action:hover { background: hsl(var(--muted)); }
-        .xpanel-ssh-terminal-body {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            min-height: 0;
-        }
-        .xpanel-ssh-terminal-toolbar {
+        .xpanel-terminal-toolbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -373,11 +367,25 @@
             border-bottom: 1px solid hsl(var(--border));
             font-size: 11px;
         }
-        .xpanel-ssh-status { color: var(--muted-foreground); }
-        .xpanel-ssh-terminal-mount {
+        .xpanel-terminal-status { color: var(--muted-foreground); }
+        .xpanel-terminal-mounts {
             flex: 1;
             min-height: 0;
-            padding: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .xpanel-terminal-mount {
+            position: absolute;
+            inset: 0;
+            padding: 6px 8px;
+        }
+        .xpanel-terminal-mount[hidden] { display: none; }
+        .xpanel-terminal-mount .xterm,
+        .xpanel-terminal-mount .xterm-viewport { height: 100%; }
+        .xpanel-terminal-disabled {
+            padding: 12px;
+            color: var(--muted-foreground);
+            font-size: 12px;
         }
         .xpanel-terminal-list {
             flex: 1;
@@ -426,33 +434,6 @@
             min-height: 0;
             display: flex;
             flex-direction: column;
-        }
-        .xpanel-terminal-output {
-            flex: 1;
-            min-height: 0;
-            overflow: auto;
-            padding: 10px;
-            font-family: Consolas, 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.55;
-            white-space: pre-wrap;
-        }
-        .xpanel-terminal-inputbar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 36px;
-            padding: 6px 10px;
-            border-top: 1px solid hsl(var(--border));
-            font-family: Consolas, 'Courier New', monospace;
-            font-size: 12px;
-        }
-        .xpanel-terminal-input {
-            flex: 1;
-            min-width: 0;
-            background: transparent;
-            outline: none;
-            color: hsl(var(--foreground));
         }
         .ikode_right_view {
             min-height: 0;
@@ -937,7 +918,6 @@
                             <button class="ikode_terminal_tab" type="button" data-console-tab="output">Output</button>
                             <button class="ikode_terminal_tab" type="button" data-console-tab="logs">Logs</button>
                             <button class="ikode_terminal_tab ikode_terminal_tab_active" type="button" data-console-tab="terminal">Terminal</button>
-                            <button class="ikode_terminal_tab" type="button" data-console-tab="ssh">Terminal real</button>
                             <button class="ikode_terminal_tab" type="button" data-console-tab="ports">Ports</button>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="problems">
@@ -969,26 +949,19 @@
                                     <div class="xpanel-terminal-list" id="xpanel_terminal_list"></div>
                                 </aside>
                                 <section class="xpanel-terminal-main" id="xpanel_terminal_main">
-                                    <div class="xpanel-terminal-output" id="xpanel_terminal_output"></div>
-                                    <form class="xpanel-terminal-inputbar" id="xpanel_terminal_form" autocomplete="off">
-                                        <span class="ikode_prompt" id="xpanel_terminal_prompt">xpanel:/ $</span>
-                                        <input class="xpanel-terminal-input" id="xpanel_terminal_input" type="text" spellcheck="false" placeholder="help, ls, cd, open, mkdir, touch, extract...">
-                                    </form>
+                                    @if($webTerminalEnabled)
+                                        <div class="xpanel-terminal-toolbar">
+                                            <span id="xpanel_terminal_status" class="xpanel-terminal-status">Desconectado</span>
+                                            <button class="xpanel-terminal-action" type="button" id="xpanel_terminal_reconnect" title="Reconectar terminal">
+                                                <i class="ki-filled ki-arrows-circle"></i>
+                                            </button>
+                                        </div>
+                                        <div id="xpanel_terminal_mounts" class="xpanel-terminal-mounts"></div>
+                                    @else
+                                        <div class="xpanel-terminal-disabled">{{ $site ? 'Terminal desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.' }}</div>
+                                    @endif
                                 </section>
                             </div>
-                        </div>
-                        <div class="ikode_terminal_body ikode_hidden xpanel-ssh-terminal-body" data-console-view="ssh">
-                            @if($webTerminalEnabled)
-                                <div class="xpanel-ssh-terminal-toolbar">
-                                    <span id="xpanel_ssh_status" class="xpanel-ssh-status">Desconectado</span>
-                                    <button class="xpanel-terminal-action" type="button" id="xpanel_ssh_reconnect" title="Reconectar">
-                                        <i class="ki-filled ki-arrows-circle"></i>
-                                    </button>
-                                </div>
-                                <div id="xpanel_ssh_terminal_mount" class="xpanel-ssh-terminal-mount"></div>
-                            @else
-                                <div class="xpanel-console-line"><span class="xpanel-console-time">info</span><span class="xpanel-console-text">{{ $site ? 'Terminal real desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal real requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.' }}</span></div>
-                            @endif
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="ports">
                             <div class="xpanel-console-line"><span class="xpanel-console-time">80</span><span class="xpanel-console-text">HTTP del sitio</span></div>
@@ -1256,9 +1229,13 @@
             };
             state.terminals = uiState.terminal.sessions.map((session, index) => ({
                 ...session,
-                history: [],
-                commandHistory: [],
-                commandIndex: 0,
+                status: 'Desconectado',
+                term: null,
+                fitAddon: null,
+                socket: null,
+                mount: null,
+                connecting: false,
+                attempted: false,
             }));
             state.terminalSeq = Math.max(uiState.terminal.seq || 1, state.terminals.length);
             state.activeTerminalId = state.terminals.some((terminal) => terminal.id === uiState.terminal.active)
@@ -2848,45 +2825,75 @@
                 persistUiState();
             };
 
-            const sshTerminal = { term: null, fitAddon: null, socket: null, connecting: false };
+            const terminalTheme = () => document.documentElement.classList.contains('dark')
+                ? { background: '#111318', foreground: '#e5e7eb', cursor: '#60a5fa', selectionBackground: '#334155' }
+                : { background: '#ffffff', foreground: '#172033', cursor: '#2563eb', selectionBackground: '#bfdbfe' };
 
-            const sshSetStatus = (text) => {
-                const el = $('#xpanel_ssh_status');
-                if (el) el.textContent = text;
+            const setTerminalStatus = (terminal, status) => {
+                if (!terminal) return;
+                terminal.status = status;
+                if (terminal.id === state.activeTerminalId) {
+                    const element = $('#xpanel_terminal_status');
+                    if (element) element.textContent = status;
+                }
+                renderTerminalList();
             };
 
-            // Real per-site shell: the token is single-use and expires in ~20s
-            // (see TerminalTokenIssuer), so it's fetched fresh on every connect
-            // attempt rather than cached. The agent bridges this socket to a
-            // real SSH session as the site's own confined Unix user.
-            const openSshTerminal = async () => {
-                if (!config.webTerminalEnabled || !config.terminalTokenUrl) return;
-                const mount = $('#xpanel_ssh_terminal_mount');
-                if (!mount) return;
-                if (!sshTerminal.term) {
-                    sshTerminal.term = new Terminal({ convertEol: true, fontSize: 13, cursorBlink: true });
-                    sshTerminal.fitAddon = new FitAddon.FitAddon();
-                    sshTerminal.term.loadAddon(sshTerminal.fitAddon);
-                    sshTerminal.term.open(mount);
-                    sshTerminal.fitAddon.fit();
-                    sshTerminal.term.onData((data) => {
-                        if (sshTerminal.socket && sshTerminal.socket.readyState === WebSocket.OPEN) {
-                            sshTerminal.socket.send(JSON.stringify({ type: 'data', data }));
-                        }
-                    });
-                    sshTerminal.term.onResize(({ cols, rows }) => {
-                        if (sshTerminal.socket && sshTerminal.socket.readyState === WebSocket.OPEN) {
-                            sshTerminal.socket.send(JSON.stringify({ type: 'resize', cols, rows }));
-                        }
-                    });
-                    window.addEventListener('resize', () => sshTerminal.fitAddon && sshTerminal.fitAddon.fit());
+            const ensureRealTerminal = (terminal) => {
+                if (!terminal || terminal.term) return;
+                const mounts = $('#xpanel_terminal_mounts');
+                if (!mounts || typeof Terminal === 'undefined' || typeof FitAddon === 'undefined') return;
+
+                const mount = document.createElement('div');
+                mount.className = 'xpanel-terminal-mount';
+                mount.dataset.terminalMount = terminal.id;
+                mount.hidden = terminal.id !== state.activeTerminalId;
+                mounts.append(mount);
+
+                terminal.mount = mount;
+                terminal.term = new Terminal({
+                    convertEol: true,
+                    fontSize: 13,
+                    fontFamily: editorFontFamilies[uiState.editor.fontFamily] || editorFontFamilies.jetbrains,
+                    cursorBlink: true,
+                    allowTransparency: false,
+                    theme: terminalTheme(),
+                });
+                terminal.fitAddon = new FitAddon.FitAddon();
+                terminal.term.loadAddon(terminal.fitAddon);
+                terminal.term.open(mount);
+                terminal.term.onData((data) => {
+                    if (terminal.socket?.readyState === WebSocket.OPEN) {
+                        terminal.socket.send(JSON.stringify({ type: 'data', data }));
+                    }
+                });
+                terminal.term.onResize(({ cols, rows }) => {
+                    if (terminal.socket?.readyState === WebSocket.OPEN) {
+                        terminal.socket.send(JSON.stringify({ type: 'resize', cols, rows }));
+                    }
+                });
+            };
+
+            // The browser never interprets commands. xterm.js emits terminal
+            // keystrokes, the unprivileged agent transports PTY bytes, and the
+            // confined Linux login shell executes them unchanged.
+            const connectTerminal = async (terminal, reconnect = false) => {
+                if (!terminal || !config.webTerminalEnabled || !config.terminalTokenUrl) return;
+                ensureRealTerminal(terminal);
+                if (!terminal.term) return;
+                if (!reconnect && terminal.socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(terminal.socket.readyState)) return;
+                if (terminal.connecting) return;
+
+                if (reconnect) {
+                    const previous = terminal.socket;
+                    terminal.socket = null;
+                    previous?.close();
+                    terminal.term.clear();
                 }
-                if (sshTerminal.socket && (sshTerminal.socket.readyState === WebSocket.OPEN || sshTerminal.socket.readyState === WebSocket.CONNECTING)) {
-                    return;
-                }
-                if (sshTerminal.connecting) return;
-                sshTerminal.connecting = true;
-                sshSetStatus('Conectando...');
+
+                terminal.connecting = true;
+                terminal.attempted = true;
+                setTerminalStatus(terminal, 'Conectando...');
                 try {
                     const response = await fetch(config.terminalTokenUrl, {
                         method: 'POST',
@@ -2901,25 +2908,41 @@
                         if (response.status === 429) message = 'Espera unos segundos antes de volver a conectar la terminal.';
                         throw new Error(message);
                     }
+
                     const { path, token, system_user: systemUser } = await response.json();
                     const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const socket = new WebSocket(`${scheme}//${location.host}${path}?token=${encodeURIComponent(token)}&user=${encodeURIComponent(systemUser)}`);
-                    sshTerminal.socket = socket;
-                    socket.onopen = () => sshSetStatus('Conectado');
+                    terminal.socket = socket;
+                    socket.onopen = () => {
+                        if (terminal.socket !== socket) return;
+                        setTerminalStatus(terminal, 'Conectado');
+                        requestAnimationFrame(() => {
+                            terminal.fitAddon?.fit();
+                            terminal.term?.focus();
+                        });
+                    };
                     socket.onmessage = (event) => {
+                        if (terminal.socket !== socket) return;
                         try {
                             const message = JSON.parse(event.data);
-                            if (message.type === 'data') sshTerminal.term.write(message.data);
-                            if (message.type === 'error') sshTerminal.term.write(`\r\n\x1b[31m${message.data}\x1b[0m\r\n`);
+                            if (message.type === 'data') terminal.term.write(message.data);
+                            if (message.type === 'error') terminal.term.write(`\r\n\x1b[31m${message.data}\x1b[0m\r\n`);
                         } catch { /* ignore malformed frame */ }
                     };
-                    socket.onclose = () => { sshSetStatus('Desconectado'); sshTerminal.connecting = false; };
-                    socket.onerror = () => { sshSetStatus('Error de conexion'); };
+                    socket.onclose = () => {
+                        if (terminal.socket !== socket) return;
+                        terminal.socket = null;
+                        terminal.connecting = false;
+                        setTerminalStatus(terminal, 'Desconectado');
+                    };
+                    socket.onerror = () => {
+                        if (terminal.socket === socket) setTerminalStatus(terminal, 'Error de conexión');
+                    };
                 } catch (error) {
-                    sshSetStatus('Error de conexion');
-                    if (sshTerminal.term) sshTerminal.term.write(`\r\n\x1b[31m${error.message}\x1b[0m\r\n`);
+                    setTerminalStatus(terminal, 'Error de conexión');
+                    terminal.term.write(`\r\n\x1b[31m${error.message}\x1b[0m\r\n`);
                 } finally {
-                    sshTerminal.connecting = false;
+                    terminal.connecting = false;
                 }
             };
 
@@ -2932,8 +2955,12 @@
                     view.classList.toggle('ikode_hidden', view.dataset.consoleView !== tab);
                 });
                 persistUiState();
-                if (tab === 'terminal') rebuildLayout();
-                if (tab === 'ssh') openSshTerminal();
+                if (tab === 'terminal') {
+                    rebuildLayout();
+                    const terminal = activeTerminal();
+                    if (terminal && !terminal.attempted) connectTerminal(terminal);
+                    requestAnimationFrame(() => terminal?.fitAddon?.fit());
+                }
             };
 
             const switchRightTab = (tab) => {
@@ -2948,13 +2975,6 @@
                 persistUiState();
             };
 
-            const terminalPrompt = (terminal = activeTerminal()) => `xpanel:${terminal?.cwd || '/'} $`;
-            const terminalWrite = (terminal, text, kind = 'output') => {
-                if (!terminal) return;
-                terminal.history.push({ kind, text: String(text) });
-                if (terminal.history.length > 250) terminal.history.shift();
-                if (terminal.id === state.activeTerminalId) renderTerminalOutput();
-            };
             const renderTerminalList = () => {
                 const list = $('#xpanel_terminal_list');
                 if (!list) return;
@@ -2963,34 +2983,26 @@
                         <span class="xpanel-terminal-active-dot"></span>
                         <i class="ki-filled ki-screen"></i>
                         <span>${escapeHtml(terminal.name)}</span>
-                        <span class="xpanel-terminal-badge">${escapeHtml(terminal.cwd || '/')}</span>
+                        <span class="xpanel-terminal-badge">${escapeHtml(terminal.status || 'Desconectado')}</span>
                     </button>
                 `).join('');
-            };
-            const renderTerminalOutput = () => {
-                const terminal = activeTerminal();
-                const output = $('#xpanel_terminal_output');
-                if (!terminal || !output) return;
-                $('#xpanel_terminal_prompt').textContent = terminalPrompt(terminal);
-                output.innerHTML = terminal.history.map((item) => {
-                    if (item.kind === 'command') {
-                        return `<div><span class="ikode_prompt">${escapeHtml(item.prompt || terminalPrompt(terminal))}</span> ${escapeHtml(item.text)}</div>`;
-                    }
-                    const color = item.kind === 'error' ? 'text-destructive' : (item.kind === 'system' ? 'text-secondary-foreground' : '');
-                    return `<div class="${color}">${escapeHtml(item.text)}</div>`;
-                }).join('');
-                output.scrollTop = output.scrollHeight;
-                renderTerminalList();
-                updateSummary();
             };
             const switchTerminalSession = (id) => {
                 if (!state.terminals.some((terminal) => terminal.id === id)) return;
                 state.activeTerminalId = id;
                 const terminal = activeTerminal();
-                if (terminal) terminal.commandIndex = terminal.commandHistory.length;
+                ensureRealTerminal(terminal);
+                $$('[data-terminal-mount]').forEach((mount) => {
+                    mount.hidden = mount.dataset.terminalMount !== terminal.id;
+                });
                 persistTerminals();
-                renderTerminalOutput();
-                setTimeout(() => $('#xpanel_terminal_input')?.focus(), 20);
+                renderTerminalList();
+                setTerminalStatus(terminal, terminal.status || 'Desconectado');
+                if (!terminal.attempted) connectTerminal(terminal);
+                requestAnimationFrame(() => {
+                    terminal.fitAddon?.fit();
+                    terminal.term?.focus();
+                });
             };
             const createTerminal = () => {
                 state.terminalSeq += 1;
@@ -2998,9 +3010,13 @@
                     id: `terminal-${Date.now()}`,
                     name: `Terminal ${state.terminalSeq}`,
                     cwd: state.currentPath || '/',
-                    history: [],
-                    commandHistory: [],
-                    commandIndex: 0,
+                    status: 'Desconectado',
+                    term: null,
+                    fitAddon: null,
+                    socket: null,
+                    mount: null,
+                    connecting: false,
+                    attempted: false,
                 };
                 state.terminals.push(terminal);
                 switchTerminalSession(terminal.id);
@@ -3011,18 +3027,26 @@
                     id: `terminal-${Date.now()}`,
                     name: 'Terminal 1',
                     cwd: state.currentPath || '/',
-                    history: [],
-                    commandHistory: [],
-                    commandIndex: 0,
+                    status: 'Desconectado',
+                    term: null,
+                    fitAddon: null,
+                    socket: null,
+                    mount: null,
+                    connecting: false,
+                    attempted: false,
                 };
                 state.terminals = [terminal];
                 state.activeTerminalId = terminal.id;
                 persistTerminals();
-                renderTerminalOutput();
+                switchTerminalSession(terminal.id);
             };
             const removeActiveTerminal = () => {
                 const index = state.terminals.findIndex((terminal) => terminal.id === state.activeTerminalId);
                 if (index < 0) return;
+                const removed = state.terminals[index];
+                removed.socket?.close();
+                removed.term?.dispose();
+                removed.mount?.remove();
                 if (state.terminals.length <= 1) {
                     resetSingleTerminal();
                     return;
@@ -3031,107 +3055,11 @@
                 const next = state.terminals[Math.max(0, index - 1)] || state.terminals[0];
                 state.activeTerminalId = next?.id || null;
                 persistTerminals();
-                renderTerminalOutput();
+                switchTerminalSession(state.activeTerminalId);
             };
             const terminalAction = (action) => {
                 if (action === 'new') createTerminal();
                 if (action === 'remove') removeActiveTerminal();
-            };
-            const resolveTerminalPath = (terminal, value = '') => {
-                const raw = String(value || '').trim();
-                if (!raw) return terminal?.cwd || '/';
-                return normalizePath(raw.startsWith('/') ? raw : pathJoin(terminal?.cwd || '/', raw));
-            };
-            const commandHelp = [
-                'Comandos: help, pwd, ls [ruta], cd <carpeta>, open <archivo>, mkdir <nombre>, touch <archivo>, extract <zip>, refresh, clear.',
-                'Esta terminal opera sobre el gestor de archivos; una shell real del servidor requiere PTY/WebSocket seguro.',
-            ];
-            const executeTerminalCommand = async (command) => {
-                const terminal = activeTerminal();
-                if (!terminal || !command.trim()) return;
-                const raw = command.trim();
-                terminal.history.push({ kind: 'command', text: raw, prompt: terminalPrompt(terminal) });
-                terminal.commandHistory.push(raw);
-                terminal.commandIndex = terminal.commandHistory.length;
-                renderTerminalOutput();
-
-                const [name = '', ...rest] = raw.split(/\s+/);
-                const arg = rest.join(' ');
-                try {
-                    if (name === 'help') {
-                        commandHelp.forEach((line) => terminalWrite(terminal, line, 'system'));
-                        return;
-                    }
-                    if (name === 'clear') {
-                        terminal.history = [];
-                        renderTerminalOutput();
-                        return;
-                    }
-                    if (name === 'pwd') {
-                        terminalWrite(terminal, terminal.cwd || '/');
-                        return;
-                    }
-                    if (name === 'refresh') {
-                        clearCachedBranch(terminal.cwd || '/');
-                        await loadDirectory(terminal.cwd || '/');
-                        terminalWrite(terminal, `Actualizado ${terminal.cwd || '/'}`);
-                        return;
-                    }
-                    if (name === 'ls') {
-                        const path = resolveTerminalPath(terminal, arg || terminal.cwd);
-                        const entries = await ensureDirectory(path);
-                        terminalWrite(terminal, entries.length ? entries.map((entry) => `${entry.is_dir ? '[dir] ' : '      '}${entry.name}`).join('\n') : '(vacio)');
-                        return;
-                    }
-                    if (name === 'cd') {
-                        const path = resolveTerminalPath(terminal, arg || '/');
-                        await ensureDirectory(path);
-                        terminal.cwd = path;
-                        state.expanded.add(path);
-                        await loadDirectory(path);
-                        persistTerminals();
-                        terminalWrite(terminal, `Directorio actual: ${path}`);
-                        return;
-                    }
-                    if (name === 'open') {
-                        const path = resolveTerminalPath(terminal, arg);
-                        const parent = dirname(path);
-                        await ensureDirectory(parent);
-                        const entry = getEntry(path);
-                        if (!entry || entry.is_dir) throw new Error('Archivo no encontrado');
-                        await open(entry);
-                        terminalWrite(terminal, `Abierto ${path}`);
-                        return;
-                    }
-                    if (name === 'mkdir') {
-                        const target = resolveTerminalPath(terminal, arg || uniqueName(terminal.cwd || '/', 'folder'));
-                        await api('POST', '/mkdir', { domain: config.domain, path: target });
-                        clearCachedBranch(dirname(target));
-                        await loadDirectory(dirname(target));
-                        terminalWrite(terminal, `Carpeta creada: ${target}`);
-                        return;
-                    }
-                    if (name === 'touch') {
-                        const target = resolveTerminalPath(terminal, arg || uniqueName(terminal.cwd || '/', 'file'));
-                        await api('POST', '/write', { domain: config.domain, path: target, content: '' });
-                        clearCachedBranch(dirname(target));
-                        await loadDirectory(dirname(target));
-                        terminalWrite(terminal, `Archivo creado: ${target}`);
-                        return;
-                    }
-                    if (name === 'extract') {
-                        const path = resolveTerminalPath(terminal, arg);
-                        await ensureDirectory(dirname(path));
-                        const entry = getEntry(path) || { path, name: basename(path), is_dir: false };
-                        await extractArchive(entry);
-                        terminalWrite(terminal, `Descomprimido: ${path}`);
-                        return;
-                    }
-                    terminalWrite(terminal, `Comando no reconocido: ${name}. Escribe help.`, 'error');
-                } catch (error) {
-                    terminalWrite(terminal, error.message, 'error');
-                    log(`Terminal: ${error.message}`);
-                }
             };
 
             const applyStoredLayout = () => {
@@ -3142,9 +3070,8 @@
                 syncLayoutButtons();
                 switchLeftMode(uiState.ui.leftMode);
                 switchOutlineTab(uiState.ui.outlineTab);
-                // Never restore an SSH tab by automatically minting a fresh
-                // single-use token. Layout initialization runs more than once
-                // while Monaco loads, so SSH always requires an explicit click.
+                // Old saved layouts may still reference the removed duplicate
+                // "ssh" tab. Normalize them to the one real terminal view.
                 switchConsoleTab(uiState.ui.consoleTab === 'ssh' ? 'terminal' : uiState.ui.consoleTab);
                 switchRightTab(uiState.ui.rightTab);
                 renderTerminalList();
@@ -3181,14 +3108,12 @@
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
             $$('[data-outline-tab]').forEach((button) => button.addEventListener('click', () => switchOutlineTab(button.dataset.outlineTab)));
             $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab)));
-            $('#xpanel_ssh_reconnect')?.addEventListener('click', () => {
-                if (sshTerminal.connecting) return;
-                const reconnect = $('#xpanel_ssh_reconnect');
+            $('#xpanel_terminal_reconnect')?.addEventListener('click', () => {
+                const terminal = activeTerminal();
+                if (!terminal || terminal.connecting) return;
+                const reconnect = $('#xpanel_terminal_reconnect');
                 if (reconnect) reconnect.disabled = true;
-                sshTerminal.term?.clear();
-                sshTerminal.socket?.close();
-                sshTerminal.socket = null;
-                openSshTerminal().finally(() => {
+                connectTerminal(terminal, true).finally(() => {
                     setTimeout(() => { if (reconnect) reconnect.disabled = false; }, 3000);
                 });
             });
@@ -3200,27 +3125,7 @@
                 const button = event.target.closest('[data-terminal-id]');
                 if (button) switchTerminalSession(button.dataset.terminalId);
             });
-            $('#xpanel_terminal_form')?.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                const input = $('#xpanel_terminal_input');
-                const command = input.value;
-                input.value = '';
-                await executeTerminalCommand(command);
-            });
-            $('#xpanel_terminal_input')?.addEventListener('keydown', (event) => {
-                const terminal = activeTerminal();
-                if (!terminal) return;
-                if (event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    terminal.commandIndex = Math.max(0, terminal.commandIndex - 1);
-                    event.target.value = terminal.commandHistory[terminal.commandIndex] || '';
-                }
-                if (event.key === 'ArrowDown') {
-                    event.preventDefault();
-                    terminal.commandIndex = Math.min(terminal.commandHistory.length, terminal.commandIndex + 1);
-                    event.target.value = terminal.commandHistory[terminal.commandIndex] || '';
-                }
-            });
+            window.addEventListener('resize', () => activeTerminal()?.fitAddon?.fit());
             hydrateSettings();
             bindSettings();
 

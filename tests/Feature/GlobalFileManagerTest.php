@@ -100,6 +100,20 @@ class GlobalFileManagerTest extends TestCase
             ->assertSee('/^\\.env(?:\\..+)?$/', false);
     }
 
+    public function test_ikode_uses_one_real_terminal_inside_the_designed_terminal_workspace(): void
+    {
+        config(['xpanel.terminal_enabled' => true, 'xpanel.apply_system_changes' => true]);
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->get(route('sites.ikode'))
+            ->assertOk()
+            ->assertSee('id="xpanel_terminal_mounts"', false)
+            ->assertSee('id="xpanel_terminal_reconnect"', false)
+            ->assertDontSee('Terminal real')
+            ->assertDontSee('id="xpanel_terminal_form"', false)
+            ->assertDontSee('data-console-tab="ssh"', false);
+    }
+
     public function test_global_list_root_shows_the_account_home_layout(): void
     {
         $developer = $this->userWithRole('developer');
