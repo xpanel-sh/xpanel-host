@@ -152,17 +152,27 @@ grant_panel_file_access() {
   fi
 }
 
-subdomain_root_migrate() {
+# A primary site's subdomains are independent sites even though the account
+# manager presents them below public_html/<domain>/subdomains. Site-scoped
+# operations must never cross that boundary.
+chown_site_content() {
+  local document_root="$1" site_user="$2"
+  chown --no-dereference "$site_user:$site_user" "$document_root"
+  find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -mindepth 1 \
+    -exec chown --no-dereference "$site_user:$site_user" {} +
+}
+
+site_root_migrate() {
   local legacy_root="$2" canonical_root="$3" site_user="$4"
-  valid_document_root "$legacy_root" || fail "Invalid legacy subdomain root."
-  valid_document_root "$canonical_root" || fail "Invalid canonical subdomain root."
-  valid_site_identity "$site_user" || fail "Invalid subdomain site identity."
-  [[ "$legacy_root" != "$canonical_root" ]] || fail "Subdomain roots are identical."
-  [[ -d "$legacy_root" && ! -L "$legacy_root" ]] || fail "Legacy subdomain root is unavailable."
-  [[ ! -e "$canonical_root" && ! -L "$canonical_root" ]] || fail "Canonical subdomain root already exists."
+  valid_document_root "$legacy_root" || fail "Invalid legacy site root."
+  valid_document_root "$canonical_root" || fail "Invalid canonical site root."
+  valid_site_identity "$site_user" || fail "Invalid site identity."
+  [[ "$legacy_root" != "$canonical_root" ]] || fail "Site roots are identical."
+  [[ -d "$legacy_root" && ! -L "$legacy_root" ]] || fail "Legacy site root is unavailable."
+  [[ ! -e "$canonical_root" && ! -L "$canonical_root" ]] || fail "Canonical site root already exists."
   install -d -o root -g root -m 0755 "$(dirname "$canonical_root")"
   mv -- "$legacy_root" "$canonical_root"
-  chown -R --no-dereference "$site_user:$site_user" "$canonical_root"
+  chown_site_content "$canonical_root" "$site_user"
   grant_panel_file_access "$canonical_root"
   rmdir -- "$(dirname "$legacy_root")" 2>/dev/null || true
 }
@@ -264,7 +274,7 @@ ensure_site_identity() {
   if id lsadm >/dev/null 2>&1; then usermod -a -G "$site_user" lsadm; fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   if valid_site_identity "$site_user"; then
-    chown -R "$site_user:$site_user" "$document_root"
+    chown_site_content "$document_root" "$site_user"
   fi
   grant_panel_file_access "$document_root"
   local ancestor
@@ -478,12 +488,12 @@ ownership_fix() {
   valid_document_root "$document_root" || fail "Invalid ownership document root."
   valid_site_identity "$site_user" || fail "Invalid ownership site user."
   [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
-  chown -R --no-dereference "$site_user:$site_user" "$document_root"
-  find -P "$document_root" -xdev -type d -exec chmod u+rwx,go-w,go+rx {} +
-  find -P "$document_root" -xdev -type f -exec chmod u+rw,go-w {} +
+  chown_site_content "$document_root" "$site_user"
+  find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type d -exec chmod u+rwx,go-w,go+rx {} +
+  find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type f -exec chmod u+rw,go-w {} +
   grant_panel_file_access "$document_root"
-  printf 'files=%s\n' "$(find -P "$document_root" -xdev -type f -printf . | wc -c)"
-  printf 'directories=%s\n' "$(find -P "$document_root" -xdev -type d -printf . | wc -c)"
+  printf 'files=%s\n' "$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type f -printf . | wc -c)"
+  printf 'directories=%s\n' "$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type d -printf . | wc -c)"
 }
 
 malware_scan() {
@@ -583,8 +593,8 @@ wordpress_install() {
     "${wp[@]}" language core install "$locale" --path="$staging" --activate --quiet
   fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
-  rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$staging/" "$document_root/"
-  chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  rsync -a --delete --exclude='subdomains/' --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$staging/" "$document_root/"
+  chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"
   printf 'version=%s\n' "$wordpress_version"
 }
@@ -698,8 +708,8 @@ site_migrate() {
   rm -f -- "$defaults"
   defaults=""
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
-  rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$content_root/" "$document_root/"
-  chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  rsync -a --delete --exclude='subdomains/' --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$content_root/" "$document_root/"
+  chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"
   printf 'files=%s\nbytes=%s\n' "$files" "$bytes"
   [[ -z "$version" ]] || printf 'version=%s\n' "$version"
@@ -807,9 +817,9 @@ resource_snapshot() {
   getent passwd "$site_user" >/dev/null || fail "Site Unix identity does not exist."
 
   local disk_bytes filesystem_bytes inode_count filesystem_inodes database_bytes=0 database value
-  disk_bytes="$(du -sbx -- "$document_root" | awk '{print $1}')"
+  disk_bytes="$(du -sbx --exclude='subdomains' -- "$document_root" | awk '{print $1}')"
   filesystem_bytes="$(df -PB1 -- "$document_root" | awk 'NR == 2 {print $2}')"
-  inode_count="$(find -P "$document_root" -xdev -printf . | wc -c)"
+  inode_count="$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -printf . | wc -c)"
   filesystem_inodes="$(df -Pi -- "$document_root" | awk 'NR == 2 {print $2}')"
   shift 5
   for database in "$@"; do
@@ -908,10 +918,10 @@ git_deploy() {
   fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   rsync -a --delete \
-    --exclude='.env' --exclude='.well-known/' --exclude='.xpanel-errors/' \
+    --exclude='subdomains/' --exclude='.env' --exclude='.well-known/' --exclude='.xpanel-errors/' \
     --exclude='storage/logs/' --exclude='storage/framework/sessions/' \
     "$staging/" "$document_root/"
-  chown -R --no-dereference "$site_user:$site_user" "$document_root"
+  chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"
   printf 'commit=%s\n' "$(runuser -u "$site_user" -- git -C "$repository" rev-parse FETCH_HEAD)"
 }
@@ -1493,7 +1503,7 @@ access_remove() {
     [[ -z "$still_mounted" ]] || fail "Refusing to delete $jail: it still has live mounts underneath."
   fi
   rm -rf -- "/var/lib/xpanel-host/ssh/$site_user" "$jail"
-  if [[ -d "$document_root" && ! -L "$document_root" ]]; then chown -R root:root "$document_root"; fi
+  if [[ -d "$document_root" && ! -L "$document_root" ]]; then chown_site_content "$document_root" root; fi
   if id "$site_user" >/dev/null 2>&1; then userdel "$site_user"; fi
   if getent group "$site_user" >/dev/null; then groupdel "$site_user"; fi
   systemctl daemon-reload
@@ -1692,7 +1702,7 @@ backup_create() {
   trap 'rm -rf -- "$temporary"' RETURN
   install -d -o root -g "$SITE_GROUP" -m 0750 "$temporary/databases"
 
-  tar --one-file-system --numeric-owner -C "$document_root" -czf "$temporary/files.tar.gz" .
+  tar --one-file-system --numeric-owner --exclude='./subdomains' -C "$document_root" -czf "$temporary/files.tar.gz" .
   local database
   for database in "${BACKUP_DATABASES[@]}"; do
     mariadb-dump --protocol=socket --single-transaction --quick --skip-lock-tables --databases "$database" \
@@ -1739,9 +1749,9 @@ backup_restore() {
 
   tar --no-same-owner -C "$staging" -xzf "$temporary/files.tar.gz"
   install -d -o "$site_user" -g "$site_user" -m 0755 "$document_root"
-  find "$document_root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+  find "$document_root" -mindepth 1 -maxdepth 1 ! -name subdomains -exec rm -rf -- {} +
   cp -a "$staging/." "$document_root/"
-  chown -R "$site_user:$site_user" "$document_root"
+  chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"
 
   for database in "${BACKUP_DATABASES[@]}"; do
@@ -1765,7 +1775,7 @@ case "$ACTION" in
   panel-access-apply) panel_access_apply "$@" ;;
   panel-ssl-enable) panel_ssl_enable ;;
   apply|remove) site_action "$@" ;;
-  subdomain-root-migrate) subdomain_root_migrate "$@" ;;
+  site-root-migrate) site_root_migrate "$@" ;;
   site-restart) site_restart "$@" ;;
   cron-sync) cron_sync "$@" ;;
   error-pages-sync) error_pages_sync "$@" ;;

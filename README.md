@@ -157,6 +157,8 @@ Host ofrece dos accesos al mismo motor de archivos, sin selector ambiguo dentro 
 - **Administrador general** abre `/home/<cuenta>` y permite trabajar con todo el alojamiento. Las carpetas estructurales no pueden eliminarse ni renombrarse.
 - **Administrador del dominio** abre únicamente el proyecto del dominio o subdominio seleccionado y no puede salir de esa raíz.
 
+Las instalaciones heredadas no dejan `public_html` como una carpeta decorativa: durante `xpanel update`, la sincronización mueve cada raíz conocida `/var/www/<dominio>` o `/srv/www/<dominio>` a este árbol, actualiza el registro del sitio y vuelve a generar su virtual host. Si el destino ya contiene datos, la migración se detiene sin sobrescribirlo para que el administrador resuelva el conflicto.
+
 La terminal general inicia en el hogar de la cuenta; la terminal de dominio utiliza la identidad Unix y la raíz de ese sitio. Directorios propios de productos no instalados —como `.cagefs`, `.softaculous` o `.spamassassin`— no se simulan.
 
 ### Aplicaciones SaaS y Node.js
@@ -243,7 +245,7 @@ El instalador añade phpMyAdmin desde los paquetes mantenidos por Debian/Ubuntu 
 
 Desde **Sitio → Dominios → Subdominios** escribe sólo la etiqueta (`blog`, `tienda`, `api`). Host crea un sitio hijo como `blog.example.com`, su document root y su configuración web. El hijo hereda inicialmente el motor, tipo y versión PHP del sitio principal, pero conserva administración propia para archivos, bases de datos y SSL.
 
-Su proyecto queda agrupado bajo `public_html/<dominio-principal>/subdomains/<etiqueta>`. La sincronización reconoce las raíces heredadas `/var/www/<subdominio>` y las migra a esta estructura de cuenta cuando se aplican cambios reales del sistema.
+Su proyecto queda agrupado bajo `public_html/<dominio-principal>/subdomains/<etiqueta>`. WordPress, Git, migraciones, restauraciones, backups y reparaciones de permisos del dominio principal tratan `subdomains/` como una frontera: cada hijo conserva sus archivos y su identidad Unix. La sincronización reconoce tanto dominios como subdominios heredados en `/var/www` o `/srv/www` y los migra cuando se aplican cambios reales del sistema.
 
 Para publicarlo debes crear fuera de Host un registro DNS `A`/`AAAA` hacia la IP del servidor, o un wildcard como `*.example.com`. Cuando resuelva, entra en la ficha del subdominio y emite su certificado en **Seguridad → SSL**. Crear el subdominio en Host no registra automáticamente DNS en Cloudflare ni en otro proveedor; esa integración requerirá credenciales/API del proveedor en una fase posterior.
 

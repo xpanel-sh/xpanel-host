@@ -6,7 +6,9 @@ use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\WebServerEngine;
+use App\Services\HostingAccountWorkspace;
 use App\Services\ServerCommandRunner;
+use App\Services\SiteRootMigrator;
 use App\Services\VirtualHostGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -218,6 +220,7 @@ class SiteManagementTest extends TestCase
         $generator = app(VirtualHostGenerator::class);
 
         $this->artisan('xpanel:sites-sync')
+            ->expectsOutput('Moved sync.example.com into the account public_html tree.')
             ->expectsOutput('Synchronized sync.example.com (apache).')
             ->expectsOutput('Site configurations synchronized.')
             ->assertSuccessful();
@@ -229,6 +232,46 @@ class SiteManagementTest extends TestCase
             'site_id' => $site->id,
             'type' => 'primary',
         ]);
+        $this->assertSame(
+            app(\App\Services\HostingAccountWorkspace::class)->siteRoot('sync.example.com'),
+            $site->fresh()->document_root
+        );
+    }
+
+    public function test_primary_root_migration_moves_its_nested_subdomain_records_with_it(): void
+    {
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $parent = Site::create([
+            'domain' => 'legacy.example.com',
+            'document_root' => '/var/www/legacy.example.com',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+        $child = Site::create([
+            'parent_site_id' => $parent->id,
+            'domain' => 'blog.legacy.example.com',
+            'document_root' => '/var/www/legacy.example.com/subdomains/blog',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+        $workspace = app(HostingAccountWorkspace::class);
+        $canonicalRoot = $workspace->siteRoot($parent->domain);
+        $commands = \Mockery::mock(ServerCommandRunner::class);
+        $commands->shouldReceive('run')->once()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-root-migrate',
+            '/var/www/legacy.example.com', $canonicalRoot, $parent->systemUser(),
+        ])->andReturn('');
+
+        $this->assertTrue((new SiteRootMigrator($commands, $workspace))->migrateLegacyRoot($parent));
+        $this->assertSame($canonicalRoot, $parent->fresh()->document_root);
+        $this->assertSame(
+            $workspace->subdomainRoot($parent->domain, 'blog'),
+            $child->fresh()->document_root
+        );
     }
 
     public function test_viewer_role_can_list_but_not_create_sites(): void

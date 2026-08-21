@@ -8,7 +8,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Services\ServerCommandRunner;
 use App\Services\HostingAccountWorkspace;
-use App\Services\SubdomainRootMigrator;
+use App\Services\SiteRootMigrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -188,11 +188,11 @@ class SubdomainManagementTest extends TestCase
         $canonicalRoot = app(HostingAccountWorkspace::class)->subdomainRoot('example.com', 'legacy');
         $commands = \Mockery::mock(ServerCommandRunner::class);
         $commands->shouldReceive('run')->once()->with([
-            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'subdomain-root-migrate',
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-root-migrate',
             '/var/www/legacy.example.com', $canonicalRoot, $child->systemUser(),
         ])->andReturn('');
 
-        $this->assertTrue((new SubdomainRootMigrator($commands, app(HostingAccountWorkspace::class)))->migrateLegacyRoot($child));
+        $this->assertTrue((new SiteRootMigrator($commands, app(HostingAccountWorkspace::class)))->migrateLegacyRoot($child));
         $this->assertSame($canonicalRoot, $child->fresh()->document_root);
     }
 }

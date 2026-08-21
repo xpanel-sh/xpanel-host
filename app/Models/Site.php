@@ -99,7 +99,7 @@ class Site extends Model
 
     /**
      * On a real install (standalone server or provisioned by xpanel-vm),
-     * document_root (e.g. /var/www/{domain}) is a real, already-existing
+     * document_root (normally /home/{account}/public_html/{domain}) is a real, already-existing
      * path. In local dev that path doesn't exist on this machine, so the
      * file manager falls back to a sandboxed folder under storage/ for
      * this site.

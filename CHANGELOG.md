@@ -60,6 +60,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- La sincronización migra ahora también las raíces de dominios principales desde `/var/www` o `/srv/www` al hogar real de la cuenta. Las operaciones destructivas o recursivas de un sitio excluyen su carpeta reservada `subdomains/`, evitando que despliegues, restauraciones o cambios de propietario del padre alteren sitios hijos.
 - Los dominios nuevos viven en `public_html/<dominio>` y sus subdominios en `public_html/<dominio>/subdomains/<etiqueta>`; la sincronización migra las raíces planas heredadas y el gestor protege las carpetas estructurales contra borrado o renombrado accidental.
 
 - Se retiró por completo el Builder visual abandonado —accesos global y por sitio, ruta y vistas— para no presentar módulos que ya no forman parte del producto.
