@@ -81,6 +81,22 @@ class FileManagerTest extends TestCase
             ->assertJson(['content' => '<?php echo "hi";']);
     }
 
+    public function test_dotenv_variants_are_reported_as_editable_text(): void
+    {
+        $site = $this->site();
+        file_put_contents($site->localRoot().'/.env.local', "APP_ENV=local\n");
+
+        $this->actingAs($this->userWithRole('developer'))
+            ->getJson(route('sites.files.api.list', [$site, 'path' => '/']))
+            ->assertOk()
+            ->assertJsonFragment([
+                'name' => '.env.local',
+                'path' => '/.env.local',
+                'is_dir' => false,
+                'editable' => true,
+            ]);
+    }
+
     public function test_ikode_creates_empty_files_through_the_create_endpoint_in_the_current_directory(): void
     {
         $template = file_get_contents(resource_path('views/sites/ikode.blade.php'));
@@ -89,6 +105,9 @@ class FileManagerTest extends TestCase
         $this->assertStringContainsString('path: pending.parentPath', $template);
         $this->assertStringContainsString('const current = state.currentPath', $template);
         $this->assertStringContainsString("button.closest('#xpanel_ctx_menu')", $template);
+        $this->assertStringContainsString("$('#xpanel_editor_groups').classList.remove('ikode_hidden');", $template);
+        $this->assertStringContainsString(".xpanel-editor-group-body').classList.add('ikode_hidden');", $template);
+        $this->assertStringContainsString("uiState.ui.consoleTab === 'ssh' ? 'terminal'", $template);
     }
 
     public function test_create_endpoint_places_a_new_file_inside_the_requested_subdirectory(): void

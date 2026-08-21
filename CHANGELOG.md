@@ -73,6 +73,10 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Corregido
 
+- La barra de pestañas de iKode ya no se oculta al abrir imágenes, documentos o formatos sin vista previa; sólo se oculta el cuerpo de Monaco y el panel de previsualización comienza debajo de la pestaña activa.
+- El API del gestor detecta texto por contenido además de la extensión, por lo que `.env`, `.env.local` y otros nombres compuestos llegan explícitamente como editables.
+- Las actualizaciones de instalaciones anteriores crean el hogar Unix y las carpetas de la cuenta, reparan llaves privadas inválidas del agente, regeneran su llave pública y resincronizan el acceso de la cuenta y de cada sitio.
+- Restaurar el diseño de iKode ya no abre automáticamente la terminal SSH varias veces mientras carga Monaco, evitando consumir capacidades de un solo uso y alcanzar el limitador.
 - iKode reconoce `.env.local` y variantes `.env.*` como texto editable, dibuja la pestaña antes de leer el archivo y respeta el fondo del tema claro en las previsualizaciones.
 - La terminal real no intenta crear tokens durante el desarrollo visual sin servicios Linux, limita los reintentos desde la interfaz y el agente acepta las identidades Unix de cuenta `xpa*` y de instancia `xhi*` además de los usuarios por sitio.
 - El gestor general deriva de forma segura su usuario y hogar cuando una caché de configuración anterior todavía no contiene las nuevas claves de cuenta.

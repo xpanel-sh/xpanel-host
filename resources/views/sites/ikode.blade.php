@@ -286,6 +286,7 @@
             max-width: 420px;
         }
         .xpanel-file-shell .ikode_file_preview {
+            top: 35px;
             background: hsl(var(--background));
             color: hsl(var(--foreground));
         }
@@ -1413,18 +1414,19 @@
             const isArchive = (name) => /^(zip|jar|zipx|rar|7z|tar|gz|tgz)$/i.test(ext(name));
             const isExtractable = (name) => /^(zip|jar)$/i.test(ext(name));
             const codeExtensions = new Set(['php', 'js', 'ts', 'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'json', 'yml', 'yaml', 'py', 'sh', 'bash', 'md', 'xml', 'sql', 'txt', 'env', 'gitignore', 'htaccess', 'ini', 'conf', 'log']);
-            const isCode = (name) => {
+            const isCode = (name, entry = null) => {
                 const normalized = String(name || '').toLowerCase();
-                return codeExtensions.has(ext(normalized))
+                return entry?.editable === true
+                    || codeExtensions.has(ext(normalized))
                     || !ext(normalized)
                     || /^\.env(?:\..+)?$/.test(normalized)
                     || ['dockerfile', 'makefile', 'procfile', 'composer.lock', 'package-lock.json'].includes(normalized);
             };
-            const previewKind = (name) => {
+            const previewKind = (name, entry = null) => {
                 if (isImage(name)) return 'image';
                 if (isVideo(name)) return 'video';
                 if (isPdf(name)) return 'pdf';
-                if (isCode(name)) return 'code';
+                if (isCode(name, entry)) return 'code';
                 return 'unsupported';
             };
             const language = (name) => ({
@@ -1518,7 +1520,7 @@
                     </div>
                 `;
                 box.innerHTML = html;
-                if (preview) preview.textContent = entry.is_dir ? 'Arbol' : previewKind(entry.name);
+                if (preview) preview.textContent = entry.is_dir ? 'Arbol' : previewKind(entry.name, entry);
                 if (extBox) extBox.textContent = entry.is_dir ? '-' : (ext(entry.name) || 'sin ext');
                 updateSummary();
             };
@@ -1689,6 +1691,7 @@
                 if (tab.kind === 'code') {
                     $('#xpanel_file_preview').classList.add('ikode_hidden');
                     $('#xpanel_editor_groups').classList.remove('ikode_hidden');
+                    $('#xpanel_editor_group_main .xpanel-editor-group-body').classList.remove('ikode_hidden');
                     state.editor.setModel(tab.model);
                     if ($('#xpanel_file_shell').classList.contains('xpanel-editor-duplicated')) {
                         state.cloneEditor?.setModel(cloneTab()?.model || null);
@@ -1698,7 +1701,10 @@
                     $('#xpanel_inline_preview').textContent = 'Este archivo esta en modo editor.';
                     layoutEditor();
                 } else {
-                    $('#xpanel_editor_groups').classList.add('ikode_hidden');
+                    // Keep the main group visible because its header owns the
+                    // tabs. Only Monaco's body is hidden behind the preview.
+                    $('#xpanel_editor_groups').classList.remove('ikode_hidden');
+                    $('#xpanel_editor_group_main .xpanel-editor-group-body').classList.add('ikode_hidden');
                     state.editor?.setModel(null);
                     closeDuplicatePane();
                     renderPreview(tab);
@@ -2145,7 +2151,7 @@
                     activateTab(existing.path);
                     return;
                 }
-                const kind = previewKind(entry.name);
+                const kind = previewKind(entry.name, entry);
                 const tab = { path: entry.path, name: entry.name, kind, entry, model: null, isDirty: false };
                 state.tabs.push(tab);
                 state.activeTab = entry.path;
@@ -3136,7 +3142,10 @@
                 syncLayoutButtons();
                 switchLeftMode(uiState.ui.leftMode);
                 switchOutlineTab(uiState.ui.outlineTab);
-                switchConsoleTab(uiState.ui.consoleTab);
+                // Never restore an SSH tab by automatically minting a fresh
+                // single-use token. Layout initialization runs more than once
+                // while Monaco loads, so SSH always requires an explicit click.
+                switchConsoleTab(uiState.ui.consoleTab === 'ssh' ? 'terminal' : uiState.ui.consoleTab);
                 switchRightTab(uiState.ui.rightTab);
                 renderTerminalList();
                 switchTerminalSession(state.activeTerminalId);
@@ -3176,6 +3185,7 @@
                 if (sshTerminal.connecting) return;
                 const reconnect = $('#xpanel_ssh_reconnect');
                 if (reconnect) reconnect.disabled = true;
+                sshTerminal.term?.clear();
                 sshTerminal.socket?.close();
                 sshTerminal.socket = null;
                 openSshTerminal().finally(() => {

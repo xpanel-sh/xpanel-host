@@ -31,12 +31,30 @@ if ! id "$agent_user" >/dev/null 2>&1; then
 fi
 install -d -o "$agent_user" -g "$agent_user" -m 0750 /var/lib/xpanel-host/terminal-agent
 install -d -o root -g root -m 0755 /var/lib/xpanel-host/ssh /etc/xpanel-host
-if [[ ! -f /var/lib/xpanel-host/ssh/service_terminal ]]; then
-  ssh-keygen -t ed25519 -N '' -C xpanel-host-terminal-agent -f /var/lib/xpanel-host/ssh/service_terminal >/dev/null
+service_key="/var/lib/xpanel-host/ssh/service_terminal"
+service_public_key="$service_key.pub"
+if [[ -L "$service_key" ]]; then
+  rm -f -- "$service_key" "$service_public_key"
+elif [[ -f "$service_key" ]] && ! ssh-keygen -y -f "$service_key" >/dev/null 2>&1; then
+  invalid_key_backup="/var/lib/xpanel-host/terminal-agent/service_terminal.invalid.$(date -u +%Y%m%dT%H%M%SZ)"
+  install -o root -g root -m 0600 "$service_key" "$invalid_key_backup"
+  rm -f -- "$service_key" "$service_public_key"
 fi
-chown "$agent_user:$agent_user" /var/lib/xpanel-host/ssh/service_terminal
-chmod 0600 /var/lib/xpanel-host/ssh/service_terminal
-chmod 0644 /var/lib/xpanel-host/ssh/service_terminal.pub
+if [[ ! -f "$service_key" ]]; then
+  ssh-keygen -t ed25519 -N '' -C xpanel-host-terminal-agent -f "$service_key" >/dev/null
+fi
+public_key_tmp="$(mktemp /var/lib/xpanel-host/ssh/.service_terminal.pub.XXXXXX)"
+trap 'rm -f -- "$public_key_tmp"' EXIT
+ssh-keygen -y -f "$service_key" | sed 's/$/ xpanel-host-terminal-agent/' > "$public_key_tmp"
+install -o root -g root -m 0644 "$public_key_tmp" "$service_public_key"
+rm -f -- "$public_key_tmp"
+trap - EXIT
+chown "$agent_user:$agent_user" "$service_key"
+chmod 0600 "$service_key"
+runuser -u "$agent_user" -- ssh-keygen -y -f "$service_key" >/dev/null 2>&1 || {
+  echo "The terminal service user cannot read its private key." >&2
+  exit 1
+}
 
 binary="$(mktemp /usr/local/bin/.xpanel-terminal-agent.XXXXXX)"
 trap 'rm -f -- "$binary"' EXIT

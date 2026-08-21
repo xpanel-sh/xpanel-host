@@ -4,6 +4,26 @@ namespace App\Support;
 
 trait ResolvesSandboxedPath
 {
+    private function isEditableTextFile(string $path): bool
+    {
+        if (! is_file($path) || filesize($path) > 2 * 1024 * 1024) {
+            return false;
+        }
+
+        $handle = @fopen($path, 'rb');
+        if ($handle === false) {
+            return false;
+        }
+
+        try {
+            $sample = fread($handle, 8192);
+        } finally {
+            fclose($handle);
+        }
+
+        return is_string($sample) && ! str_contains($sample, "\0");
+    }
+
     private function resolveWithinRoot(string $root, string $requestedPath, bool $mustExist = false): string
     {
         $root = rtrim(str_replace('\\', '/', realpath($root) ?: $root), '/');

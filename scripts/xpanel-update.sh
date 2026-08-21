@@ -57,6 +57,57 @@ EOF
   systemctl enable --now xpanel-host-scheduler.timer
 }
 
+configure_account_workspace() {
+  local mode account_user account_home seed
+  mode="$(env_value XPANEL_MANAGEMENT_MODE)"
+  mode="${mode:-standalone}"
+  account_user="$(env_value XPANEL_ACCOUNT_USER)"
+  account_home="$(env_value XPANEL_ACCOUNT_HOME)"
+
+  if [[ -z "$account_user" ]]; then
+    if [[ "$mode" == "vps-instance" ]]; then
+      account_user="$site_user"
+    else
+      seed="$(hostname):$(grep '^APP_KEY=' "$ROOT/.env" | tail -n1)"
+      account_user="xpa$(printf '%s' "$seed" | sha256sum | cut -c1-10)"
+    fi
+  fi
+  [[ "$account_user" =~ ^xpa[a-z0-9]{8,24}$ || "$account_user" =~ ^xhi[a-f0-9]{12}$ ]] || {
+    echo "XPANEL_ACCOUNT_USER tiene una identidad Unix inválida: $account_user" >&2
+    return 1
+  }
+  account_home="${account_home:-/home/$account_user}"
+  [[ "$account_home" == "/home/$account_user" ]] || {
+    echo "XPANEL_ACCOUNT_HOME debe ser /home/$account_user" >&2
+    return 1
+  }
+
+  getent group "$account_user" >/dev/null || groupadd --system "$account_user"
+  if ! id "$account_user" >/dev/null 2>&1; then
+    useradd --system --gid "$account_user" --home-dir "$account_home" --create-home --shell /usr/sbin/nologin "$account_user"
+  else
+    usermod --home "$account_home" "$account_user"
+  fi
+  usermod -a -G "$account_user" "$site_user"
+
+  install -d -o "$account_user" -g "$account_user" -m 0750 \
+    "$account_home" "$account_home/etc" "$account_home/logs" "$account_home/mail" \
+    "$account_home/public_ftp" "$account_home/public_ftp/incoming" "$account_home/public_html" \
+    "$account_home/ssl" "$account_home/ssl/certs" "$account_home/ssl/csrs" "$account_home/tmp" "$account_home/.trash"
+  install -d -o "$account_user" -g "$account_user" -m 0700 "$account_home/.xpanel"
+  if [[ ! -f "$account_home/.xpanel/README.txt" ]]; then
+    printf '%s\n' 'Datos auxiliares de XPanel. No se guardan aquí secretos vitales del panel.' > "$account_home/.xpanel/README.txt"
+    chown "$account_user:$account_user" "$account_home/.xpanel/README.txt"
+    chmod 0600 "$account_home/.xpanel/README.txt"
+  fi
+
+  setfacl -m "u:$site_user:--x" "$account_home"
+  setfacl -R -m "u:$site_user:rwX" "$account_home"
+  find -P "$account_home" -xdev -type d -exec setfacl -m "d:u:$site_user:rwx" {} +
+  set_env_var XPANEL_ACCOUNT_USER "$account_user"
+  set_env_var XPANEL_ACCOUNT_HOME "$account_home"
+}
+
 site_user="$(env_value XPANEL_SITE_USER)"
 site_group="$(env_value XPANEL_SITE_GROUP)"
 site_user="${site_user:-www-data}"
@@ -83,7 +134,7 @@ if [[ -z "$(env_value XPANEL_XMAIL_ENABLED)" ]]; then
 fi
 
 missing_services=()
-for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync ip ps sshd vsftpd nft clamscan freshclam flock wp; do
+for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync ip ps sshd vsftpd nft clamscan freshclam flock wp setfacl; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     missing_services+=("$command_name")
   fi
@@ -113,6 +164,8 @@ if (( node_major < 22 )); then
   exit 0
 fi
 
+configure_account_workspace
+
 maintenance_enabled=false
 restore_application() {
   if [[ "$maintenance_enabled" == "true" ]]; then
@@ -140,6 +193,12 @@ sudo -u "$site_user" php "$ROOT/artisan" optimize:clear
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:sites-sync
 if [[ "$terminal_enabled" == "true" ]]; then
   bash "$ROOT/scripts/configure-terminal-agent.sh"
+  account_user="$(env_value XPANEL_ACCOUNT_USER)"
+  account_home="$(env_value XPANEL_ACCOUNT_HOME)"
+  key_stage="$ROOT/storage/app/access/$account_user"
+  install -d -o "$site_user" -g "$site_group" -m 0750 "$key_stage"
+  [[ -f "$key_stage/authorized_keys" ]] || install -o "$site_user" -g "$site_group" -m 0640 /dev/null "$key_stage/authorized_keys"
+  bash "$ROOT/scripts/xpanel-site-helper.sh" access-sync "$account_user" "$account_home" 0 0 0 1
 fi
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:access-sync
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:mail-sync

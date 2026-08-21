@@ -48,6 +48,7 @@ class GlobalFileManagerController extends Controller
                 'name' => $name,
                 'path' => rtrim($path, '/').'/'.$name,
                 'is_dir' => $isDir,
+                'editable' => ! $isDir && $this->isEditableTextFile($full),
                 'size' => $isDir ? null : filesize($full),
                 'modified' => date('Y-m-d H:i', filemtime($full)),
             ];

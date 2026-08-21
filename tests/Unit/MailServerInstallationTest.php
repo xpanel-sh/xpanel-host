@@ -89,6 +89,9 @@ class MailServerInstallationTest extends TestCase
 
         $this->assertStringContainsString('configure-terminal-agent.sh', $installer);
         $this->assertStringContainsString('configure-terminal-agent.sh', $updater);
+        $this->assertStringContainsString('configure_account_workspace', $updater);
+        $this->assertStringContainsString('ssh-keygen -y -f "$service_key"', $agentConfigurator);
+        $this->assertStringContainsString('runuser -u "$agent_user" -- ssh-keygen', $agentConfigurator);
         $this->assertStringContainsString('go build -C "$ROOT/agent"', $agentConfigurator);
         $this->assertStringContainsString("sed -i '/^XPANEL_TERMINAL_SIGNING_KEY=/d'", $agentConfigurator);
         $this->assertStringContainsString('xpanel-terminal-authorize', $agentConfigurator);
