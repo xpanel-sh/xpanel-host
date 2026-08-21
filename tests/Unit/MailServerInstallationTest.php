@@ -90,6 +90,8 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('configure-terminal-agent.sh', $installer);
         $this->assertStringContainsString('configure-terminal-agent.sh', $updater);
         $this->assertStringContainsString('configure_account_workspace', $updater);
+        $this->assertStringContainsString('install -d -o root -g root -m 0755 /var/lib/xpanel-host', $updater);
+        $this->assertStringContainsString('install -d -o root -g "$site_group" -m 0750 "$runtime_root"', $updater);
         $this->assertStringContainsString('ssh-keygen -y -f "$service_key"', $agentConfigurator);
         $this->assertStringContainsString('runuser -u "$agent_user" -- ssh-keygen', $agentConfigurator);
         $this->assertStringContainsString('go build -C "$ROOT/agent"', $agentConfigurator);

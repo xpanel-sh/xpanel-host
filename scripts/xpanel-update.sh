@@ -27,7 +27,10 @@ configure_backup_runtime() {
   local runtime_root="/var/lib/xpanel-host/backups"
   local php_binary
   php_binary="$(command -v php)"
-  install -d -o root -g "$site_group" -m 0750 /var/lib/xpanel-host "$runtime_root"
+  # This is a shared namespace: the terminal agent must traverse it to read
+  # ssh/service_terminal. Keep only the backups child group-restricted.
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host
+  install -d -o root -g "$site_group" -m 0750 "$runtime_root"
   set_env_var XPANEL_BACKUP_ROOT "$runtime_root"
   cat > /etc/systemd/system/xpanel-host-scheduler.service <<EOF
 [Unit]
