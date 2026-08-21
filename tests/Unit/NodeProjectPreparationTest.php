@@ -18,4 +18,16 @@ class NodeProjectPreparationTest extends TestCase
         $this->assertStringContainsString('install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache', $helper);
         $this->assertStringContainsString('node_project_prepare "$domain" "$document_root" "$site_user" "$runtime_port"', $helper);
     }
+
+    public function test_install_and_update_normalize_distribution_node_binaries_for_services(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $updater = file_get_contents(base_path('scripts/xpanel-update.sh'));
+
+        foreach ([$installer, $updater] as $script) {
+            $this->assertStringContainsString('normalize_node_runtime_links()', $script);
+            $this->assertStringContainsString('readlink -f "$command_path"', $script);
+            $this->assertStringContainsString('ln -sfn "$resolved_path" "/usr/local/bin/$command_name"', $script);
+        }
+    }
 }

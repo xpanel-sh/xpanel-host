@@ -210,6 +210,33 @@ class SiteManagementTest extends TestCase
         ]);
     }
 
+    public function test_a_php_site_can_be_changed_to_node_without_a_server_error(): void
+    {
+        $site = Site::create([
+            'domain' => 'application.example.com',
+            'document_root' => '/var/www/application.example.com',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'apache',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->userWithRole('developer'))->put("/sites/{$site->domain}", [
+            'domain' => $site->domain,
+            'php_version' => '8.3',
+            'node_version' => '22',
+            'node_start_command' => 'npm start',
+            'type' => 'node',
+            'status' => 'active',
+        ])->assertRedirect('/sites')->assertSessionHasNoErrors();
+
+        $site->refresh();
+        $this->assertSame('node', $site->type);
+        $this->assertSame('nginx', $site->web_server);
+        $this->assertSame('22', $site->node_version);
+        $this->assertNotNull($site->runtime_port);
+    }
+
     public function test_a_site_can_be_deleted(): void
     {
         $site = Site::create([

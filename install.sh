@@ -65,6 +65,7 @@ ensure_node_runtime() {
     current_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || printf '0')"
   fi
   if [[ "$current_major" =~ ^[0-9]+$ ]] && (( current_major >= 22 )) && command -v npm >/dev/null 2>&1; then
+    normalize_node_runtime_links
     return
   fi
 
@@ -98,6 +99,18 @@ ensure_node_runtime() {
   ln -sfn "/usr/local/lib/nodejs/$release/bin/npx" /usr/local/bin/npx
   ln -sfn "/usr/local/lib/nodejs/$release/bin/corepack" /usr/local/bin/corepack
   rm -rf -- "$tempdir"
+  normalize_node_runtime_links
+}
+
+normalize_node_runtime_links() {
+  local command_name command_path resolved_path
+  for command_name in node npm npx corepack; do
+    command_path="$(command -v "$command_name" 2>/dev/null || true)"
+    [[ -n "$command_path" ]] || continue
+    resolved_path="$(readlink -f "$command_path")"
+    [[ -n "$resolved_path" && -x "$resolved_path" ]] || continue
+    ln -sfn "$resolved_path" "/usr/local/bin/$command_name"
+  done
 }
 
 # Only needed to build xpanel-terminal-agent when XPANEL_TERMINAL_ENABLED=true.

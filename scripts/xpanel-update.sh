@@ -23,6 +23,17 @@ set_env_var() {
   fi
 }
 
+normalize_node_runtime_links() {
+  local command_name command_path resolved_path
+  for command_name in node npm npx corepack; do
+    command_path="$(command -v "$command_name" 2>/dev/null || true)"
+    [[ -n "$command_path" ]] || continue
+    resolved_path="$(readlink -f "$command_path")"
+    [[ -n "$resolved_path" && -x "$resolved_path" ]] || continue
+    ln -sfn "$resolved_path" "/usr/local/bin/$command_name"
+  done
+}
+
 configure_backup_runtime() {
   local runtime_root="/var/lib/xpanel-host/backups"
   local php_binary
@@ -166,6 +177,10 @@ if (( node_major < 22 )); then
   XPANEL_INSTALL_CLI=no XPANEL_TERMINAL_ENABLED="${terminal_enabled:-false}" bash "$ROOT/install.sh"
   exit 0
 fi
+
+# Node may already be provided by Ubuntu under /usr/bin. Site services use
+# stable /usr/local/bin paths, so normalize them on every update as well.
+normalize_node_runtime_links
 
 configure_account_workspace
 

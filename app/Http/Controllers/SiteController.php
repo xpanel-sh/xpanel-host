@@ -72,14 +72,30 @@ class SiteController extends Controller
 
     public function store(Request $request, SiteProvisioner $provisioner): RedirectResponse
     {
-        $data = $this->validated($request);
-
-        $site = Site::create($data);
         try {
+            $data = $this->validated($request);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->withInput()->withErrors(['server' => 'No se pudo preparar el runtime solicitado. Revisa que la actualización y sus migraciones hayan terminado correctamente.']);
+        }
+
+        $site = null;
+        try {
+            $site = Site::create($data);
             $provisioner->provision($site);
         } catch (\Throwable $exception) {
-            $provisioner->discardStaged($site);
-            $site->delete();
+            report($exception);
+            if ($site !== null) {
+                try {
+                    $provisioner->discardStaged($site);
+                    $site->delete();
+                } catch (\Throwable $cleanupException) {
+                    report($cleanupException);
+                }
+            }
 
             return back()->withInput()->withErrors(['server' => $exception->getMessage()]);
         }
@@ -100,7 +116,15 @@ class SiteController extends Controller
 
     public function update(Request $request, Site $site, SiteProvisioner $provisioner, SiteAccessProvisioner $access): RedirectResponse
     {
-        $data = $this->validated($request, $site);
+        try {
+            $data = $this->validated($request, $site);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->withInput()->withErrors(['server' => 'No se pudo preparar el runtime solicitado. Revisa que la actualización y sus migraciones hayan terminado correctamente.']);
+        }
         $original = $site->getAttributes();
         $previous = $site->replicate();
         if ($site->parent_site_id !== null && $data['domain'] !== $site->domain) {
@@ -110,15 +134,16 @@ class SiteController extends Controller
             return back()->withInput()->withErrors(['domain' => 'Desactiva el certificado SSL antes de cambiar el dominio.']);
         }
 
-        $site->update($data);
         try {
+            $site->update($data);
             $provisioner->provision($site, $previous);
             if ($site->accessSettings()->exists()) {
                 $access->sync($site, $site->accessSettings()->firstOrFail());
             }
         } catch (\Throwable $exception) {
-            $site->forceFill($original)->save();
+            report($exception);
             try {
+                $site->forceFill($original)->save();
                 $provisioner->provision($site);
                 if ($site->accessSettings()->exists()) {
                     $access->sync($site, $site->accessSettings()->firstOrFail());
@@ -230,7 +255,7 @@ class SiteController extends Controller
             ],
             'php_version' => 'required|string|in:'.implode(',', Site::phpVersions()),
             'node_version' => 'nullable|string|in:'.implode(',', Site::nodeVersions()),
-            'node_start_command' => ['nullable', 'string', 'max:255', 'regex:/^(?:npm start|npm run [A-Za-z0-9:_-]+|node [A-Za-z0-9_./-]+\.m?js)$/'],
+            'node_start_command' => ['nullable', 'string', 'max:255', 'regex:#^(?:npm start|npm run [A-Za-z0-9:_-]+|node [A-Za-z0-9_./-]+\.m?js)$#'],
             'type' => 'required|string|in:php,static,node',
             'tenancy_mode' => 'nullable|string|in:none,path,subdomain,custom,hybrid',
             'wildcard_domain' => 'nullable|boolean',
