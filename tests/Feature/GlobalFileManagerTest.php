@@ -111,6 +111,8 @@ class GlobalFileManagerTest extends TestCase
             ->assertSee('data-terminal-reconnect=', false)
             ->assertSee('xpanel-terminal-badge', false)
             ->assertSee('xpanel-terminal-meta', false)
+            ->assertSee('id="xpanel_agent_picker"', false)
+            ->assertSee('id="xpanel_agent_connection_form"', false)
             ->assertDontSee('xpanel-terminal-toolbar', false)
             ->assertDontSee('id="xpanel_terminal_status"', false)
             ->assertDontSee('Terminal real')

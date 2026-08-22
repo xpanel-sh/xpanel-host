@@ -41,6 +41,13 @@
             min-height: 0;
         }
         .xpanel-file-shell .ikode_editor_right { flex: 0 0 310px; min-width: 260px; width: auto; }
+        @media (min-width: 1241px) {
+            .xpanel-file-shell .ikode_editor_right:not(.ikode_hidden) {
+                display: grid;
+                grid-template-rows: 35px minmax(0, 1fr);
+            }
+        }
+        .xpanel-file-shell .ikode_right_view { height: auto; }
         .xpanel-file-shell .ikode_editor_center {
             flex: 1 1 auto;
             min-width: 360px;
@@ -499,41 +506,113 @@
             color: hsl(var(--foreground));
             overflow-wrap: anywhere;
         }
-        .xpanel-agent-card {
+        .xpanel-agent-shell {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .xpanel-agent-toolbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            width: 100%;
+            gap: 8px;
+            padding: 7px;
+            border-bottom: 1px solid hsl(var(--border));
+        }
+        .xpanel-agent-picker {
+            min-width: 0;
+            flex: 1;
+            height: 30px;
             border: 1px solid hsl(var(--border));
-            border-radius: 7px;
-            background: hsl(var(--muted) / 0.3);
-            padding: 10px;
-            text-align: left;
-            transition: border-color .15s ease, background .15s ease;
+            border-radius: 6px;
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+            padding: 0 8px;
+            font-size: 11px;
         }
-        .xpanel-agent-card:hover {
-            border-color: hsl(var(--primary) / 0.45);
-            background: hsl(var(--primary) / 0.06);
-        }
-        .xpanel-agent-card span:first-child {
+        .xpanel-agent-toolbar-actions {
             display: flex;
             align-items: center;
-            gap: 10px;
-            min-width: 0;
+            gap: 4px;
         }
-        .xpanel-agent-card strong,
-        .xpanel-agent-card small {
-            display: block;
-        }
-        .xpanel-agent-card strong {
-            font-size: 13px;
-            color: hsl(var(--foreground));
-        }
-        .xpanel-agent-card small {
-            margin-top: 1px;
-            font-size: 11px;
+        .xpanel-agent-toolbar-actions [hidden] { display: none; }
+        .xpanel-agent-status {
+            max-width: 72px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             color: var(--muted-foreground);
+            font-size: 9px;
+        }
+        .xpanel-agent-chat {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            padding: 10px;
+        }
+        .xpanel-agent-empty {
+            margin: auto;
+            max-width: 220px;
+            color: var(--muted-foreground);
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.55;
+        }
+        .xpanel-agent-message {
+            max-width: 92%;
+            border: 1px solid hsl(var(--border));
+            border-radius: 8px;
+            padding: 8px 9px;
+            font-size: 11px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        .xpanel-agent-message.user {
+            align-self: flex-end;
+            border-color: hsl(var(--primary) / .35);
+            background: hsl(var(--primary) / .09);
+        }
+        .xpanel-agent-message.assistant {
+            align-self: flex-start;
+            background: hsl(var(--muted) / .45);
+        }
+        .xpanel-agent-composer {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 30px;
+            gap: 6px;
+            padding: 8px;
+            border-top: 1px solid hsl(var(--border));
+        }
+        .xpanel-agent-composer textarea {
+            min-height: 34px;
+            max-height: 120px;
+            resize: vertical;
+            font-size: 11px;
+        }
+        .xpanel-agent-modal-method {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 7px;
+        }
+        .xpanel-agent-method {
+            border: 1px solid hsl(var(--border));
+            border-radius: 7px;
+            padding: 9px;
+            text-align: left;
+            font-size: 11px;
+        }
+        .xpanel-agent-method.active {
+            border-color: hsl(var(--primary));
+            background: hsl(var(--primary) / .08);
+        }
+        .xpanel-agent-method:disabled {
+            cursor: not-allowed;
+            opacity: .55;
         }
         .xpanel-search-wrap {
             position: relative;
@@ -1035,39 +1114,30 @@
                 </div>
 
                 <div class="ikode_right_view ikode_hidden" data-right-view="agents">
-                    <div class="ikode_panel">
-                        <div class="ikode_panel_title">Agentes</div>
-                        <div class="grid gap-2">
-                            <button class="xpanel-agent-card" type="button" data-agent="claude">
-                                <span>
-                                    <i class="ki-filled ki-message-programming"></i>
-                                    <span><strong>Claude</strong><small>Proyecto actual</small></span>
-                                </span>
-                                <span class="kt-badge kt-badge-outline">Pronto</span>
-                            </button>
-                            <button class="xpanel-agent-card" type="button" data-agent="gpt">
-                                <span>
-                                    <i class="ki-filled ki-artificial-intelligence"></i>
-                                    <span><strong>GPT</strong><small>Edicion asistida</small></span>
-                                </span>
-                                <span class="kt-badge kt-badge-outline">Pronto</span>
-                            </button>
-                            <button class="xpanel-agent-card" type="button" data-agent="local">
-                                <span>
-                                    <i class="ki-filled ki-setting-2"></i>
-                                    <span><strong>Agente local</strong><small>Servidor del sitio</small></span>
-                                </span>
-                                <span class="kt-badge kt-badge-outline">Pronto</span>
-                            </button>
+                    <div class="xpanel-agent-shell">
+                        <div class="xpanel-agent-toolbar">
+                            <select class="xpanel-agent-picker" id="xpanel_agent_picker" aria-label="Agente activo">
+                                <option value="">Sin conexiones</option>
+                            </select>
+                            <div class="xpanel-agent-toolbar-actions">
+                                <span class="xpanel-agent-status" id="xpanel_agent_status">Sin conectar</span>
+                                <button class="ikode_left_action_btn" type="button" id="xpanel_agent_remove" title="Eliminar conexión" aria-label="Eliminar conexión" hidden>
+                                    <i class="ki-filled ki-trash"></i>
+                                </button>
+                                <button class="ikode_left_action_btn" type="button" id="xpanel_agent_add" title="Añadir conexión" aria-label="Añadir conexión">
+                                    <i class="ki-filled ki-plus"></i>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="ikode_panel">
-                        <div class="ikode_panel_title">Contexto de agente</div>
-                        <div class="grid gap-2 text-sm text-secondary-foreground">
-                            <div class="xpanel-file-meta"><span>Raiz</span><strong>{{ $scopeLabel }}</strong></div>
-                            <div class="xpanel-file-meta"><span>Archivo</span><strong id="xpanel_agent_active" class="text-end break-all">-</strong></div>
-                            <div class="xpanel-file-meta"><span>Modo</span><strong id="xpanel_agent_mode">Lectura</strong></div>
+                        <div class="xpanel-agent-chat" id="xpanel_agent_chat" aria-live="polite">
+                            <div class="xpanel-agent-empty">Añade Claude o Codex para conversar con el contexto de {{ $site ? 'este sitio' : 'toda la cuenta' }}.</div>
                         </div>
+                        <form class="xpanel-agent-composer" id="xpanel_agent_form">
+                            <textarea class="kt-input" id="xpanel_agent_prompt" rows="1" maxlength="12000" placeholder="Pregunta sobre el proyecto…" aria-label="Mensaje para el agente"></textarea>
+                            <button class="ikode_left_action_btn" type="submit" id="xpanel_agent_send" title="Enviar" aria-label="Enviar mensaje" disabled>
+                                <i class="ki-filled ki-send"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </aside>
@@ -1098,6 +1168,32 @@
             <button type="button" class="kt-btn kt-btn-primary" data-input-confirm>Confirmar</button>
         </div>
     </div>
+</div>
+
+<div id="xpanel_agent_modal" class="fixed inset-0 hidden z-50 items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="xpanel_agent_modal_title">
+    <form id="xpanel_agent_connection_form" class="w-full max-w-md bg-background border border-border rounded-md p-6 shadow-2xl">
+        <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+                <h3 id="xpanel_agent_modal_title" class="text-base font-semibold text-mono">Añadir agente</h3>
+                <p class="text-xs text-secondary-foreground mt-1">La clave se cifra con APP_KEY y nunca vuelve al navegador.</p>
+            </div>
+            <button type="button" class="ikode_left_action_btn" data-agent-modal-close aria-label="Cerrar"><i class="ki-filled ki-cross"></i></button>
+        </div>
+        <div class="xpanel-agent-modal-method mb-4">
+            <button type="button" class="xpanel-agent-method active" data-agent-method="api"><strong>Clave API</strong><br><span class="text-secondary-foreground">Disponible ahora</span></button>
+            <button type="button" class="xpanel-agent-method" disabled><strong>Sesión web</strong><br><span class="text-secondary-foreground">Requiere OAuth oficial</span></button>
+        </div>
+        <div class="grid gap-3">
+            <label class="xpanel-setting-control"><span>Proveedor</span><select id="xpanel_agent_provider" required><option value="openai">Codex / OpenAI</option><option value="anthropic">Claude / Anthropic</option></select></label>
+            <label class="xpanel-setting-control"><span>Nombre</span><input class="kt-input" id="xpanel_agent_name" value="Codex" maxlength="80" required></label>
+            <label class="xpanel-setting-control"><span>Modelo</span><input class="kt-input" id="xpanel_agent_model" value="gpt-5-mini" maxlength="100" required></label>
+            <label class="xpanel-setting-control"><span>Clave API</span><input class="kt-input" id="xpanel_agent_key" type="password" autocomplete="new-password" maxlength="500" required></label>
+        </div>
+        <div class="flex gap-2 justify-end mt-5">
+            <button type="button" class="kt-btn kt-btn-outline" data-agent-modal-close>Cancelar</button>
+            <button type="submit" class="kt-btn kt-btn-primary" id="xpanel_agent_connect">Guardar conexión</button>
+        </div>
+    </form>
 </div>
     </div>
     </div>
@@ -1156,6 +1252,11 @@
                 searchAbort: null,
                 searchResults: [],
                 pendingRename: null,
+                agentConnections: [],
+                agentMessages: [],
+                activeAgentId: null,
+                agentsLoaded: false,
+                agentBusy: false,
             };
 
             const $ = (selector) => document.querySelector(selector);
@@ -1391,7 +1492,18 @@
                 const response = await fetch(config.baseUrl + endpoint, options);
                 const contentType = response.headers.get('Content-Type') || '';
                 if (!response.ok) {
-                    throw new Error(await response.text() || `HTTP ${response.status}`);
+                    const raw = await response.text();
+                    if (contentType.includes('application/json')) {
+                        try {
+                            const payload = JSON.parse(raw);
+                            const validation = payload.errors ? Object.values(payload.errors).flat()[0] : null;
+                            throw new Error(validation || payload.message || `HTTP ${response.status}`);
+                        } catch (error) {
+                            if (error instanceof SyntaxError) throw new Error(raw || `HTTP ${response.status}`);
+                            throw error;
+                        }
+                    }
+                    throw new Error(raw || `HTTP ${response.status}`);
                 }
 
                 return contentType.includes('application/json') ? response.json() : response;
@@ -1431,6 +1543,88 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+            const agentStatusLabel = (status) => ({
+                configured: 'Configurado', connected: 'Conectado', error: 'Error',
+            }[status] || 'Sin conectar');
+            const renderAgentChat = () => {
+                const chat = $('#xpanel_agent_chat');
+                const picker = $('#xpanel_agent_picker');
+                if (!chat || !picker) return;
+
+                picker.innerHTML = state.agentConnections.length
+                    ? state.agentConnections.map((connection) => `<option value="${connection.id}" ${Number(connection.id) === Number(state.activeAgentId) ? 'selected' : ''}>${escapeHtml(connection.name)} · ${escapeHtml(connection.model)}</option>`).join('')
+                    : '<option value="">Sin conexiones</option>';
+                const active = state.agentConnections.find((connection) => Number(connection.id) === Number(state.activeAgentId));
+                $('#xpanel_agent_status').textContent = active ? agentStatusLabel(active.status) : 'Sin conectar';
+                $('#xpanel_agent_status').title = active?.last_error || agentStatusLabel(active?.status);
+                $('#xpanel_agent_remove').hidden = !active;
+                $('#xpanel_agent_send').disabled = !active || state.agentBusy;
+                $('#xpanel_agent_prompt').disabled = !active || state.agentBusy;
+
+                if (!active) {
+                    chat.innerHTML = `<div class="xpanel-agent-empty">Añade Claude o Codex para conversar con el contexto de ${config.domain ? 'este sitio' : 'toda la cuenta'}.</div>`;
+                    return;
+                }
+                if (!state.agentMessages.length) {
+                    chat.innerHTML = `<div class="xpanel-agent-empty">${escapeHtml(active.name)} está listo. El contexto queda limitado a ${config.domain ? escapeHtml(config.domain) : 'la cuenta completa'} y los secretos se excluyen automáticamente.</div>`;
+                    return;
+                }
+                chat.innerHTML = state.agentMessages.map((message) => `<div class="xpanel-agent-message ${message.role === 'user' ? 'user' : 'assistant'}">${escapeHtml(message.content)}</div>`).join('');
+                chat.scrollTop = chat.scrollHeight;
+            };
+            const loadAgents = async (connectionId = null) => {
+                const query = connectionId ? `?connection_id=${encodeURIComponent(connectionId)}` : '';
+                const payload = await api('GET', `/agents${query}`);
+                state.agentConnections = payload.connections || [];
+                state.activeAgentId = payload.active_connection_id || null;
+                state.agentMessages = payload.messages || [];
+                state.agentsLoaded = true;
+                renderAgentChat();
+            };
+            const openAgentModal = () => {
+                const modal = $('#xpanel_agent_modal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                $('#xpanel_agent_key').value = '';
+                requestAnimationFrame(() => $('#xpanel_agent_provider').focus());
+            };
+            const closeAgentModal = () => {
+                const modal = $('#xpanel_agent_modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+            const sendAgentMessage = async () => {
+                const input = $('#xpanel_agent_prompt');
+                const message = input.value.trim();
+                if (!message || !state.activeAgentId || state.agentBusy) return;
+                state.agentBusy = true;
+                state.agentMessages.push({ role: 'user', content: message });
+                input.value = '';
+                renderAgentChat();
+                const chat = $('#xpanel_agent_chat');
+                const waiting = document.createElement('div');
+                waiting.className = 'xpanel-agent-message assistant';
+                waiting.textContent = 'Pensando…';
+                chat.append(waiting);
+                chat.scrollTop = chat.scrollHeight;
+                try {
+                    const payload = await api('POST', '/agents/chat', {
+                        connection_id: state.activeAgentId,
+                        message,
+                        active_path: activeTab()?.path || state.selected?.path || null,
+                    });
+                    state.agentMessages.push(payload.message);
+                    const index = state.agentConnections.findIndex((connection) => Number(connection.id) === Number(payload.connection.id));
+                    if (index >= 0) state.agentConnections[index] = payload.connection;
+                } catch (error) {
+                    state.agentMessages.pop();
+                    toast(error.message, 'error');
+                } finally {
+                    state.agentBusy = false;
+                    renderAgentChat();
+                    input.focus();
+                }
+            };
             const basename = (path = '/') => path.split('/').filter(Boolean).pop() || '/';
             const dirname = (path = '/') => {
                 const parts = path.split('/').filter(Boolean);
@@ -3001,6 +3195,9 @@
                     view.classList.toggle('ikode_hidden', view.dataset.rightView !== nextTab);
                 });
                 persistUiState();
+                if (nextTab === 'agents' && !state.agentsLoaded) {
+                    loadAgents().catch((error) => toast(error.message, 'error'));
+                }
             };
 
             const renderTerminalList = () => {
@@ -3142,6 +3339,56 @@
             $$('[data-outline-tab]').forEach((button) => button.addEventListener('click', () => switchOutlineTab(button.dataset.outlineTab)));
             $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab)));
             $$('[data-right-tab]').forEach((button) => button.addEventListener('click', () => switchRightTab(button.dataset.rightTab)));
+            $('#xpanel_agent_add')?.addEventListener('click', openAgentModal);
+            $$('[data-agent-modal-close]').forEach((button) => button.addEventListener('click', closeAgentModal));
+            $('#xpanel_agent_provider')?.addEventListener('change', (event) => {
+                const anthropic = event.target.value === 'anthropic';
+                $('#xpanel_agent_name').value = anthropic ? 'Claude' : 'Codex';
+                $('#xpanel_agent_model').value = anthropic ? 'claude-sonnet-4-20250514' : 'gpt-5-mini';
+            });
+            $('#xpanel_agent_connection_form')?.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const button = $('#xpanel_agent_connect');
+                button.disabled = true;
+                try {
+                    const payload = await api('POST', '/agents/connections', {
+                        provider: $('#xpanel_agent_provider').value,
+                        name: $('#xpanel_agent_name').value.trim(),
+                        model: $('#xpanel_agent_model').value.trim(),
+                        api_key: $('#xpanel_agent_key').value,
+                    });
+                    closeAgentModal();
+                    await loadAgents(payload.connection.id);
+                    toast('Conexión guardada. Se verificará al enviar el primer mensaje.');
+                } catch (error) {
+                    toast(error.message, 'error');
+                } finally {
+                    button.disabled = false;
+                }
+            });
+            $('#xpanel_agent_picker')?.addEventListener('change', (event) => {
+                loadAgents(event.target.value).catch((error) => toast(error.message, 'error'));
+            });
+            $('#xpanel_agent_remove')?.addEventListener('click', async () => {
+                if (!state.activeAgentId || !window.confirm('¿Eliminar esta conexión y su historial contextual?')) return;
+                try {
+                    await api('DELETE', `/agents/connections/${state.activeAgentId}`);
+                    await loadAgents();
+                    toast('Conexión eliminada.');
+                } catch (error) {
+                    toast(error.message, 'error');
+                }
+            });
+            $('#xpanel_agent_form')?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                sendAgentMessage();
+            });
+            $('#xpanel_agent_prompt')?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    sendAgentMessage();
+                }
+            });
             $$('[data-terminal-action]').forEach((button) => button.addEventListener('click', () => terminalAction(button.dataset.terminalAction)));
             $$('[data-clone-action]').forEach((button) => button.addEventListener('click', () => cloneAction(button.dataset.cloneAction)));
             $$('[data-duplicate-close]').forEach((button) => button.addEventListener('click', closeDuplicatePane));
@@ -3218,6 +3465,7 @@
                 }
                 if (event.key === 'Escape') {
                     closeSearchLauncher();
+                    closeAgentModal();
                 }
             });
 

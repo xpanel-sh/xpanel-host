@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountTerminalController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\BackupController;
@@ -14,12 +15,12 @@ use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainMailSettingsController;
 use App\Http\Controllers\ErrorPageController;
 use App\Http\Controllers\FileManagerController;
-use App\Http\Controllers\AccountTerminalController;
 use App\Http\Controllers\FolderIndexController;
 use App\Http\Controllers\GitDeploymentController;
 use App\Http\Controllers\GlobalFileManagerController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\HotlinkController;
+use App\Http\Controllers\IkodeAgentController;
 use App\Http\Controllers\IpRuleController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\MailDnsController;
@@ -172,6 +173,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::get('/read', [GlobalFileManagerController::class, 'read'])->name('read');
                 Route::get('/download', [GlobalFileManagerController::class, 'download'])->name('download');
                 Route::post('/search', [GlobalFileManagerController::class, 'search'])->name('search');
+                Route::get('/agents', [IkodeAgentController::class, 'state'])->name('agents.state');
             });
 
             Route::get('/sites/{site}', [SiteController::class, 'show'])->name('sites.show');
@@ -216,6 +218,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
                 Route::get('/download', [FileManagerController::class, 'download'])->name('download');
                 Route::post('/search', [FileManagerController::class, 'search'])->name('search');
+                Route::get('/agents', [IkodeAgentController::class, 'state'])->name('agents.state');
             });
 
             // Every other module, grouped by its SiteModules section
@@ -283,6 +286,9 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/delete', [GlobalFileManagerController::class, 'destroy'])->name('delete');
                 Route::post('/upload', [GlobalFileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [GlobalFileManagerController::class, 'extract'])->name('extract');
+                Route::post('/agents/connections', [IkodeAgentController::class, 'storeConnection'])->name('agents.connections.store');
+                Route::delete('/agents/connections/{connection}', [IkodeAgentController::class, 'destroyConnection'])->name('agents.connections.destroy');
+                Route::post('/agents/chat', [IkodeAgentController::class, 'chat'])->middleware('throttle:20,1')->name('agents.chat');
             });
             Route::prefix('/sites/{site}/files/manager/api')->name('sites.files.api.')->group(function () {
                 Route::post('/write', [FileManagerController::class, 'write'])->name('write');
@@ -292,6 +298,9 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/delete', [FileManagerController::class, 'destroy'])->name('delete');
                 Route::post('/upload', [FileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [FileManagerController::class, 'extract'])->name('extract');
+                Route::post('/agents/connections', [IkodeAgentController::class, 'storeConnection'])->name('agents.connections.store');
+                Route::delete('/agents/connections/{connection}', [IkodeAgentController::class, 'destroyConnection'])->name('agents.connections.destroy');
+                Route::post('/agents/chat', [IkodeAgentController::class, 'chat'])->middleware('throttle:20,1')->name('agents.chat');
             });
         });
 

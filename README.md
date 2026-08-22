@@ -197,6 +197,10 @@ El **chat del equipo** de la cabecera permite conversaciones directas entre dos 
 
 El **buscador global** de la cabecera (`Ctrl/Cmd + K`) localiza sitios, subdominios, dominios, buzones, bases de datos, usuarios, páginas y módulos del sitio. Los resultados respetan los permisos de la cuenta activa y pueden recorrerse con las flechas y abrirse con Enter; la búsqueda profunda de contenido permanece dentro de ikode y XMail.
 
+La pestaña **Agentes** de Ikode permite registrar conexiones personales para Codex/OpenAI y Claude/Anthropic mediante clave API. La clave queda cifrada con `APP_KEY`, nunca regresa al navegador y sólo su propietario puede usarla o eliminarla. Cada conexión mantiene un historial independiente para la cuenta completa y para cada sitio: Ikode general genera contexto únicamente desde el hogar de alojamiento, mientras Ikode de dominio queda confinado al document root de ese sitio.
+
+El contexto automático contiene un árbol acotado y, cuando corresponde, el archivo activo. XPanel excluye `.env`, claves privadas, correo, SSL, repositorios, dependencias y archivos binarios o excesivamente grandes. La sesión web queda representada como una capacidad futura porque sólo podrá activarse mediante OAuth oficial del proveedor; XPanel no captura cookies ni sesiones de ChatGPT o Claude.
+
 ### Escáner de malware
 
 **Seguridad → Escáner de malware** ejecuta ClamAV sobre el document root real, registra cuántos archivos revisó, conserva los últimos resultados y muestra la firma exacta de cada detección. El escaneo no sigue enlaces simbólicos ni cruza otros sistemas de archivos. Las definiciones se mantienen mediante `clamav-freshclam`.
