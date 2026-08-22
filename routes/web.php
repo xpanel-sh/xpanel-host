@@ -287,7 +287,10 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/upload', [GlobalFileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [GlobalFileManagerController::class, 'extract'])->name('extract');
                 Route::post('/agents/connections', [IkodeAgentController::class, 'storeConnection'])->name('agents.connections.store');
+                Route::put('/agents/connections/{connection}', [IkodeAgentController::class, 'updateConnection'])->name('agents.connections.update');
                 Route::delete('/agents/connections/{connection}', [IkodeAgentController::class, 'destroyConnection'])->name('agents.connections.destroy');
+                Route::post('/agents/conversations', [IkodeAgentController::class, 'storeConversation'])->name('agents.conversations.store');
+                Route::delete('/agents/conversations/{conversation}', [IkodeAgentController::class, 'destroyConversation'])->name('agents.conversations.destroy');
                 Route::post('/agents/chat', [IkodeAgentController::class, 'chat'])->middleware('throttle:20,1')->name('agents.chat');
             });
             Route::prefix('/sites/{site}/files/manager/api')->name('sites.files.api.')->group(function () {
@@ -299,7 +302,10 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/upload', [FileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [FileManagerController::class, 'extract'])->name('extract');
                 Route::post('/agents/connections', [IkodeAgentController::class, 'storeConnection'])->name('agents.connections.store');
+                Route::put('/agents/connections/{connection}', [IkodeAgentController::class, 'updateConnection'])->name('agents.connections.update');
                 Route::delete('/agents/connections/{connection}', [IkodeAgentController::class, 'destroyConnection'])->name('agents.connections.destroy');
+                Route::post('/agents/conversations', [IkodeAgentController::class, 'storeConversation'])->name('agents.conversations.store');
+                Route::delete('/agents/conversations/{conversation}', [IkodeAgentController::class, 'destroyConversation'])->name('agents.conversations.destroy');
                 Route::post('/agents/chat', [IkodeAgentController::class, 'chat'])->middleware('throttle:20,1')->name('agents.chat');
             });
         });

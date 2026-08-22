@@ -15,7 +15,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
-- Chat de agentes dentro de Ikode con conexiones cifradas por usuario para Codex/OpenAI y Claude/Anthropic, historial persistente por cuenta o por sitio, barra de selección y contexto de proyecto limitado en el servidor. Los secretos, correo, SSL y dependencias voluminosas quedan fuera del contexto automático.
+- Chat de agentes contenido por completo en el panel derecho de Ikode, con pestañas para conexiones cifradas de Codex/OpenAI y Claude/Anthropic, varios chats por agente, historial y ajustes internos. Cada conversación permanece separada por cuenta o sitio y el contexto se limita en el servidor; secretos, correo, SSL y dependencias voluminosas quedan fuera.
 - Hogar Unix de alojamiento en `/home/<cuenta>` con estructura `public_html`, correo, logs, SSL, temporales y metadatos auxiliares `.xpanel`; el administrador general queda confinado a toda la cuenta y el administrador por dominio a un único proyecto.
 - Terminal general de la cuenta, independiente de las terminales aisladas por sitio.
 

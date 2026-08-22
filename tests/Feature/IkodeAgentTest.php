@@ -27,11 +27,17 @@ class IkodeAgentTest extends TestCase
         ])->assertCreated()->assertJsonMissing(['api_key' => 'sk-test-secret-that-must-be-encrypted']);
 
         $connectionId = $response->json('connection.id');
-        $this->assertNotSame('sk-test-secret-that-must-be-encrypted', DB::table('ai_connections')->find($connectionId)->api_key);
+        $encrypted = DB::table('ai_connections')->find($connectionId)->api_key;
+        $this->assertNotSame('sk-test-secret-that-must-be-encrypted', $encrypted);
+
+        $this->actingAs($user)->putJson(route('sites.ikode.api.agents.connections.update', $connectionId), [
+            'name' => 'Codex ajustado', 'model' => 'gpt-5-mini', 'api_key' => '',
+        ])->assertOk()->assertJsonPath('connection.name', 'Codex ajustado');
+        $this->assertSame($encrypted, DB::table('ai_connections')->find($connectionId)->api_key);
 
         $this->actingAs($user)->getJson(route('sites.ikode.api.agents.state'))
             ->assertOk()
-            ->assertJsonPath('connections.0.name', 'Codex principal')
+            ->assertJsonPath('connections.0.name', 'Codex ajustado')
             ->assertJsonMissing(['api_key' => 'sk-test-secret-that-must-be-encrypted']);
     }
 
@@ -115,6 +121,33 @@ class IkodeAgentTest extends TestCase
         Http::assertSent(fn ($request): bool => $request->hasHeader('x-api-key', 'anthropic-test-secret-key')
             && $request['model'] === 'claude-sonnet-4-20250514'
             && str_contains($request['system'], 'cuenta completa'));
+    }
+
+    public function test_one_agent_can_keep_multiple_independent_chats_in_the_same_scope(): void
+    {
+        $user = $this->developer();
+        $connection = AiConnection::create([
+            'user_id' => $user->id, 'provider' => 'openai', 'name' => 'Codex',
+            'model' => 'gpt-5-mini', 'api_key' => 'openai-test-secret-key',
+        ]);
+
+        $first = $this->actingAs($user)->postJson(route('sites.ikode.api.agents.conversations.store'), [
+            'connection_id' => $connection->id,
+        ])->assertCreated()->json('conversation.id');
+        $second = $this->actingAs($user)->postJson(route('sites.ikode.api.agents.conversations.store'), [
+            'connection_id' => $connection->id,
+        ])->assertCreated()->json('conversation.id');
+        $connection->conversations()->findOrFail($first)->messages()->create(['role' => 'user', 'content' => 'Chat uno']);
+        $connection->conversations()->findOrFail($second)->messages()->create(['role' => 'user', 'content' => 'Chat dos']);
+
+        $this->actingAs($user)->getJson(route('sites.ikode.api.agents.state', [
+            'connection_id' => $connection->id,
+            'conversation_id' => $first,
+        ]))->assertOk()
+            ->assertJsonCount(2, 'conversations')
+            ->assertJsonPath('active_conversation_id', $first)
+            ->assertJsonFragment(['content' => 'Chat uno'])
+            ->assertJsonMissing(['content' => 'Chat dos']);
     }
 
     private function developer(): User

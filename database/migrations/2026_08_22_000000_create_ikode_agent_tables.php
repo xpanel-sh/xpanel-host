@@ -29,7 +29,7 @@ return new class extends Migration
             $table->string('scope_key', 80);
             $table->string('title')->nullable();
             $table->timestamps();
-            $table->unique(['user_id', 'ai_connection_id', 'scope_key'], 'ai_conversation_scope_unique');
+            $table->index(['user_id', 'ai_connection_id', 'scope_key'], 'ai_conversation_scope_index');
         });
 
         Schema::create('ai_messages', function (Blueprint $table): void {
