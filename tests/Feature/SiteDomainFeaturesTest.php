@@ -8,6 +8,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Services\ServerCommandRunner;
 use App\Services\SiteProvisioner;
+use App\Services\OwnershipRepairer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -100,19 +101,19 @@ class SiteDomainFeaturesTest extends TestCase
         $this->assertStringContainsString('location = /.xpanel-errors/404.html { internal; }', $gateway);
     }
 
-    public function test_ownership_repair_uses_the_limited_helper_in_production(): void
+    public function test_changed_file_ownership_is_synchronized_with_the_limited_helper(): void
     {
         $site = $this->site();
         config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
         $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
             $mock->shouldReceive('run')->once()->with([
-                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ownership-fix',
-                $site->domain, $site->document_root, $site->systemUser(),
-            ], null, 1800)->andReturn("files=12\ndirectories=3");
+                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ownership-sync-path',
+                $site->domain, $site->document_root, $site->systemUser(), '/var/www/primary.example.com/index.php',
+            ])->andReturn('');
         });
 
-        $this->actingAs($this->owner())->post(route('sites.ownership.repair', $site))
-            ->assertSessionHas('status', fn ($message) => str_contains($message, '12 archivos'));
+        app(OwnershipRepairer::class)->synchronizePath($site, '/var/www/primary.example.com/index.php');
+        $this->assertArrayNotHasKey('fix-file-ownership', \App\Support\SiteModules::catalog()['advanced']['items']);
     }
 
     public function test_ssl_reissue_passes_parked_domains_through_stdin_not_arguments(): void

@@ -37,6 +37,7 @@ class MailProvisionerTest extends TestCase
         $users = file_get_contents(storage_path('app/mail/users'));
         $this->assertStringContainsString('ventas@mail.example.com:{BLF-CRYPT}$2y$', $users);
         $this->assertStringContainsString('userdb_quota_rule=*:storage=2048M', $users);
+        $this->assertStringContainsString(config('xpanel.account_home').'/mail/mail.example.com/ventas', $users);
         $this->assertStringNotContainsString('Mail-Password-That-Must-Not-Leak', $users);
         $this->assertStringContainsString('postmaster@mail.example.com ventas@mail.example.com', file_get_contents(storage_path('app/mail/aliases')));
         $privateKey = file_get_contents(storage_path('app/mail/dkim/mail.example.com.private'));
@@ -46,6 +47,17 @@ class MailProvisionerTest extends TestCase
         $this->assertStringNotContainsString('PRIVATE KEY', $publicRecord);
         $this->assertSame("xpanel\n", file_get_contents(storage_path('app/mail/dkim-selector')));
         $this->assertSame('active', $account->fresh()->status);
+    }
+
+    public function test_installer_and_updater_use_the_account_maildir_as_real_storage(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $updater = file_get_contents(base_path('scripts/xpanel-update.sh'));
+
+        $this->assertStringContainsString('mail_location = maildir:$mail_root/%d/%n/Maildir', $installer);
+        $this->assertStringContainsString('configure_mail_workspace', $updater);
+        $this->assertStringContainsString('XPANEL_MAIL_ROOT', $updater);
+        $this->assertStringContainsString('mail-home-migrated', $updater);
     }
 
     public function test_mail_sync_command_rebuilds_maps_and_updates_account_statuses(): void

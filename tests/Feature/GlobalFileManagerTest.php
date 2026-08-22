@@ -108,7 +108,10 @@ class GlobalFileManagerTest extends TestCase
         $this->actingAs($developer)->get(route('sites.ikode'))
             ->assertOk()
             ->assertSee('id="xpanel_terminal_mounts"', false)
-            ->assertSee('id="xpanel_terminal_reconnect"', false)
+            ->assertSee('data-terminal-reconnect=', false)
+            ->assertSee('xpanel-terminal-badge', false)
+            ->assertDontSee('xpanel-terminal-toolbar', false)
+            ->assertDontSee('id="xpanel_terminal_status"', false)
             ->assertDontSee('Terminal real')
             ->assertDontSee('id="xpanel_terminal_form"', false)
             ->assertDontSee('data-console-tab="ssh"', false);
@@ -123,6 +126,17 @@ class GlobalFileManagerTest extends TestCase
             ->assertJsonFragment(['name' => 'public_html', 'is_dir' => true])
             ->assertJsonFragment(['name' => '.xpanel', 'is_dir' => true])
             ->assertJsonFragment(['name' => 'mail', 'is_dir' => true]);
+    }
+
+    public function test_global_editor_explains_reserved_account_directories(): void
+    {
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->get(route('sites.ikode'))
+            ->assertOk()
+            ->assertSee('Los certificados públicos emitidos aparecerán en certs.')
+            ->assertSee('Let’s Encrypt no necesita conservar una CSR aquí.')
+            ->assertSee('Las claves privadas nunca se exponen en el gestor.');
     }
 
     public function test_global_write_and_list_work_inside_a_specific_site(): void

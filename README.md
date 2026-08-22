@@ -265,7 +265,7 @@ Host configura:
 SMTP entrante       25
 SMTP submission     587 + STARTTLS
 IMAP seguro         993 + TLS
-Maildir             /var/mail/vhosts/<dominio>/<usuario>/Maildir
+Maildir             /home/<cuenta>/mail/<dominio>/<usuario>/Maildir
 ```
 
 El instalador despliega Roundcube en `XPANEL_WEBMAIL_HOSTNAME` y XMail dentro del panel en `/xmail`; ambos se conectan por loopback al mismo Dovecot/Postfix. Cada persona entra con su dirección completa y la contraseña creada en Host. Ninguno mantiene buzones alternativos: todos los mensajes continúan en el Maildir de la cuenta.
@@ -353,7 +353,7 @@ xpanel update
 
 Si una versión añade un servicio que todavía no existe en el servidor, el actualizador ejecuta el instalador idempotente. El instalador también proporciona Node.js 22 LTS desde los binarios oficiales y verifica su checksum antes de compilar el panel.
 
-Los respaldos automáticos de actualización no sustituyen una copia externa de `/var/www`, `/var/mail/vhosts`, `/etc/letsencrypt` y las bases MariaDB.
+Los respaldos automáticos de actualización no sustituyen una copia externa de `/home/<cuenta>/public_html`, `/home/<cuenta>/mail`, `/etc/letsencrypt` y las bases MariaDB.
 
 Los backups por sitio se gestionan desde **Sitio → Archivos → Backups**. En producción se guardan en `/var/lib/xpanel-host/backups`, fuera del document root, con lectura restringida. La restauración exige escribir el dominio y crea primero una copia `pre_restore`. Configura además una copia externa: la retención local no protege frente a una pérdida completa del servidor.
 

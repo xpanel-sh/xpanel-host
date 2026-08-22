@@ -499,6 +499,7 @@ configure_mail_server() {
   local mail_hostname="${XPANEL_MAIL_HOSTNAME:-}"
   local requested_uid="${XPANEL_MAIL_UID:-5000}"
   local requested_gid="${XPANEL_MAIL_GID:-5000}"
+  local mail_root="${XPANEL_ACCOUNT_HOME:?missing account home}/mail"
 
   if [[ -z "$mail_hostname" && -n "${XPANEL_PANEL_DOMAIN:-}" ]]; then
     mail_hostname="mail.${XPANEL_PANEL_DOMAIN}"
@@ -513,12 +514,24 @@ configure_mail_server() {
     groupadd --system --gid "$requested_gid" vmail
   fi
   if ! id vmail >/dev/null 2>&1; then
-    useradd --system --uid "$requested_uid" --gid vmail --home-dir /var/mail/vhosts --shell /usr/sbin/nologin vmail
+    useradd --system --uid "$requested_uid" --gid vmail --home-dir "$mail_root" --shell /usr/sbin/nologin vmail
   fi
   local mail_uid mail_gid
   mail_uid="$(id -u vmail)"
   mail_gid="$(id -g vmail)"
-  install -d -o vmail -g vmail -m 0750 /var/mail/vhosts
+  usermod --home "$mail_root" vmail
+  install -d -o vmail -g vmail -m 0750 "$mail_root"
+  if [[ -d /var/mail/vhosts && ! -f /var/lib/xpanel-host/mail-home-migrated ]]; then
+    rsync -a /var/mail/vhosts/ "$mail_root/"
+    install -d -o root -g root -m 0755 /var/lib/xpanel-host
+    touch /var/lib/xpanel-host/mail-home-migrated
+  fi
+  chown -R vmail:vmail "$mail_root"
+  setfacl -R -m "u:${XPANEL_SITE_USER:-www-data}:rwX" "$mail_root"
+  setfacl -R -m "u:${XPANEL_ACCOUNT_USER}:rwX" "$mail_root"
+  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:${XPANEL_SITE_USER:-www-data}:rwx" {} +
+  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:${XPANEL_ACCOUNT_USER}:rwx" {} +
+  set_env_var XPANEL_MAIL_ROOT "$mail_root"
   install -d -o root -g dovecot -m 0750 /etc/xpanel-host/mail
   touch /etc/xpanel-host/mail/users
   touch /etc/xpanel-host/mail/domains
@@ -541,7 +554,7 @@ configure_mail_server() {
 
   cat > /etc/dovecot/conf.d/99-xpanel-host.conf <<EOF
 protocols = imap lmtp
-mail_location = maildir:/var/mail/vhosts/%d/%n/Maildir
+mail_location = maildir:$mail_root/%d/%n/Maildir
 mail_uid = $mail_uid
 mail_gid = $mail_gid
 first_valid_uid = $mail_uid

@@ -35,6 +35,8 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('setfacl -R -m "u:$SITE_USER:rwX" "$document_root"', $helper);
         $this->assertStringContainsString('"d:u:$SITE_USER:rwx"', $helper);
         $this->assertStringContainsString('grant_panel_file_access "$document_root"', $helper);
+        $this->assertStringContainsString('ownership_sync_path()', $helper);
+        $this->assertStringContainsString('ownership-sync-path) ownership_sync_path "$@"', $helper);
     }
 
     public function test_legacy_site_roots_are_moved_without_overwriting_a_target(): void

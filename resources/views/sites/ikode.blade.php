@@ -357,17 +357,6 @@
             color: hsl(var(--foreground));
         }
         .xpanel-terminal-action:hover { background: hsl(var(--muted)); }
-        .xpanel-terminal-toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            height: 34px;
-            padding: 0 10px;
-            border-bottom: 1px solid hsl(var(--border));
-            font-size: 11px;
-        }
-        .xpanel-terminal-status { color: var(--muted-foreground); }
         .xpanel-terminal-mounts {
             flex: 1;
             min-height: 0;
@@ -397,15 +386,14 @@
             position: relative;
             width: 100%;
             display: grid;
-            grid-template-columns: 8px 18px 1fr auto;
+            grid-template-columns: minmax(0, 1fr) minmax(0, .72fr) 24px;
             align-items: center;
-            gap: 7px;
+            gap: 6px;
             min-height: 30px;
             padding: 5px 7px;
             border: 1px solid transparent;
             border-radius: 6px;
             color: hsl(var(--foreground));
-            text-align: left;
             font-size: 12px;
         }
         .xpanel-terminal-item:hover,
@@ -417,6 +405,21 @@
         .xpanel-terminal-item.active .xpanel-terminal-active-dot {
             opacity: 1;
         }
+        .xpanel-terminal-select {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: 8px 18px minmax(0, 1fr);
+            align-items: center;
+            gap: 7px;
+            text-align: left;
+        }
+        .xpanel-terminal-name,
+        .xpanel-terminal-badge {
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
         .xpanel-terminal-active-dot {
             width: 6px;
             height: 6px;
@@ -427,6 +430,13 @@
         .xpanel-terminal-badge {
             color: var(--muted-foreground);
             font-size: 10px;
+        }
+        .xpanel-terminal-reconnect {
+            border-color: transparent;
+        }
+        .xpanel-terminal-reconnect:disabled {
+            cursor: wait;
+            opacity: .5;
         }
         .xpanel-terminal-main {
             flex: 1;
@@ -950,12 +960,6 @@
                                 </aside>
                                 <section class="xpanel-terminal-main" id="xpanel_terminal_main">
                                     @if($webTerminalEnabled)
-                                        <div class="xpanel-terminal-toolbar">
-                                            <span id="xpanel_terminal_status" class="xpanel-terminal-status">Desconectado</span>
-                                            <button class="xpanel-terminal-action" type="button" id="xpanel_terminal_reconnect" title="Reconectar terminal">
-                                                <i class="ki-filled ki-arrows-circle"></i>
-                                            </button>
-                                        </div>
                                         <div id="xpanel_terminal_mounts" class="xpanel-terminal-mounts"></div>
                                     @else
                                         <div class="xpanel-terminal-disabled">{{ $site ? 'Terminal desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.' }}</div>
@@ -1761,6 +1765,19 @@
                     <span class="xpanel-file-name">Cargando...</span>
                 </div>
             `;
+            const accountEmptyDirectoryHelp = (path) => {
+                if (config.domain) return '';
+                const messages = {
+                    '/ssl': 'Los certificados públicos emitidos aparecerán en certs. Las claves privadas nunca se exponen en el gestor.',
+                    '/ssl/certs': 'Aquí aparecerán cert.pem, chain.pem y fullchain.pem después de emitir un SSL. Las claves privadas permanecen protegidas fuera del home.',
+                    '/ssl/csrs': 'Esta carpeta se usa únicamente para solicitudes CSR creadas manualmente. Let’s Encrypt no necesita conservar una CSR aquí.',
+                    '/mail': 'Aquí aparecerán los dominios, cuentas y carpetas Maildir cuando crees direcciones desde Correos.',
+                    '/logs': 'Aquí aparecerá una carpeta por dominio con access.log y error.log después de sincronizar sus sitios.',
+                    '/tmp': 'Espacio temporal de la cuenta. Puede permanecer vacío y su contenido se puede limpiar automáticamente.',
+                    '/etc': 'Configuración auxiliar propia de dominios y correo; XPanel la genera sólo cuando un servicio la necesita.',
+                };
+                return messages[path] || '';
+            };
             const renderRenameRow = (entry, depth, expanded = false) => {
                 const toggle = entry.is_dir ? (expanded ? 'ki-down' : 'ki-right') : '';
                 return `
@@ -1778,6 +1795,12 @@
                 const filter = ($('#xpanel_file_filter').value || '').toLowerCase();
                 const entries = entriesFor(parentPath).filter((entry) => !filter || entry.name.toLowerCase().includes(filter) || entry.is_dir);
                 let html = renderInlineCreate(parentPath, depth);
+                if (entries.length === 0 && !state.pendingCreate) {
+                    const help = accountEmptyDirectoryHelp(parentPath);
+                    if (help) {
+                        html += `<div class="xpanel-file-row xpanel-file-row-muted" style="padding-left:${8 + depth * 14}px"><span class="xpanel-file-toggle"></span><i class="ki-filled ki-information-2"></i><span class="xpanel-file-name" title="${escapeHtml(help)}">${escapeHtml(help)}</span></div>`;
+                    }
+                }
                 html += entries.map((entry) => {
                     const expanded = state.expanded.has(entry.path);
                     const selected = state.selected?.path === entry.path;
@@ -2832,10 +2855,6 @@
             const setTerminalStatus = (terminal, status) => {
                 if (!terminal) return;
                 terminal.status = status;
-                if (terminal.id === state.activeTerminalId) {
-                    const element = $('#xpanel_terminal_status');
-                    if (element) element.textContent = status;
-                }
                 renderTerminalList();
             };
 
@@ -2979,12 +2998,15 @@
                 const list = $('#xpanel_terminal_list');
                 if (!list) return;
                 list.innerHTML = state.terminals.map((terminal) => `
-                    <button class="xpanel-terminal-item ${terminal.id === state.activeTerminalId ? 'active' : ''}" type="button" data-terminal-id="${terminal.id}">
-                        <span class="xpanel-terminal-active-dot"></span>
-                        <i class="ki-filled ki-screen"></i>
-                        <span>${escapeHtml(terminal.name)}</span>
-                        <span class="xpanel-terminal-badge">${escapeHtml(terminal.status || 'Desconectado')}</span>
-                    </button>
+                    <div class="xpanel-terminal-item ${terminal.id === state.activeTerminalId ? 'active' : ''}">
+                        <button class="xpanel-terminal-select" type="button" data-terminal-id="${terminal.id}" title="${escapeHtml(terminal.name)}">
+                            <span class="xpanel-terminal-active-dot"></span>
+                            <i class="ki-filled ki-screen"></i>
+                            <span class="xpanel-terminal-name">${escapeHtml(terminal.name)}</span>
+                        </button>
+                        <span class="xpanel-terminal-badge" title="${escapeHtml(terminal.status || 'Desconectado')}">${escapeHtml(terminal.status || 'Desconectado')}</span>
+                        ${config.webTerminalEnabled ? `<button class="xpanel-terminal-action xpanel-terminal-reconnect" type="button" data-terminal-reconnect="${terminal.id}" title="Reconectar ${escapeHtml(terminal.name)}" aria-label="Reconectar ${escapeHtml(terminal.name)}"><i class="ki-filled ki-arrows-circle"></i></button>` : ''}
+                    </div>
                 `).join('');
             };
             const switchTerminalSession = (id) => {
@@ -3108,20 +3130,22 @@
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
             $$('[data-outline-tab]').forEach((button) => button.addEventListener('click', () => switchOutlineTab(button.dataset.outlineTab)));
             $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab)));
-            $('#xpanel_terminal_reconnect')?.addEventListener('click', () => {
-                const terminal = activeTerminal();
-                if (!terminal || terminal.connecting) return;
-                const reconnect = $('#xpanel_terminal_reconnect');
-                if (reconnect) reconnect.disabled = true;
-                connectTerminal(terminal, true).finally(() => {
-                    setTimeout(() => { if (reconnect) reconnect.disabled = false; }, 3000);
-                });
-            });
             $$('[data-right-tab]').forEach((button) => button.addEventListener('click', () => switchRightTab(button.dataset.rightTab)));
             $$('[data-terminal-action]').forEach((button) => button.addEventListener('click', () => terminalAction(button.dataset.terminalAction)));
             $$('[data-clone-action]').forEach((button) => button.addEventListener('click', () => cloneAction(button.dataset.cloneAction)));
             $$('[data-duplicate-close]').forEach((button) => button.addEventListener('click', closeDuplicatePane));
             $('#xpanel_terminal_list')?.addEventListener('click', (event) => {
+                const reconnect = event.target.closest('[data-terminal-reconnect]');
+                if (reconnect) {
+                    const terminal = state.terminals.find((entry) => entry.id === reconnect.dataset.terminalReconnect);
+                    if (!terminal || terminal.connecting) return;
+                    if (terminal.id !== state.activeTerminalId) switchTerminalSession(terminal.id);
+                    reconnect.disabled = true;
+                    connectTerminal(terminal, true).finally(() => {
+                        setTimeout(() => { if (reconnect.isConnected) reconnect.disabled = false; }, 3000);
+                    });
+                    return;
+                }
                 const button = event.target.closest('[data-terminal-id]');
                 if (button) switchTerminalSession(button.dataset.terminalId);
             });

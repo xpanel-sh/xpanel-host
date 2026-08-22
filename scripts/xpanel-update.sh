@@ -122,6 +122,53 @@ configure_account_workspace() {
   set_env_var XPANEL_ACCOUNT_HOME "$account_home"
 }
 
+configure_mail_workspace() {
+  local account_user account_home mail_root migration_marker
+  account_user="$(env_value XPANEL_ACCOUNT_USER)"
+  account_home="$(env_value XPANEL_ACCOUNT_HOME)"
+  mail_root="$account_home/mail"
+  migration_marker="/var/lib/xpanel-host/mail-home-migrated"
+  [[ "$account_home" == /home/* && "$mail_root" == "$account_home/mail" ]] || { echo "Ruta Maildir de la cuenta inválida." >&2; return 1; }
+  id vmail >/dev/null 2>&1 || return 0
+
+  install -d -o vmail -g vmail -m 0750 "$mail_root"
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host
+  if [[ -d /var/mail/vhosts && ! -f "$migration_marker" ]]; then
+    rsync -a /var/mail/vhosts/ "$mail_root/"
+    touch "$migration_marker"
+  fi
+  usermod --home "$mail_root" vmail
+  chown -R vmail:vmail "$mail_root"
+  setfacl -R -m "u:$site_user:rwX" "$mail_root"
+  setfacl -R -m "u:$account_user:rwX" "$mail_root"
+  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:$site_user:rwx" {} +
+  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:$account_user:rwx" {} +
+  set_env_var XPANEL_MAIL_ROOT "$mail_root"
+  if [[ -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then
+    sed -i "s|^mail_location = .*|mail_location = maildir:$mail_root/%d/%n/Maildir|" /etc/dovecot/conf.d/99-xpanel-host.conf
+  fi
+}
+
+sync_public_certificates() {
+  local account_user account_home certificate_root certificate_dir domain
+  account_user="$(env_value XPANEL_ACCOUNT_USER)"
+  account_home="$(env_value XPANEL_ACCOUNT_HOME)"
+  certificate_root="$account_home/ssl/certs"
+  [[ "$account_home" == "/home/$account_user" ]] || return 0
+  install -d -o "$account_user" -g "$site_group" -m 0750 "$account_home/ssl" "$certificate_root"
+
+  for certificate_dir in /etc/letsencrypt/live/*; do
+    [[ -d "$certificate_dir" && ! -L "$certificate_dir" ]] || continue
+    domain="$(basename "$certificate_dir")"
+    [[ "$domain" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$domain" == *.* ]] || continue
+    [[ -f "$certificate_dir/cert.pem" && -f "$certificate_dir/chain.pem" && -f "$certificate_dir/fullchain.pem" ]] || continue
+    install -d -o "$account_user" -g "$site_group" -m 0750 "$certificate_root/$domain"
+    install -o "$account_user" -g "$site_group" -m 0640 "$certificate_dir/cert.pem" "$certificate_root/$domain/cert.pem"
+    install -o "$account_user" -g "$site_group" -m 0640 "$certificate_dir/chain.pem" "$certificate_root/$domain/chain.pem"
+    install -o "$account_user" -g "$site_group" -m 0640 "$certificate_dir/fullchain.pem" "$certificate_root/$domain/fullchain.pem"
+  done
+}
+
 site_user="$(env_value XPANEL_SITE_USER)"
 site_group="$(env_value XPANEL_SITE_GROUP)"
 site_user="${site_user:-www-data}"
@@ -183,6 +230,8 @@ fi
 normalize_node_runtime_links
 
 configure_account_workspace
+configure_mail_workspace
+sync_public_certificates
 
 maintenance_enabled=false
 restore_application() {

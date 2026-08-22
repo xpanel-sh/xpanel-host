@@ -407,6 +407,7 @@ CONF;
 
     public function renderGateway(Site $site): string
     {
+        $logDirectory = $this->accountLogDirectory($site);
         $http = $this->renderGatewayServer($site, false);
         if ($site->ssl_status !== 'active') {
             return $http;
@@ -422,8 +423,8 @@ server {
     listen 80;
     server_name {$serverNames};
     root {$site->webRoot()};
-    access_log /var/log/nginx/{$site->domain}-access.log;
-    error_log /var/log/nginx/{$site->domain}-error.log;
+    access_log {$logDirectory}/access.log;
+    error_log {$logDirectory}/error.log;
 {$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
@@ -454,6 +455,7 @@ CONF;
             : '';
         $serverNames = implode(' ', $domainNames ?? $this->domainNames($site));
         $accessRules = $this->renderAccessRules($site);
+        $logDirectory = $this->accountLogDirectory($site);
 
         if ($site->status !== 'active') {
             return <<<CONF
@@ -461,8 +463,8 @@ server {
     {$listen}{$certificate}
     server_name {$serverNames};
     root {$site->webRoot()};
-    access_log /var/log/nginx/{$site->domain}-access.log;
-    error_log /var/log/nginx/{$site->domain}-error.log;
+    access_log {$logDirectory}/access.log;
+    error_log {$logDirectory}/error.log;
 {$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
@@ -491,8 +493,8 @@ server {
     {$listen}{$certificate}
     server_name {$serverNames};
     root {$site->webRoot()};
-    access_log /var/log/nginx/{$site->domain}-access.log;
-    error_log /var/log/nginx/{$site->domain}-error.log;
+    access_log {$logDirectory}/access.log;
+    error_log {$logDirectory}/error.log;
 {$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
@@ -524,6 +526,7 @@ CONF;
         $hotlink = $this->renderHotlinkLocation($site);
         $protected = $this->renderProtectedLocations($site);
         $accessRules = $this->renderAccessRules($site);
+        $logDirectory = $this->accountLogDirectory($site);
         $handler = match ($site->type) {
             'static' => <<<CONF
     location / {
@@ -566,8 +569,8 @@ server {
     server_name {$serverNames};
     root {$site->webRoot()};
     index index.php index.html;
-    access_log /var/log/nginx/{$site->domain}-access.log;
-    error_log /var/log/nginx/{$site->domain}-error.log;
+    access_log {$logDirectory}/access.log;
+    error_log {$logDirectory}/error.log;
 {$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
@@ -600,6 +603,11 @@ CONF;
                 ->when($onlySecureAliases, fn ($query) => $query->where('ssl_status', 'active'))
                 ->pluck('domain')->all(),
         )));
+    }
+
+    private function accountLogDirectory(Site $site): string
+    {
+        return app(HostingAccountWorkspace::class)->systemRoot().'/logs/'.$site->domain;
     }
 
     private function apacheAliases(Site $site): string

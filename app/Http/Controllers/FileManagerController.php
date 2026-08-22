@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
+use App\Services\OwnershipRepairer;
 use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class FileManagerController extends Controller
 {
     use ResolvesSandboxedPath;
+
+    public function __construct(private readonly OwnershipRepairer $ownership) {}
 
     public function index(Site $site): View
     {
@@ -80,6 +83,7 @@ class FileManagerController extends Controller
         abort_unless(is_writable(file_exists($path) ? $path : dirname($path)), 422, 'El panel no tiene permiso de escritura en esta ruta. Ejecuta la sincronización de sitios.');
 
         abort_if(@file_put_contents($path, $data['content']) === false, 500, 'No se pudo guardar el archivo.');
+        $this->ownership->synchronizePath($site, $path);
 
         return response()->json(['status' => 'saved']);
     }
@@ -105,6 +109,7 @@ class FileManagerController extends Controller
         } else {
             abort_if(@file_put_contents($target, '') === false, 500, 'No se pudo crear el archivo.');
         }
+        $this->ownership->synchronizePath($site, $target);
 
         return response()->json(['status' => 'created']);
     }
@@ -120,6 +125,7 @@ class FileManagerController extends Controller
         abort_unless(is_writable(dirname($target)), 422, 'El panel no tiene permiso de escritura en esta carpeta. Ejecuta la sincronización de sitios.');
 
         abort_unless(@mkdir($target, 0755), 500, 'No se pudo crear la carpeta.');
+        $this->ownership->synchronizePath($site, $target);
 
         return response()->json(['status' => 'created']);
     }
@@ -141,6 +147,7 @@ class FileManagerController extends Controller
         abort_unless(is_writable(dirname($path)) && is_writable(dirname($target)), 422, 'El panel no tiene permiso para mover este elemento. Ejecuta la sincronización de sitios.');
 
         abort_unless(@rename($path, $target), 500, 'No se pudo mover o renombrar el elemento.');
+        $this->ownership->synchronizePath($site, $target);
 
         return response()->json(['status' => 'renamed']);
     }
@@ -175,6 +182,7 @@ class FileManagerController extends Controller
         $name = $file->getClientOriginalName();
         $this->assertSafeName($name);
         $file->move($dir, $name);
+        $this->ownership->synchronizePath($site, $dir.DIRECTORY_SEPARATOR.$name);
 
         return response()->json(['status' => 'uploaded', 'name' => $name]);
     }
@@ -216,7 +224,12 @@ class FileManagerController extends Controller
 
         $path = $this->resolve($site, $data['path'], mustExist: true);
 
-        return response()->json($this->extractArchive($path, $request->boolean('overwrite')));
+        $result = $this->extractArchive($path, $request->boolean('overwrite'));
+        if (($result['status'] ?? null) === 'extracted') {
+            $this->ownership->repair($site);
+        }
+
+        return response()->json($result);
     }
 
     private function resolve(Site $site, string $requestedPath, bool $mustExist = false): string

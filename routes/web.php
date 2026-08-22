@@ -24,7 +24,6 @@ use App\Http\Controllers\IpRuleController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\MailDnsController;
 use App\Http\Controllers\MalwareScanController;
-use App\Http\Controllers\OwnershipController;
 use App\Http\Controllers\PageSpeedController;
 use App\Http\Controllers\PanelAccessController;
 use App\Http\Controllers\PanelNotificationController;
@@ -251,7 +250,6 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/advanced/dns-zone-editor/records', [DnsZoneController::class, 'store'])->name('sites.dns.records.store');
             Route::put('/sites/{site}/advanced/dns-zone-editor/records/{record}', [DnsZoneController::class, 'update'])->where('record', '[a-f0-9]{32}')->name('sites.dns.records.update');
             Route::delete('/sites/{site}/advanced/dns-zone-editor/records/{record}', [DnsZoneController::class, 'destroy'])->where('record', '[a-f0-9]{32}')->name('sites.dns.records.destroy');
-            Route::post('/sites/{site}/advanced/fix-file-ownership', [OwnershipController::class, 'repair'])->name('sites.ownership.repair');
             Route::post('/sites/{site}/advanced/cache-manager/purge', [CacheController::class, 'purge'])->name('sites.cache.purge');
             Route::put('/sites/{site}/advanced/folder-index-manager', [FolderIndexController::class, 'update'])->name('sites.folder-index.update');
             Route::put('/sites/{site}/advanced/hotlink-protection', [HotlinkController::class, 'update'])->name('sites.hotlink.update');

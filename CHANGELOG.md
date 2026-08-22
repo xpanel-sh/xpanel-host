@@ -6,6 +6,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- La reparación manual de propietarios desaparece del panel: el gestor sincroniza automáticamente propietario, permisos y ACL únicamente sobre cada archivo o carpeta que crea, guarda, sube o renombra, y hace una revisión completa sólo después de descomprimir. El Maildir real migra a `mail/<dominio>/<cuenta>`, los registros públicos a `logs/<dominio>`, y los certificados públicos emitidos a `ssl/certs/<dominio>` sin exponer claves privadas.
+- El estado y la reconexión de cada terminal se integran en su propia fila lateral, con truncado legible en paneles estrechos; se elimina la barra duplicada sobre la consola.
 - La instalación y la actualización normalizan Node.js y npm en `/usr/local/bin` aunque Ubuntu los haya instalado en `/usr/bin`; los fallos al preparar o guardar un runtime vuelven al formulario con diagnóstico en lugar de responder con un error 500 genérico.
 - Los formularios para crear y editar sitios ahora tienen desplazamiento propio, una cabecera informativa y secciones de configuración condicionadas por runtime; Node.js ya no muestra controles de PHP y fija Nginx como proxy.
 - El modo de MicroVM administrada pasa de la identidad heredada `core` a `vm`, incluidas las variables `XPANEL_VM_*`, el contexto del servidor, las vistas y las validaciones SSL.

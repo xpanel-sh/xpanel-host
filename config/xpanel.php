@@ -40,6 +40,7 @@ return [
     'site_user' => env('XPANEL_SITE_USER', 'www-data'),
     'site_group' => env('XPANEL_SITE_GROUP', 'www-data'),
     'backup_root' => env('XPANEL_BACKUP_ROOT'),
+    'mail_root' => env('XPANEL_MAIL_ROOT', rtrim(env('XPANEL_ACCOUNT_HOME', '/home/'.env('XPANEL_ACCOUNT_USER', 'xpa'.substr(hash('sha256', (string) env('APP_KEY', 'xpanel-host')), 0, 10))), '/').'/mail'),
     'acme_email' => env('XPANEL_ACME_EMAIL'),
     'mail_hostname' => env('XPANEL_MAIL_HOSTNAME'),
     'webmail_hostname' => env('XPANEL_WEBMAIL_HOSTNAME', env('XPANEL_MAIL_HOSTNAME')),

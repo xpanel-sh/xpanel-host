@@ -132,6 +132,10 @@ class VirtualHostGeneratorTest extends TestCase
         $this->assertStringContainsString('listen 80;', $generator->renderGateway($site));
         $this->assertStringContainsString('fastcgi_pass unix:', $generator->renderGateway($site));
         $this->assertStringNotContainsString('proxy_pass', $generator->renderGateway($site));
+        $this->assertStringContainsString(
+            config('xpanel.account_home').'/logs/engine-test.example.com/access.log',
+            $generator->renderGateway($site),
+        );
     }
 
     public function test_openlitespeed_site_uses_lsapi_and_internal_proxy(): void

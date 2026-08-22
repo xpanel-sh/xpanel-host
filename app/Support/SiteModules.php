@@ -102,7 +102,6 @@ class SiteModules
                     'ip-manager' => ['label' => 'Administrador de IP', 'icon' => 'ki-security-user', 'description' => 'Bloquea o permite el acceso segun direccion IP.'],
                     'hotlink-protection' => ['label' => 'Proteccion Hotlink', 'icon' => 'ki-link', 'description' => 'Evita que otros sitios enlacen directo a tus archivos.'],
                     'folder-index-manager' => ['label' => 'Indice de carpetas', 'icon' => 'ki-folder', 'description' => 'Define el archivo indice por carpeta.'],
-                    'fix-file-ownership' => ['label' => 'Corregir propietarios', 'icon' => 'ki-setting-3', 'description' => 'Corrige el dueno y permisos de los archivos del sitio.'],
                     'activity-log' => ['label' => 'Registro de actividad', 'icon' => 'ki-time', 'description' => 'Historial de cambios realizados en este sitio.'],
                 ],
             ],
@@ -180,7 +179,6 @@ class SiteModules
             request()->routeIs('sites.wordpress.*') => 'wordpress',
             request()->routeIs('sites.installer.*') => 'auto-installer',
             request()->routeIs('sites.migrations.*') => 'migration',
-            request()->routeIs('sites.ownership.*') => 'fix-file-ownership',
             request()->routeIs('sites.cache.*') => 'cache-manager',
             request()->routeIs('sites.folder-index.*') => 'folder-index-manager',
             request()->routeIs('sites.hotlink.*') => 'hotlink-protection',
@@ -208,7 +206,7 @@ class SiteModules
             'advanced.dns-zone-editor',
             'advanced.cache-manager', 'advanced.ip-manager', 'advanced.hotlink-protection',
             'advanced.folder-index-manager', 'advanced.git', 'advanced.password-protect-directories',
-            'advanced.fix-file-ownership', 'advanced.activity-log', 'advanced.ssh-access',
+            'advanced.activity-log', 'advanced.ssh-access',
         ], true);
     }
 }

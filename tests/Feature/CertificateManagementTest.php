@@ -84,4 +84,17 @@ class CertificateManagementTest extends TestCase
         $this->assertStringContainsString('listen 443 ssl;', $gateway);
         $this->assertStringContainsString('/etc/letsencrypt/live/secure.example.com/fullchain.pem', $gateway);
     }
+
+    public function test_helper_exposes_only_public_certificates_in_the_account_home(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('$ACCOUNT_HOME/ssl/certs/$domain', $helper);
+        $this->assertStringContainsString('$account_certificate_dir/fullchain.pem', $helper);
+        $this->assertStringNotContainsString('$account_certificate_dir/privkey.pem', $helper);
+        $updater = file_get_contents(base_path('scripts/xpanel-update.sh'));
+        $this->assertStringContainsString('sync_public_certificates()', $updater);
+        $this->assertStringContainsString('$certificate_root/$domain/fullchain.pem', $updater);
+        $this->assertStringNotContainsString('$certificate_root/$domain/privkey.pem', $updater);
+    }
 }

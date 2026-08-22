@@ -129,7 +129,7 @@ class MailProvisioner
             $domain = $account->domain->domain;
             $this->ensureDkimKey($domain);
             $email = $account->local_part.'@'.$domain;
-            $home = '/var/mail/vhosts/'.$domain.'/'.$account->local_part;
+            $home = rtrim((string) config('xpanel.mail_root'), '/').'/'.$domain.'/'.$account->local_part;
             $domains[$domain] = $domain.' OK';
             $mailboxes[] = $email.' OK';
             $senderLogin[] = $email.' '.$email;

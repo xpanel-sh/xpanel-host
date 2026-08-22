@@ -98,7 +98,6 @@ class AuditMutations
             'sites.redirects.update' => 'Actualizó una redirección.',
             'sites.redirects.destroy' => 'Eliminó una redirección.',
             'sites.error-pages.update' => 'Actualizó una página de error.',
-            'sites.ownership.repair' => 'Reparó propietarios y permisos del sitio.',
             'sites.cache.purge' => 'Purgó las cachés conocidas del sitio.',
             'sites.folder-index.update' => 'Cambió la política de listado de carpetas.',
             'sites.hotlink.update' => 'Actualizó la protección Hotlink.',

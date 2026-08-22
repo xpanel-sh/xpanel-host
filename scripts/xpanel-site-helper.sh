@@ -9,9 +9,13 @@ ENV_FILE="$STATE_ROOT/.env"
 CONFIGURED_SITE_USER="${XPANEL_SITE_USER:-$(grep '^XPANEL_SITE_USER=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 CONFIGURED_SITE_GROUP="${XPANEL_SITE_GROUP:-$(grep '^XPANEL_SITE_GROUP=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 CONFIGURED_ACCOUNT_USER="${XPANEL_ACCOUNT_USER:-$(grep '^XPANEL_ACCOUNT_USER=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+CONFIGURED_ACCOUNT_HOME="${XPANEL_ACCOUNT_HOME:-$(grep '^XPANEL_ACCOUNT_HOME=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 SITE_USER="${CONFIGURED_SITE_USER:-www-data}"
 SITE_GROUP="${CONFIGURED_SITE_GROUP:-www-data}"
 ACCOUNT_USER="${CONFIGURED_ACCOUNT_USER:-}"
+ACCOUNT_HOME="${CONFIGURED_ACCOUNT_HOME:-${ACCOUNT_USER:+/home/$ACCOUNT_USER}}"
+MAIL_ROOT="${XPANEL_MAIL_ROOT:-$(grep '^XPANEL_MAIL_ROOT=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+MAIL_ROOT="${MAIL_ROOT:-${ACCOUNT_HOME:+$ACCOUNT_HOME/mail}}"
 BACKUP_ROOT="${XPANEL_BACKUP_ROOT:-$STATE_ROOT/backups}"
 CUSTOM_FPM_POOL_DIR="${XPANEL_FPM_POOL_DIR:-}"
 CUSTOM_FPM_CONFIG="${XPANEL_FPM_CONFIG:-}"
@@ -390,6 +394,21 @@ site_action() {
   [[ -f "$vhost_source" ]] || fail "Staged virtual host not found."
   [[ -f "$gateway_source" ]] || fail "Staged gateway route not found."
   ensure_site_identity "$site_user" "$document_root"
+  if [[ -n "$ACCOUNT_USER" && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER"; then
+    local account_log_dir="$ACCOUNT_HOME/logs/$domain"
+    install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0750 "$ACCOUNT_HOME/logs" "$account_log_dir"
+    for log_name in access error; do
+      if [[ ! -f "$account_log_dir/$log_name.log" ]]; then
+        if [[ -f "/var/log/nginx/$domain-$log_name.log" && ! -L "/var/log/nginx/$domain-$log_name.log" ]]; then
+          install -o "$SITE_USER" -g "$SITE_GROUP" -m 0640 "/var/log/nginx/$domain-$log_name.log" "$account_log_dir/$log_name.log"
+        else
+          install -o "$SITE_USER" -g "$SITE_GROUP" -m 0640 /dev/null "$account_log_dir/$log_name.log"
+        fi
+      fi
+    done
+    setfacl -m "u:$ACCOUNT_USER:rx" "$ACCOUNT_HOME/logs" "$account_log_dir"
+    setfacl -m "u:$ACCOUNT_USER:r" "$account_log_dir/access.log" "$account_log_dir/error.log"
+  fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$web_root"
   if [[ "$type" == "php" ]]; then
     if [[ "$engine" != "openlitespeed" ]]; then
@@ -551,6 +570,31 @@ ownership_fix() {
   grant_panel_file_access "$document_root"
   printf 'files=%s\n' "$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type f -printf . | wc -c)"
   printf 'directories=%s\n' "$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type d -printf . | wc -c)"
+}
+
+ownership_sync_path() {
+  local domain="$2" document_root="$3" site_user="$4" target="$5"
+  valid_domain "$domain" || fail "Invalid ownership domain."
+  valid_document_root "$document_root" || fail "Invalid ownership document root."
+  valid_site_identity "$site_user" || fail "Invalid ownership site user."
+  [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
+  [[ "$target" == "$document_root" || "$target" == "$document_root/"* ]] || fail "Ownership target is outside the site."
+  [[ -e "$target" && ! -L "$target" ]] || fail "Ownership target does not exist or is a symlink."
+
+  chown --no-dereference "$site_user:$site_user" "$target"
+  if [[ -d "$target" ]]; then
+    chmod u+rwx,go-w,go+rx "$target"
+    setfacl -m "u:$SITE_USER:rwx" "d:u:$SITE_USER:rwx" "$target"
+    if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
+      setfacl -m "u:$ACCOUNT_USER:rwx" "d:u:$ACCOUNT_USER:rwx" "$target"
+    fi
+  else
+    chmod u+rw,go-w "$target"
+    setfacl -m "u:$SITE_USER:rw" "$target"
+    if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
+      setfacl -m "u:$ACCOUNT_USER:rw" "$target"
+    fi
+  fi
 }
 
 malware_scan() {
@@ -857,7 +901,10 @@ access_log_read() {
   local domain="$2" engine="$3" log
   valid_domain "$domain" || fail "Invalid log domain."
   case "$engine" in
-    nginx|apache|openlitespeed) log="/var/log/nginx/$domain-access.log" ;;
+    nginx|apache|openlitespeed)
+      log="$ACCOUNT_HOME/logs/$domain/access.log"
+      [[ -f "$log" ]] || log="/var/log/nginx/$domain-access.log"
+      ;;
     *) fail "Invalid log engine." ;;
   esac
   [[ -f "$log" && ! -L "$log" ]] || exit 0
@@ -897,7 +944,8 @@ resource_snapshot() {
     [[ "$write_value" =~ ^[0-9]+$ ]] && io_write_total=$((io_write_total + write_value))
   done < <({ ps -u "$site_user" -o pid= --no-headers 2>/dev/null || true; } | awk '{print $1}')
 
-  local log="/var/log/nginx/$domain-access.log" request_count=0 transfer_bytes=0
+  local log="$ACCOUNT_HOME/logs/$domain/access.log" request_count=0 transfer_bytes=0
+  [[ -f "$log" ]] || log="/var/log/nginx/$domain-access.log"
   [[ -f "$log" && ! -L "$log" ]] || log="/var/log/xpanel-host/$domain-ols-access.log"
   local metrics_root="/var/lib/xpanel-host/metrics"
   local state="$metrics_root/$domain-access.state"
@@ -1118,6 +1166,9 @@ ssl_action() {
       systemctl reload dovecot postfix
     fi
     certbot delete --non-interactive --cert-name "$domain" || true
+    if [[ -n "$ACCOUNT_USER" && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]]; then
+      rm -rf -- "$ACCOUNT_HOME/ssl/certs/$domain"
+    fi
     exit 0
   fi
 
@@ -1153,6 +1204,13 @@ ssl_action() {
 
   local certificate="/etc/letsencrypt/live/$domain/fullchain.pem"
   [[ -f "$certificate" ]] || fail "Certbot did not create the expected certificate."
+  if [[ -n "$ACCOUNT_USER" && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER"; then
+    local account_certificate_dir="$ACCOUNT_HOME/ssl/certs/$domain"
+    install -d -o "$ACCOUNT_USER" -g "$SITE_GROUP" -m 0750 "$ACCOUNT_HOME/ssl" "$ACCOUNT_HOME/ssl/certs" "$account_certificate_dir"
+    install -o "$ACCOUNT_USER" -g "$SITE_GROUP" -m 0640 "/etc/letsencrypt/live/$domain/cert.pem" "$account_certificate_dir/cert.pem"
+    install -o "$ACCOUNT_USER" -g "$SITE_GROUP" -m 0640 "/etc/letsencrypt/live/$domain/chain.pem" "$account_certificate_dir/chain.pem"
+    install -o "$ACCOUNT_USER" -g "$SITE_GROUP" -m 0640 "$certificate" "$account_certificate_dir/fullchain.pem"
+  fi
   local configured_mail_hostname=""
   configured_mail_hostname="$(grep '^XPANEL_MAIL_HOSTNAME=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
   if [[ "$domain" == "$configured_mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then
@@ -1613,7 +1671,7 @@ mail_sync() {
   while IFS=: read -r email _ _ _ _ home _; do
     [[ -z "$email" ]] && continue
     [[ "$email" =~ ^[A-Za-z0-9._-]+@[a-z0-9.-]+$ ]] || fail "Invalid staged mailbox."
-    [[ "$home" =~ ^/var/mail/vhosts/[a-z0-9.-]+/[A-Za-z0-9._-]+$ ]] || fail "Invalid mailbox path."
+    [[ -n "$ACCOUNT_HOME" && "$MAIL_ROOT" == "$ACCOUNT_HOME/mail" && "$home" == "$MAIL_ROOT/"* ]] || fail "Invalid mailbox path."
     install -d -o vmail -g vmail -m 0700 "$home/Maildir"
   done < /etc/xpanel-host/mail/users
 
@@ -1708,16 +1766,16 @@ mail_remove() {
   local domain="$2" local_part="$3"
   valid_domain "$domain" || fail "Invalid mail domain."
   [[ "$local_part" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || fail "Invalid mailbox local part."
-  local mailbox="/var/mail/vhosts/$domain/$local_part"
-  [[ "$mailbox" == /var/mail/vhosts/* ]] || fail "Invalid mailbox deletion target."
+  local mailbox="$MAIL_ROOT/$domain/$local_part"
+  [[ -n "$ACCOUNT_HOME" && "$MAIL_ROOT" == "$ACCOUNT_HOME/mail" && "$mailbox" == "$MAIL_ROOT/"* ]] || fail "Invalid mailbox deletion target."
   rm -rf -- "$mailbox"
 }
 
 mail_remove_domain() {
   local domain="$2"
   valid_domain "$domain" || fail "Invalid mail domain."
-  local mailbox_domain="/var/mail/vhosts/$domain"
-  [[ "$mailbox_domain" == /var/mail/vhosts/* ]] || fail "Invalid mail domain deletion target."
+  local mailbox_domain="$MAIL_ROOT/$domain"
+  [[ -n "$ACCOUNT_HOME" && "$MAIL_ROOT" == "$ACCOUNT_HOME/mail" && "$mailbox_domain" == "$MAIL_ROOT/"* ]] || fail "Invalid mail domain deletion target."
   rm -rf -- "$mailbox_domain"
   local dkim_domain="/etc/xpanel-host/dkim/$domain"
   [[ "$dkim_domain" == /etc/xpanel-host/dkim/* ]] || fail "Invalid DKIM domain path."
@@ -1837,6 +1895,7 @@ case "$ACTION" in
   cron-sync) cron_sync "$@" ;;
   error-pages-sync) error_pages_sync "$@" ;;
   ownership-fix) ownership_fix "$@" ;;
+  ownership-sync-path) ownership_sync_path "$@" ;;
   malware-scan) MALWARE_FINDINGS=(); malware_scan "$@" ;;
   malware-quarantine) malware_quarantine "$@" ;;
   wordpress-install) wordpress_install "$@" ;;

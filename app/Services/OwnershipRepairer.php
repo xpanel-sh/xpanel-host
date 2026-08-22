@@ -33,6 +33,46 @@ class OwnershipRepairer
         return compact('files', 'directories');
     }
 
+    public function synchronizePath(Site $site, string $path): void
+    {
+        if (! config('xpanel.apply_system_changes')) {
+            return;
+        }
+
+        $root = str_replace('\\', '/', realpath($site->document_root) ?: $site->document_root);
+        $target = str_replace('\\', '/', realpath($path) ?: $path);
+        if ($target !== $root && ! str_starts_with($target, $root.'/')) {
+            throw new \RuntimeException('La ruta modificada no pertenece al sitio.');
+        }
+
+        $this->commands->run([
+            'sudo', '-n', (string) config('xpanel.site_helper'), 'ownership-sync-path',
+            $site->domain, $site->document_root, $site->systemUser(), $target,
+        ]);
+    }
+
+    public function synchronizeManagedPath(string $path, bool $recursive = false): void
+    {
+        if (! config('xpanel.apply_system_changes')) {
+            return;
+        }
+
+        $target = str_replace('\\', '/', realpath($path) ?: $path);
+        $site = Site::query()->get()
+            ->sortByDesc(fn (Site $candidate): int => strlen($candidate->document_root))
+            ->first(function (Site $candidate) use ($target): bool {
+                $root = str_replace('\\', '/', realpath($candidate->document_root) ?: $candidate->document_root);
+
+                return $target === $root || str_starts_with($target, $root.'/');
+            });
+
+        if ($site === null) {
+            return;
+        }
+
+        $recursive ? $this->repair($site) : $this->synchronizePath($site, $target);
+    }
+
     private function value(string $output, string $key): int
     {
         if (! preg_match('/^'.preg_quote($key, '/').'=(\d+)$/m', $output, $matches)) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\HostingAccountWorkspace;
+use App\Services\OwnershipRepairer;
 use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,10 @@ class GlobalFileManagerController extends Controller
 {
     use ResolvesSandboxedPath;
 
-    public function __construct(private readonly HostingAccountWorkspace $workspace) {}
+    public function __construct(
+        private readonly HostingAccountWorkspace $workspace,
+        private readonly OwnershipRepairer $ownership,
+    ) {}
 
     public function ikode(): View
     {
@@ -83,6 +87,7 @@ class GlobalFileManagerController extends Controller
         abort_unless(is_dir(dirname($path)), 404, 'La carpeta destino no existe.');
 
         file_put_contents($path, $data['content']);
+        $this->ownership->synchronizeManagedPath($path);
 
         return response()->json(['status' => 'saved']);
     }
@@ -107,6 +112,7 @@ class GlobalFileManagerController extends Controller
         } else {
             file_put_contents($target, '');
         }
+        $this->ownership->synchronizeManagedPath($target);
 
         return response()->json(['status' => 'created']);
     }
@@ -121,6 +127,7 @@ class GlobalFileManagerController extends Controller
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
 
         mkdir($target, 0755);
+        $this->ownership->synchronizeManagedPath($target);
 
         return response()->json(['status' => 'created']);
     }
@@ -143,6 +150,7 @@ class GlobalFileManagerController extends Controller
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
 
         rename($path, $target);
+        $this->ownership->synchronizeManagedPath($target);
 
         return response()->json(['status' => 'renamed']);
     }
@@ -177,6 +185,7 @@ class GlobalFileManagerController extends Controller
         $name = $file->getClientOriginalName();
         $this->assertSafeName($name);
         $file->move($dir, $name);
+        $this->ownership->synchronizeManagedPath($dir.DIRECTORY_SEPARATOR.$name);
 
         return response()->json(['status' => 'uploaded', 'name' => $name]);
     }
@@ -219,7 +228,12 @@ class GlobalFileManagerController extends Controller
 
         $path = $this->resolveWithinRoot($this->workspace->localRoot(), $data['path'], mustExist: true);
 
-        return response()->json($this->extractArchive($path, $request->boolean('overwrite')));
+        $result = $this->extractArchive($path, $request->boolean('overwrite'));
+        if (($result['status'] ?? null) === 'extracted') {
+            $this->ownership->synchronizeManagedPath(dirname($path), recursive: true);
+        }
+
+        return response()->json($result);
     }
 
     private function isProtectedRoot(string $root, string $path): bool
