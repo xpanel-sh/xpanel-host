@@ -55,9 +55,15 @@ class MailProvisionerTest extends TestCase
         $updater = file_get_contents(base_path('scripts/xpanel-update.sh'));
 
         $this->assertStringContainsString('mail_location = maildir:$mail_root/%d/%n/Maildir', $installer);
+        $this->assertStringContainsString('find -P "$mail_root" -xdev -type d -exec chmod 2770 {} +', $installer);
         $this->assertStringContainsString('configure_mail_workspace', $updater);
         $this->assertStringContainsString('XPANEL_MAIL_ROOT', $updater);
         $this->assertStringContainsString('mail-home-migrated', $updater);
+        $this->assertStringContainsString("sed -i '/^umask = /d'", $updater);
+
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+        $this->assertStringContainsString('install -d -o vmail -g vmail -m 2770 "$home/Maildir"', $helper);
+        $this->assertStringContainsString('d:u:$SITE_USER:rwx', $helper);
     }
 
     public function test_mail_sync_command_rebuilds_maps_and_updates_account_statuses(): void

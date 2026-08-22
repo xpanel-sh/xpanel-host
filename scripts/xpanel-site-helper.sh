@@ -1672,8 +1672,24 @@ mail_sync() {
     [[ -z "$email" ]] && continue
     [[ "$email" =~ ^[A-Za-z0-9._-]+@[a-z0-9.-]+$ ]] || fail "Invalid staged mailbox."
     [[ -n "$ACCOUNT_HOME" && "$MAIL_ROOT" == "$ACCOUNT_HOME/mail" && "$home" == "$MAIL_ROOT/"* ]] || fail "Invalid mailbox path."
-    install -d -o vmail -g vmail -m 0700 "$home/Maildir"
+    # Dovecot owns the mailbox, while the account owner and the panel must be
+    # able to traverse it from the account-level file manager. `install -m
+    # 0700` used to mask the inherited ACL and made Maildir return HTTP 500.
+    install -d -o vmail -g vmail -m 2770 "$home/Maildir"
   done < /etc/xpanel-host/mail/users
+
+  # Repair existing cur/new/tmp trees and install inheritable ACLs for folders
+  # Dovecot creates later. Keep vmail as owner; this grants access only to the
+  # hosting account and its panel service user.
+  chown -R vmail:vmail "$MAIL_ROOT"
+  find -P "$MAIL_ROOT" -xdev -type d -exec chmod 2770 {} +
+  find -P "$MAIL_ROOT" -xdev -type f -exec chmod 0660 {} +
+  setfacl -R -m "u:$SITE_USER:rwX" "$MAIL_ROOT"
+  find -P "$MAIL_ROOT" -xdev -type d -exec setfacl -m "m::rwx,d:u:$SITE_USER:rwx,d:m::rwx" {} +
+  if [[ -n "$ACCOUNT_USER" ]]; then
+    setfacl -R -m "u:$ACCOUNT_USER:rwX" "$MAIL_ROOT"
+    find -P "$MAIL_ROOT" -xdev -type d -exec setfacl -m "d:u:$ACCOUNT_USER:rwx" {} +
+  fi
 
   doveconf -n >/dev/null
   postfix check

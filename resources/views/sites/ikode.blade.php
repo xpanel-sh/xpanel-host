@@ -386,7 +386,7 @@
             position: relative;
             width: 100%;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, .72fr) 24px;
+            grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
             align-items: center;
             gap: 6px;
             min-height: 30px;
@@ -430,6 +430,15 @@
         .xpanel-terminal-badge {
             color: var(--muted-foreground);
             font-size: 10px;
+            flex: 1 1 auto;
+            text-align: right;
+        }
+        .xpanel-terminal-meta {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
         }
         .xpanel-terminal-reconnect {
             border-color: transparent;
@@ -3004,8 +3013,10 @@
                             <i class="ki-filled ki-screen"></i>
                             <span class="xpanel-terminal-name">${escapeHtml(terminal.name)}</span>
                         </button>
-                        <span class="xpanel-terminal-badge" title="${escapeHtml(terminal.status || 'Desconectado')}">${escapeHtml(terminal.status || 'Desconectado')}</span>
-                        ${config.webTerminalEnabled ? `<button class="xpanel-terminal-action xpanel-terminal-reconnect" type="button" data-terminal-reconnect="${terminal.id}" title="Reconectar ${escapeHtml(terminal.name)}" aria-label="Reconectar ${escapeHtml(terminal.name)}"><i class="ki-filled ki-arrows-circle"></i></button>` : ''}
+                        <div class="xpanel-terminal-meta">
+                            <span class="xpanel-terminal-badge" title="${escapeHtml(terminal.status || 'Desconectado')}">${escapeHtml(terminal.status || 'Desconectado')}</span>
+                            ${config.webTerminalEnabled ? `<button class="xpanel-terminal-action xpanel-terminal-reconnect" type="button" data-terminal-reconnect="${terminal.id}" title="Reconectar ${escapeHtml(terminal.name)}" aria-label="Reconectar ${escapeHtml(terminal.name)}"><i class="ki-filled ki-arrows-circle"></i></button>` : ''}
+                        </div>
                     </div>
                 `).join('');
             };

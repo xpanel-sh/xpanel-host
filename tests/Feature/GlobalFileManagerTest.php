@@ -110,6 +110,7 @@ class GlobalFileManagerTest extends TestCase
             ->assertSee('id="xpanel_terminal_mounts"', false)
             ->assertSee('data-terminal-reconnect=', false)
             ->assertSee('xpanel-terminal-badge', false)
+            ->assertSee('xpanel-terminal-meta', false)
             ->assertDontSee('xpanel-terminal-toolbar', false)
             ->assertDontSee('id="xpanel_terminal_status"', false)
             ->assertDontSee('Terminal real')
@@ -201,7 +202,7 @@ class GlobalFileManagerTest extends TestCase
         $developer = $this->userWithRole('developer');
 
         $this->actingAs($developer)
-                ->getJson(route('sites.ikode.api.list', ['path' => "/public_html/{$site->domain}/../../../"]))
+            ->getJson(route('sites.ikode.api.list', ['path' => "/public_html/{$site->domain}/../../../"]))
             ->assertForbidden();
     }
 

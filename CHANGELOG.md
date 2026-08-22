@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Los buzones Maildir conservan a `vmail` como propietario pero usan setgid y ACL heredables para el usuario de la cuenta y el panel; la actualización repara árboles existentes y el explorador devuelve un diagnóstico útil si una carpeta no puede leerse. En la terminal, estado y reconexión forman ahora un bloque compacto alineado al extremo derecho.
 - La reparación manual de propietarios desaparece del panel: el gestor sincroniza automáticamente propietario, permisos y ACL únicamente sobre cada archivo o carpeta que crea, guarda, sube o renombra, y hace una revisión completa sólo después de descomprimir. El Maildir real migra a `mail/<dominio>/<cuenta>`, los registros públicos a `logs/<dominio>`, y los certificados públicos emitidos a `ssl/certs/<dominio>` sin exponer claves privadas.
 - El estado y la reconexión de cada terminal se integran en su propia fila lateral, con truncado legible en paneles estrechos; se elimina la barra duplicada sobre la consola.
 - La instalación y la actualización normalizan Node.js y npm en `/usr/local/bin` aunque Ubuntu los haya instalado en `/usr/bin`; los fallos al preparar o guardar un runtime vuelven al formulario con diagnóstico en lugar de responder con un error 500 genérico.

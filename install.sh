@@ -520,17 +520,18 @@ configure_mail_server() {
   mail_uid="$(id -u vmail)"
   mail_gid="$(id -g vmail)"
   usermod --home "$mail_root" vmail
-  install -d -o vmail -g vmail -m 0750 "$mail_root"
+  install -d -o vmail -g vmail -m 2770 "$mail_root"
   if [[ -d /var/mail/vhosts && ! -f /var/lib/xpanel-host/mail-home-migrated ]]; then
     rsync -a /var/mail/vhosts/ "$mail_root/"
     install -d -o root -g root -m 0755 /var/lib/xpanel-host
     touch /var/lib/xpanel-host/mail-home-migrated
   fi
   chown -R vmail:vmail "$mail_root"
+  find -P "$mail_root" -xdev -type d -exec chmod 2770 {} +
+  find -P "$mail_root" -xdev -type f -exec chmod 0660 {} +
   setfacl -R -m "u:${XPANEL_SITE_USER:-www-data}:rwX" "$mail_root"
   setfacl -R -m "u:${XPANEL_ACCOUNT_USER}:rwX" "$mail_root"
-  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:${XPANEL_SITE_USER:-www-data}:rwx" {} +
-  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:${XPANEL_ACCOUNT_USER}:rwx" {} +
+  find -P "$mail_root" -xdev -type d -exec setfacl -m "m::rwx,d:u:${XPANEL_SITE_USER:-www-data}:rwx,d:u:${XPANEL_ACCOUNT_USER}:rwx,d:m::rwx" {} +
   set_env_var XPANEL_MAIL_ROOT "$mail_root"
   install -d -o root -g dovecot -m 0750 /etc/xpanel-host/mail
   touch /etc/xpanel-host/mail/users

@@ -131,7 +131,7 @@ configure_mail_workspace() {
   [[ "$account_home" == /home/* && "$mail_root" == "$account_home/mail" ]] || { echo "Ruta Maildir de la cuenta inválida." >&2; return 1; }
   id vmail >/dev/null 2>&1 || return 0
 
-  install -d -o vmail -g vmail -m 0750 "$mail_root"
+  install -d -o vmail -g vmail -m 2770 "$mail_root"
   install -d -o root -g root -m 0755 /var/lib/xpanel-host
   if [[ -d /var/mail/vhosts && ! -f "$migration_marker" ]]; then
     rsync -a /var/mail/vhosts/ "$mail_root/"
@@ -139,13 +139,16 @@ configure_mail_workspace() {
   fi
   usermod --home "$mail_root" vmail
   chown -R vmail:vmail "$mail_root"
+  find -P "$mail_root" -xdev -type d -exec chmod 2770 {} +
+  find -P "$mail_root" -xdev -type f -exec chmod 0660 {} +
   setfacl -R -m "u:$site_user:rwX" "$mail_root"
   setfacl -R -m "u:$account_user:rwX" "$mail_root"
-  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:$site_user:rwx" {} +
-  find -P "$mail_root" -xdev -type d -exec setfacl -m "d:u:$account_user:rwx" {} +
+  find -P "$mail_root" -xdev -type d -exec setfacl -m "m::rwx,d:u:$site_user:rwx,d:u:$account_user:rwx,d:m::rwx" {} +
   set_env_var XPANEL_MAIL_ROOT "$mail_root"
   if [[ -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then
     sed -i "s|^mail_location = .*|mail_location = maildir:$mail_root/%d/%n/Maildir|" /etc/dovecot/conf.d/99-xpanel-host.conf
+    # Remove the obsolete global option if a development build installed it.
+    sed -i '/^umask = /d' /etc/dovecot/conf.d/99-xpanel-host.conf
   fi
 }
 

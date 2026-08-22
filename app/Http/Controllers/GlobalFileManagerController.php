@@ -41,20 +41,25 @@ class GlobalFileManagerController extends Controller
         $dir = $this->resolveWithinRoot($this->workspace->localRoot(), $path, mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta no es una carpeta.');
 
+        $names = @scandir($dir);
+        abort_if($names === false, 403, 'XPanel no puede leer esta carpeta. Actualiza el servidor para sincronizar sus permisos.');
+
         $entries = [];
-        foreach (scandir($dir) ?: [] as $name) {
+        foreach ($names as $name) {
             if ($name === '.' || $name === '..') {
                 continue;
             }
             $full = $dir.DIRECTORY_SEPARATOR.$name;
             $isDir = is_dir($full);
+            $size = $isDir ? null : @filesize($full);
+            $modified = @filemtime($full);
             $entries[] = [
                 'name' => $name,
                 'path' => rtrim($path, '/').'/'.$name,
                 'is_dir' => $isDir,
                 'editable' => ! $isDir && $this->isEditableTextFile($full),
-                'size' => $isDir ? null : filesize($full),
-                'modified' => date('Y-m-d H:i', filemtime($full)),
+                'size' => is_int($size) ? $size : null,
+                'modified' => is_int($modified) ? date('Y-m-d H:i', $modified) : null,
             ];
         }
 
@@ -245,5 +250,4 @@ class GlobalFileManagerController extends Controller
             fn (string $directory): bool => ! str_contains($directory, '/')
         ), true);
     }
-
 }
