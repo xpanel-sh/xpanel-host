@@ -97,4 +97,52 @@ class CertificateManagementTest extends TestCase
         $this->assertStringContainsString('$certificate_root/$domain/fullchain.pem', $updater);
         $this->assertStringNotContainsString('$certificate_root/$domain/privkey.pem', $updater);
     }
+
+    public function test_primary_ssl_page_centralizes_its_subdomains(): void
+    {
+        $site = $this->site();
+        $subdomain = Site::create([
+            'parent_site_id' => $site->id,
+            'domain' => 'rental.secure.example.com',
+            'document_root' => '/var/www/rental.secure.example.com',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->owner())
+            ->get(route('sites.module', [$site, 'security', 'ssl']))
+            ->assertOk()
+            ->assertSee('secure.example.com')
+            ->assertSee('rental.secure.example.com');
+
+        $this->actingAs($this->owner())
+            ->get(route('sites.module', [$subdomain, 'security', 'ssl']))
+            ->assertRedirect(route('sites.module', [$site, 'security', 'ssl']));
+    }
+
+    public function test_bulk_ssl_activation_processes_primary_site_and_subdomains(): void
+    {
+        config()->set('xpanel.management_mode', 'standalone');
+        config()->set('xpanel.apply_system_changes', false);
+        $site = $this->site();
+        $subdomain = Site::create([
+            'parent_site_id' => $site->id,
+            'domain' => 'rental.secure.example.com',
+            'document_root' => '/var/www/rental.secure.example.com',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->owner())->post(route('sites.ssl.issue-all', $site), [
+            'email' => 'admin@example.com',
+            'https_redirect' => '1',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('staged', $site->fresh()->ssl_status);
+        $this->assertSame('staged', $subdomain->fresh()->ssl_status);
+    }
 }

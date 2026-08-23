@@ -251,7 +251,7 @@ Desde **Sitio → Dominios → Subdominios** escribe sólo la etiqueta (`blog`, 
 
 Su proyecto queda agrupado bajo `public_html/<dominio-principal>/subdomains/<etiqueta>`. WordPress, Git, migraciones, restauraciones, backups y reparaciones de permisos del dominio principal tratan `subdomains/` como una frontera: cada hijo conserva sus archivos y su identidad Unix. La sincronización reconoce tanto dominios como subdominios heredados en `/var/www` o `/srv/www` y los migra cuando se aplican cambios reales del sistema.
 
-Para publicarlo debes crear fuera de Host un registro DNS `A`/`AAAA` hacia la IP del servidor, o un wildcard como `*.example.com`. Cuando resuelva, entra en la ficha del subdominio y emite su certificado en **Seguridad → SSL**. Crear el subdominio en Host no registra automáticamente DNS en Cloudflare ni en otro proveedor; esa integración requerirá credenciales/API del proveedor en una fase posterior.
+Para publicarlo debes crear fuera de Host un registro DNS `A`/`AAAA` hacia la IP del servidor, o un wildcard como `*.example.com`. Cuando resuelva, abre **Seguridad → SSL** en el dominio principal: esa única pantalla lista el principal y todos sus subdominios, permite activar cada certificado por separado o procesar todos los pendientes. Cada certificado sigue siendo independiente internamente. Crear el subdominio en Host no registra automáticamente DNS en Cloudflare ni en otro proveedor; esa integración requerirá credenciales/API del proveedor en una fase posterior.
 
 Nginx es la única opción inicial. Para agregar otro motor abre **Ajustes → Motores web**:
 

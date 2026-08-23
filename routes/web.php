@@ -268,6 +268,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/files/backups/{siteBackup}/restore', [BackupController::class, 'restore'])->name('sites.backups.restore');
             Route::delete('/sites/{site}/files/backups/{siteBackup}', [BackupController::class, 'destroy'])->name('sites.backups.destroy');
             Route::post('/sites/{site}/security/ssl', [CertificateController::class, 'issue'])->name('sites.ssl.issue');
+            Route::post('/sites/{site}/security/ssl/all', [CertificateController::class, 'issueAll'])->name('sites.ssl.issue-all');
             Route::post('/sites/{site}/security/malware-scanner', [MalwareScanController::class, 'store'])->middleware('throttle:3,1')->name('sites.malware.store');
             Route::post('/sites/{site}/security/malware-scanner/{malwareScan}/findings/{finding}/quarantine', [MalwareScanController::class, 'quarantine'])->whereNumber('finding')->name('sites.malware.quarantine');
             Route::delete('/sites/{site}/security/ssl', [CertificateController::class, 'destroy'])->name('sites.ssl.destroy');

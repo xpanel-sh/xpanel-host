@@ -35,10 +35,15 @@ class SiteController extends Controller
         ]);
     }
 
-    public function module(Site $site, string $section, string $module, ServerContext $serverContext, SiteResourceUsageService $resourceUsage, ServerResourceUsageService $serverResourceUsage): View
+    public function module(Site $site, string $section, string $module, ServerContext $serverContext, SiteResourceUsageService $resourceUsage, ServerResourceUsageService $serverResourceUsage): View|RedirectResponse
     {
         $definition = SiteModules::find($section, $module);
         abort_if($definition === null, 404);
+
+        if ($section === 'security' && $module === 'ssl' && $site->parent_site_id !== null) {
+            return redirect()->route('sites.module', [$site->parent, 'security', 'ssl'])
+                ->with('status', "SSL de {$site->domain} se administra desde su dominio principal.");
+        }
 
         $dedicated = "sites.{$section}.{$module}";
         if (view()->exists($dedicated)) {
@@ -48,6 +53,9 @@ class SiteController extends Controller
             }
             if ($section === 'server' && $module === 'summary') {
                 $data['serverUsage'] = $serverResourceUsage->overview((string) request('period', '24h'), request()->boolean('refresh'));
+            }
+            if ($section === 'security' && $module === 'ssl') {
+                $data['sslSites'] = collect([$site])->concat($site->subdomains()->get());
             }
 
             return view($dedicated, $data);
