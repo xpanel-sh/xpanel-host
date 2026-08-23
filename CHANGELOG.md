@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- El gestor de archivos del dominio principal presenta ahora su familia como carpetas hermanas con nombres completos —principal y subdominios—, excluye dominios no asociados y oculta la carpeta física `subdomains` para conservar las fronteras de identidad Unix. La vista SSL usa tarjetas compactas y separa correctamente la etiqueta del correo ACME.
 - Seguridad → SSL del dominio principal centraliza ahora el estado y las acciones de todos sus subdominios, permite activar pendientes o reemitirlos en conjunto y redirige allí cualquier acceso desde la ficha de un subdominio.
 - Los buzones Maildir conservan a `vmail` como propietario pero usan setgid y ACL heredables para el usuario de la cuenta y el panel; la actualización repara árboles existentes y el explorador devuelve un diagnóstico útil si una carpeta no puede leerse. En la terminal, estado y reconexión forman ahora un bloque compacto alineado al extremo derecho.
 - La reparación manual de propietarios desaparece del panel: el gestor sincroniza automáticamente propietario, permisos y ACL únicamente sobre cada archivo o carpeta que crea, guarda, sube o renombra, y hace una revisión completa sólo después de descomprimir. El Maildir real migra a `mail/<dominio>/<cuenta>`, los registros públicos a `logs/<dominio>`, y los certificados públicos emitidos a `ssl/certs/<dominio>` sin exponer claves privadas.

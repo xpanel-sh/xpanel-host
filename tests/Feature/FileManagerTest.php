@@ -87,11 +87,11 @@ class FileManagerTest extends TestCase
         file_put_contents($site->localRoot().'/.env.local', "APP_ENV=local\n");
 
         $this->actingAs($this->userWithRole('developer'))
-            ->getJson(route('sites.files.api.list', [$site, 'path' => '/']))
+            ->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
             ->assertOk()
             ->assertJsonFragment([
                 'name' => '.env.local',
-                'path' => '/.env.local',
+                'path' => '/'.$site->domain.'/.env.local',
                 'is_dir' => false,
                 'editable' => true,
             ]);
@@ -151,7 +151,7 @@ class FileManagerTest extends TestCase
             'path' => '/assets',
         ])->assertOk();
 
-        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/']))
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
             ->assertJsonFragment(['name' => 'assets', 'is_dir' => true]);
     }
 
@@ -164,28 +164,45 @@ class FileManagerTest extends TestCase
             'path' => '/', 'name' => 'index.php', 'type' => 'file',
         ])->assertOk();
 
-        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/']))
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
             ->assertOk()
-            ->assertJsonFragment(['name' => 'index.php', 'path' => '/index.php', 'is_dir' => false]);
+            ->assertJsonFragment(['name' => 'index.php', 'path' => '/'.$site->domain.'/index.php', 'is_dir' => false]);
     }
 
-    public function test_a_site_with_subdomains_still_only_lists_its_own_files_at_root(): void
+    public function test_primary_site_file_manager_lists_its_domain_family_as_virtual_folders(): void
     {
         $parent = $this->site();
         $child = $this->subdomain($parent, 'blog.'.$parent->domain);
+        $unrelated = $this->site();
         file_put_contents($parent->localRoot().'/index.php', 'parent');
         file_put_contents($child->localRoot().'/child.txt', 'subdomain content');
+        if (! is_dir($parent->localRoot().'/subdomains')) {
+            mkdir($parent->localRoot().'/subdomains');
+        }
+        file_put_contents($parent->localRoot().'/subdomains/hidden.txt', 'physical child boundary');
         $developer = $this->userWithRole('developer');
 
-        // Every site/subdomain is its own fully independent Unix identity and
-        // its own fully independent file manager scope — no merging, no
-        // virtual root picker, regardless of parent/subdomain relationships.
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/']))
             ->assertOk()
-            ->assertJsonFragment(['name' => 'index.php', 'path' => '/index.php', 'is_dir' => false])
-            ->assertJsonMissing(['name' => $child->domain])
+            ->assertJsonFragment(['name' => $parent->domain, 'path' => '/'.$parent->domain, 'is_dir' => true])
+            ->assertJsonFragment(['name' => $child->domain, 'path' => '/'.$child->domain, 'is_dir' => true])
+            ->assertJsonMissing(['name' => $unrelated->domain])
+            ->assertJsonMissing(['name' => 'index.php'])
             ->assertJsonMissing(['name' => 'child.txt']);
 
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$parent->domain]))
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'index.php', 'path' => '/'.$parent->domain.'/index.php', 'is_dir' => false])
+            ->assertJsonMissing(['name' => 'subdomains']);
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$parent->domain.'/subdomains']))
+            ->assertForbidden();
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$child->domain]))
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'child.txt', 'path' => '/'.$child->domain.'/child.txt']);
+
+        // Opening the subdomain itself remains confined to that Unix identity.
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$child, 'path' => '/']))
             ->assertOk()
             ->assertJsonFragment(['name' => 'child.txt', 'path' => '/child.txt'])
@@ -231,14 +248,14 @@ class FileManagerTest extends TestCase
             'old_path' => '/old.txt', 'new_path' => '/new.txt',
         ])->assertOk();
 
-        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/']))
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
             ->assertJsonFragment(['name' => 'new.txt']);
 
         $this->actingAs($developer)->postJson(route('sites.files.api.delete', $site), [
             'path' => '/new.txt',
         ])->assertOk();
 
-        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/']))
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
             ->assertJsonMissing(['name' => 'new.txt']);
     }
 

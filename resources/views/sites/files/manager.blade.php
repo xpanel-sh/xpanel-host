@@ -17,7 +17,7 @@
                                 </div>
                                 <h1 class="text-2xl font-semibold text-mono">Administrador de archivos</h1>
                                 <p class="mt-1 text-sm text-secondary-foreground">
-                                    Elige el alcance antes de entrar. Dentro de Ikode ya no hay selector que pueda cambiarlo accidentalmente.
+                                    El gestor de este dominio reúne su proyecto principal y todos los subdominios asociados, sin mostrar otros dominios de la cuenta.
                                 </p>
                             </div>
 
@@ -37,10 +37,10 @@
                                     </div>
                                     <div class="min-w-0">
                                         <h2 class="text-xl font-semibold text-mono group-hover:text-primary">
-                                            Acceder a los archivos de {{ $site->domain }}
+                                            Abrir {{ $site->domain }} y sus subdominios
                                         </h2>
                                         <p class="mt-2 text-sm text-secondary-foreground">
-                                            Accede a archivos solo de este sitio web especifico desde el editor ikode.
+                                            Verás una carpeta para {{ $site->domain }} y otra para cada subdominio que dependa de él.
                                         </p>
                                     </div>
                                 </div>

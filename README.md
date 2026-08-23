@@ -155,7 +155,8 @@ Cada instalación dispone de una cuenta Unix de alojamiento con raíz en `/home/
 Host ofrece dos accesos al mismo motor de archivos, sin selector ambiguo dentro del editor:
 
 - **Administrador general** abre `/home/<cuenta>` y permite trabajar con todo el alojamiento. Las carpetas estructurales no pueden eliminarse ni renombrarse.
-- **Administrador del dominio** abre únicamente el proyecto del dominio o subdominio seleccionado y no puede salir de esa raíz.
+- **Administrador del dominio principal** muestra una raíz virtual con una carpeta para el dominio y otra para cada subdominio asociado (`example.com`, `blog.example.com`, etc.); no expone otros dominios de la cuenta. Cada carpeta conserva su raíz e identidad Unix independiente.
+- **Administrador de un subdominio** permanece limitado exclusivamente al proyecto de ese subdominio.
 
 Las instalaciones heredadas no dejan `public_html` como una carpeta decorativa: durante `xpanel update`, la sincronización mueve cada raíz conocida `/var/www/<dominio>` o `/srv/www/<dominio>` a este árbol, actualiza el registro del sitio y vuelve a generar su virtual host. Si el destino ya contiene datos, la migración se detiene sin sobrescribirlo para que el administrador resuelva el conflicto.
 

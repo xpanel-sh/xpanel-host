@@ -1324,6 +1324,7 @@
             domain: @json($filesDomain),
             rootLabel: @json($scopeLabel),
             scope: @json('client'),
+            familyRoot: @json((bool) ($site && $site->parent_site_id === null)),
             webTerminalEnabled: @json($webTerminalEnabled),
             terminalTokenUrl: @json($terminalTokenUrl),
         };
@@ -1801,7 +1802,7 @@
                 });
                 return clean.length ? `/${clean.join('/')}` : '/';
             };
-            const isGlobalSitesRoot = () => !config.domain;
+            const isGlobalSitesRoot = () => !config.domain || config.familyRoot;
             const virtualSiteRoot = (path = state.currentPath) => {
                 if (!isGlobalSitesRoot()) return '/';
                 const first = normalizePath(path).split('/').filter(Boolean)[0];

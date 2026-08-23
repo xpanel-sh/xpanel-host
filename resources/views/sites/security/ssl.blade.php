@@ -29,11 +29,11 @@
           $activeCertificates = $sslSites->where('ssl_status', 'active')->count();
           $pendingCertificates = $sslSites->count() - $activeCertificates;
         @endphp
-        <section class="grid md:grid-cols-4 gap-4">
-          <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Dominios protegidos</div><div class="mt-2 font-semibold text-mono">{{ $activeCertificates }} de {{ $sslSites->count() }}</div></div></div>
-          <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Pendientes</div><div class="mt-2 font-semibold text-mono">{{ $pendingCertificates }}</div></div></div>
-          <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Dominio principal</div><div class="mt-2 truncate font-semibold text-mono">{{ $site->domain }}</div></div></div>
-          @if($site->wildcard_domain)<div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Wildcard *.{{ $site->domain }}</div><div class="mt-2 font-semibold text-mono">{{ $site->wildcard_ssl_status }}</div></div></div>@else<div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Renovación</div><div class="mt-2 font-semibold text-mono">Automática</div></div></div>@endif
+        <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Dominios protegidos</div><div class="mt-1 text-lg font-semibold text-mono">{{ $activeCertificates }} de {{ $sslSites->count() }}</div></div></div>
+          <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Pendientes</div><div class="mt-1 text-lg font-semibold text-mono">{{ $pendingCertificates }}</div></div></div>
+          <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Dominio principal</div><div class="mt-1 truncate text-sm font-semibold text-mono" title="{{ $site->domain }}">{{ $site->domain }}</div></div></div>
+          @if($site->wildcard_domain)<div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Wildcard *.{{ $site->domain }}</div><div class="mt-1 text-lg font-semibold text-mono">{{ $site->wildcard_ssl_status }}</div></div></div>@else<div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Renovación</div><div class="mt-1 text-lg font-semibold text-mono">Automática</div></div></div>@endif
         </section>
 
         <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Let's Encrypt / ACME</h2></div><div class="kt-card-content p-5">
@@ -45,7 +45,7 @@
           @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
             <form id="ssl-control-form" method="post" action="{{ route('sites.ssl.issue-all', $site) }}" class="grid md:grid-cols-2 gap-4">
               @csrf
-              <div><label class="kt-form-label">Correo ACME</label><input class="kt-input" type="email" name="email" required value="{{ old('email', config('xpanel.acme_email')) }}" placeholder="admin@tudominio.com"></div>
+              <label class="grid gap-2"><span class="kt-form-label">Correo ACME</span><input class="kt-input" type="email" name="email" required value="{{ old('email', config('xpanel.acme_email')) }}" placeholder="admin@tudominio.com"></label>
               <label class="flex items-center gap-2 mt-7"><input type="hidden" name="https_redirect" value="0"><input type="checkbox" name="https_redirect" value="1" @checked(old('https_redirect', true))> Redirigir HTTP a HTTPS</label>
               <div class="md:col-span-2 flex gap-2">
                 <button class="kt-btn kt-btn-primary" type="submit" @disabled($pendingCertificates === 0)>{{ $pendingCertificates > 0 ? 'Activar SSL pendientes' : 'Todo está protegido' }}</button>
