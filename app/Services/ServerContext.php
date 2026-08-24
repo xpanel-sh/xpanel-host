@@ -7,7 +7,8 @@ class ServerContext
     /** @return array<string, int|string|bool|null> */
     public function snapshot(): array
     {
-        $managed = config('xpanel.management_mode') === 'vm';
+        $mode = (string) config('xpanel.management_mode');
+        $managed = in_array($mode, ['vm', 'vps-instance'], true);
         $cpu = $managed
             ? $this->positiveInt(config('xpanel.assigned_cpu'), $this->detectedCpu())
             : $this->detectedCpu();
@@ -26,9 +27,15 @@ class ServerContext
         $cpuLoadPercent = $this->detectedCpuLoadPercent($cpu);
 
         return [
-            'mode' => $managed ? 'vm' : 'standalone',
-            'mode_label' => $managed ? 'Administrado por XPanel VM' : 'Servidor independiente',
+            'mode' => $mode,
+            'mode_label' => match ($mode) {
+                'vm' => 'Administrado por XPanel VM',
+                'vps-instance' => 'Cuenta administrada por XPanel VPS',
+                default => 'Servidor independiente',
+            },
             'managed' => $managed,
+            'account_scoped' => $mode === 'vps-instance',
+            'cpu_limit_percent' => $this->positiveInt(config('xpanel.assigned_cpu_percent'), $cpu * 100),
             'cpu' => $cpu,
             'memory_total_mib' => $memoryTotal,
             'memory_used_mib' => $memoryUsedMiB,
@@ -40,9 +47,13 @@ class ServerContext
             'disk_used_percent' => $diskTotal > 0 ? (int) round(($diskUsedGiB / $diskTotal) * 100) : 0,
             'cpu_load_percent' => $cpuLoadPercent,
             'uptime_seconds' => $this->detectedUptimeSeconds(),
-            'vm_url' => $managed ? config('xpanel.vm_url') : null,
-            'vm_service_id' => $managed ? config('xpanel.vm_service_id') : null,
+            'vm_url' => $mode === 'vm' ? config('xpanel.vm_url') : null,
+            'vm_service_id' => $mode === 'vm' ? config('xpanel.vm_service_id') : null,
             'panel_domain' => config('xpanel.panel_domain'),
+            'storage_limit_mib' => $this->positiveInt(config('xpanel.assigned_storage_mib'), $diskTotal * 1024),
+            'inode_limit' => max(0, (int) config('xpanel.assigned_inodes')),
+            'bandwidth_limit_gb' => max(0, (int) config('xpanel.assigned_bandwidth_gb')),
+            'max_sites' => max(0, (int) config('xpanel.assigned_max_sites')),
         ];
     }
 

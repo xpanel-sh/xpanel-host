@@ -55,6 +55,26 @@
                     </div>
                 </section>
 
+                <section class="kt-card" aria-labelledby="live_resources_title">
+                    <div class="kt-card-header flex-wrap gap-3">
+                        <div><h2 class="kt-card-title" id="live_resources_title">Recursos en vivo</h2><p class="mt-1 text-xs text-secondary-foreground">{{ $server['account_scoped'] ? 'Consumo completo de esta cuenta de hosting' : 'Consumo del servidor donde funciona Host' }}</p></div>
+                        <div class="flex items-center gap-2 text-xs"><span class="size-2 rounded-full bg-success"></span><strong data-live-status class="text-success">Conectando…</strong><span class="text-secondary-foreground">· <span data-live-sampled-at>—</span></span></div>
+                    </div>
+                    <div class="kt-card-content grid gap-5 p-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)]">
+                        <div class="min-w-0 rounded-xl border border-border bg-muted/20 p-4">
+                            <div class="mb-3 flex flex-wrap items-center gap-4 text-xs"><span class="flex items-center gap-2"><span class="h-0.5 w-5 bg-primary"></span>CPU</span><span class="flex items-center gap-2"><span class="h-0.5 w-5 bg-success"></span>RAM</span><span class="ms-auto text-secondary-foreground">Últimas 60 lecturas</span></div>
+                            <svg class="h-48 w-full" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="CPU y memoria en vivo"><line x1="0" y1="35" x2="600" y2="35" stroke="currentColor" opacity=".08"/><line x1="0" y1="70" x2="600" y2="70" stroke="currentColor" opacity=".08"/><line x1="0" y1="105" x2="600" y2="105" stroke="currentColor" opacity=".08"/><polyline data-live-chart="cpu.percent" data-live-chart-max="{{ max(100, (int) $server['cpu_limit_percent']) }}" fill="none" stroke="currentColor" stroke-width="3" vector-effect="non-scaling-stroke" class="text-primary"/><polyline data-live-chart="memory.percent" data-live-chart-max="100" fill="none" stroke="currentColor" stroke-width="3" vector-effect="non-scaling-stroke" class="text-success"/></svg>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-xl border border-border p-4"><div class="text-xs text-secondary-foreground">CPU</div><div class="mt-2 text-xl font-semibold text-mono" data-live-metric="cpu.percent" data-live-format="percent">—</div><div class="mt-1 text-xs text-secondary-foreground">Límite <span data-live-metric="cpu.limit_percent" data-live-format="percent">—</span></div></div>
+                            <div class="rounded-xl border border-border p-4"><div class="text-xs text-secondary-foreground">RAM</div><div class="mt-2 text-xl font-semibold text-mono" data-live-metric="memory.used" data-live-format="bytes">—</div><div class="mt-1 text-xs text-secondary-foreground">de <span data-live-metric="memory.limit" data-live-format="bytes">—</span></div></div>
+                            <div class="rounded-xl border border-border p-4"><div class="text-xs text-secondary-foreground">Red recibida</div><div class="mt-2 text-xl font-semibold text-mono" data-live-metric="network.receive_bytes_per_second" data-live-format="rate">—</div><div class="mt-1 text-xs text-secondary-foreground">Lectura instantánea</div></div>
+                            <div class="rounded-xl border border-border p-4"><div class="text-xs text-secondary-foreground">Transferencia mensual</div><div class="mt-2 text-xl font-semibold text-mono" data-live-metric="bandwidth.used" data-live-format="bytes">—</div><div class="mt-1 text-xs text-secondary-foreground">HTTP contabilizado</div></div>
+                        </div>
+                    </div>
+                </section>
+                <div class="hidden rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning" data-live-warning role="alert"></div>
+
                 <section class="grid gap-5 lg:grid-cols-3">
                     <div class="kt-card lg:col-span-2">
                         <div class="kt-card-header"><h2 class="kt-card-title">Sitios recientes</h2><a class="kt-btn kt-btn-sm kt-btn-ghost" href="{{ route('sites.index') }}">Ver todos <i class="ki-filled ki-right"></i></a></div>
@@ -87,9 +107,9 @@
                                     <div class="rounded-xl bg-muted/50 p-4"><div class="text-xs text-secondary-foreground">Memoria total</div><div class="mt-1 text-xl font-semibold text-mono">{{ number_format($server['memory_total_mib'] / 1024, 1) }} GB</div></div>
                                 </div>
                                 <div>
-                                    <div class="mb-2 flex items-center justify-between text-sm"><span class="font-medium text-mono">Almacenamiento</span><span class="text-secondary-foreground">{{ $server['disk_used_gib'] }} de {{ $server['disk_total_gib'] }} GB</span></div>
-                                    <div class="h-2 overflow-hidden rounded-full bg-muted"><div class="h-full rounded-full {{ $diskPercent >= 85 ? 'bg-danger' : 'bg-primary' }}" style="width: {{ $diskPercent }}%"></div></div>
-                                    <div class="mt-2 text-xs text-secondary-foreground">{{ $server['disk_free_gib'] }} GB disponibles</div>
+                                    <div class="mb-2 flex items-center justify-between text-sm"><span class="font-medium text-mono">Almacenamiento</span><span class="text-secondary-foreground"><span data-live-metric="storage.used" data-live-format="bytes">{{ $server['disk_used_gib'] }} GB</span> de <span data-live-metric="storage.limit" data-live-format="bytes">{{ $server['disk_total_gib'] }} GB</span></span></div>
+                                    <div class="h-2 overflow-hidden rounded-full bg-muted"><div data-live-progress="storage.percent" role="progressbar" aria-label="Almacenamiento utilizado" aria-valuemin="0" aria-valuemax="100" class="h-full rounded-full {{ $diskPercent >= 85 ? 'bg-danger' : 'bg-primary' }}" style="width: {{ $diskPercent }}%"></div></div>
+                                    <div class="mt-2 text-xs text-secondary-foreground"><span data-live-metric="storage.percent" data-live-format="percent">{{ $diskPercent }}%</span> utilizado</div>
                                 </div>
                             </div>
                         </div>
@@ -124,6 +144,7 @@
             </div>
         </main>
         @include('layouts.partials.client.footer')
+        @include('layouts.partials.live-metrics', ['endpoint' => route('resources.live'), 'interval' => 3000])
     </div>
 </div>
 @endsection

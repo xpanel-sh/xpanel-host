@@ -27,8 +27,15 @@ return [
     'panel_access_mode' => env('XPANEL_PANEL_ACCESS_MODE', 'ip'),
     'panel_port' => (int) env('XPANEL_PANEL_PORT', 80),
     'assigned_cpu' => env('XPANEL_ASSIGNED_CPU'),
+    'assigned_cpu_percent' => env('XPANEL_ASSIGNED_CPU_PERCENT'),
     'assigned_memory_mib' => env('XPANEL_ASSIGNED_MEMORY_MIB'),
     'assigned_disk_gib' => env('XPANEL_ASSIGNED_DISK_GIB'),
+    'assigned_storage_mib' => env('XPANEL_ASSIGNED_STORAGE_MIB'),
+    'assigned_inodes' => env('XPANEL_ASSIGNED_INODES'),
+    'assigned_bandwidth_gb' => env('XPANEL_ASSIGNED_BANDWIDTH_GB'),
+    'assigned_max_sites' => env('XPANEL_ASSIGNED_MAX_SITES'),
+    'systemd_slice' => env('XPANEL_SYSTEMD_SLICE'),
+    'cgroup_root' => env('XPANEL_CGROUP_ROOT', '/sys/fs/cgroup'),
 
     /*
      * System changes are disabled for local development and tests. The Linux

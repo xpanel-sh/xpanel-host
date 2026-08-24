@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\Site;
 use App\Services\CertificateProvisioner;
 use App\Services\HostingAccountWorkspace;
+use App\Services\LiveResourceMetricsService;
 use App\Services\ServerContext;
 use App\Services\ServerResourceUsageService;
 use App\Services\SiteAccessProvisioner;
@@ -35,7 +36,7 @@ class SiteController extends Controller
         ]);
     }
 
-    public function module(Site $site, string $section, string $module, ServerContext $serverContext, SiteResourceUsageService $resourceUsage, ServerResourceUsageService $serverResourceUsage): View|RedirectResponse
+    public function module(Site $site, string $section, string $module, ServerContext $serverContext, SiteResourceUsageService $resourceUsage, ServerResourceUsageService $serverResourceUsage, LiveResourceMetricsService $liveMetrics): View|RedirectResponse
     {
         $definition = SiteModules::find($section, $module);
         abort_if($definition === null, 404);
@@ -50,6 +51,7 @@ class SiteController extends Controller
             $data = ['site' => $site, 'serverContext' => $serverContext->snapshot()];
             if ($section === 'server' && $module === 'usage') {
                 $data['usage'] = $resourceUsage->overview($site, (string) request('period', '24h'), request()->boolean('refresh'));
+                $data['liveUsage'] = $liveMetrics->site($site);
             }
             if ($section === 'server' && $module === 'summary') {
                 $data['serverUsage'] = $serverResourceUsage->overview((string) request('period', '24h'), request()->boolean('refresh'));

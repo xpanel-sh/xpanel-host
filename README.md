@@ -30,7 +30,7 @@
 
 XPanel Host funciona de manera independiente en un VPS, VDS o servidor dedicado. También puede ejecutarse dentro de una MicroVM creada por [XPanel VM](https://github.com/xpanel-sh/xpanel-vm) o como una instancia aislada administrada por XPanel VPS.
 
-Host no vende planes ni crea revendedores. Cada instalación pertenece a un propietario, que puede invitar colaboradores y utilizar los recursos del servidor o los asignados por VM.
+Host no vende planes ni crea revendedores. Cada instalación pertenece a un propietario, que puede invitar colaboradores y utilizar los recursos del servidor, los asignados a su cuenta por XPanel VPS o los disponibles dentro de una MicroVM.
 
 ```text
 Servidor Linux o MicroVM
@@ -59,6 +59,18 @@ Servidor Linux o MicroVM
 | **Acceso y equipo** | Propietario, roles, permisos, chat interno, notificaciones persistentes, SFTP confinado, FTPS opcional y SSH por llaves |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
 | **Despliegue** | Standalone, MicroVM administrada por VM o instancia aislada administrada por VPS |
+
+## Métricas y límites
+
+El dashboard consulta CPU, RAM, procesos, red e I/O sin recargar la página. La fuente cambia con el despliegue, pero Host conserva la misma interfaz y continúa funcionando de forma autónoma:
+
+| Modo | Fuente y alcance |
+| --- | --- |
+| **Standalone** | `/proc`, memoria y filesystem del servidor donde está instalado Host |
+| **Instancia VPS** | cgroups v2 de `xpanel-instance-<uuid>.slice`; nunca presenta CPU o RAM de otra cuenta como consumo propio |
+| **MicroVM** | `/proc` y filesystem vistos desde el sistema operativo invitado |
+
+Las métricas por dominio y subdominio se recopilan cada cinco minutos y la interfaz recibe las muestras nuevas automáticamente. Los límites duros pertenecen a la cuenta de hosting o a la MicroVM; el desglose por web es observabilidad para localizar consumo. En una instancia VPS, RAM, CPU y procesos ya se leen desde la slice; disco e inodos se muestran frente al plan mientras se completa la aplicación de cuotas nativas XFS/ext4.
 
 ## Modo de instancia XPanel VPS
 

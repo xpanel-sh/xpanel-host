@@ -32,11 +32,19 @@
         <main class="grow" role="content">
             <div class="kt-container-fluid grid gap-5 lg:gap-7.5">
                 <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div><div class="text-sm text-secondary-foreground">Servidor y recursos</div><h1 class="mt-1 text-2xl font-semibold text-mono">Resumen del servidor</h1><p class="mt-1 text-sm text-secondary-foreground">Capacidad actual e historial global del {{ $serverContext['managed'] ? 'entorno asignado por VM' : 'VPS, VDS o servidor independiente' }}.</p></div>
-                    <a class="kt-btn kt-btn-outline" href="{{ request()->url() }}?period={{ $period }}&refresh=1"><i class="ki-filled ki-arrows-circle"></i> Recalcular</a>
+                    <div><div class="text-sm text-secondary-foreground">Servidor y recursos</div><h1 class="mt-1 text-2xl font-semibold text-mono">{{ $serverContext['account_scoped'] ? 'Resumen del hosting' : 'Resumen del servidor' }}</h1><p class="mt-1 text-sm text-secondary-foreground">{{ $serverContext['account_scoped'] ? 'Consumo de toda la cuenta y límites entregados por XPanel VPS.' : 'Capacidad actual e historial global del servidor o entorno asignado.' }}</p></div>
+                    <div class="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs"><span class="size-2 rounded-full bg-success"></span><strong data-live-status class="text-success">Conectando…</strong><span class="text-secondary-foreground">· <span data-live-sampled-at>—</span></span></div>
                 </header>
+                <div class="hidden rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning" data-live-warning role="alert"></div>
 
                 @if($serverUsage['error'])<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">No se pudo actualizar la medición global: {{ $serverUsage['error'] }}</div>@endif
+
+                <section class="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Lectura en vivo">
+                    <article class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">CPU ahora</div><div class="mt-1 text-xl font-semibold text-mono" data-live-metric="cpu.percent" data-live-format="percent">—</div><div class="mt-1 text-xs text-secondary-foreground">de <span data-live-metric="cpu.limit_percent" data-live-format="percent">—</span></div></div></article>
+                    <article class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">RAM ahora</div><div class="mt-1 text-xl font-semibold text-mono" data-live-metric="memory.used" data-live-format="bytes">—</div><div class="mt-1 text-xs text-secondary-foreground"><span data-live-metric="memory.percent" data-live-format="percent">—</span> utilizada</div></div></article>
+                    <article class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Lectura de disco</div><div class="mt-1 text-xl font-semibold text-mono" data-live-metric="io.read_bytes_per_second" data-live-format="rate">—</div><div class="mt-1 text-xs text-secondary-foreground">Tasa instantánea</div></div></article>
+                    <article class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Escritura de disco</div><div class="mt-1 text-xl font-semibold text-mono" data-live-metric="io.write_bytes_per_second" data-live-format="rate">—</div><div class="mt-1 text-xs text-secondary-foreground">Tasa instantánea</div></div></article>
+                </section>
 
                 <section class="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
                     @foreach([
@@ -79,6 +87,7 @@
             </div>
         </main>
         @include('layouts.partials.client.footer')
+        @include('layouts.partials.live-metrics', ['endpoint' => route('resources.live'), 'interval' => 3000])
     </div>
 </div>
 @endsection

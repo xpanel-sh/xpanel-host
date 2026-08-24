@@ -34,6 +34,7 @@ use App\Http\Controllers\PhpMyAdminController;
 use App\Http\Controllers\ProtectedDirectoryController;
 use App\Http\Controllers\RedirectController;
 use App\Http\Controllers\RemoteMysqlController;
+use App\Http\Controllers\ResourceMetricsController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ServerIpAddressController;
 use App\Http\Controllers\SessionController;
@@ -130,6 +131,10 @@ Route::middleware('setup.complete')->group(function () {
             ]);
         });
 
+        Route::get('/api/resources/live', [ResourceMetricsController::class, 'account'])
+            ->middleware('throttle:60,1')
+            ->name('resources.live');
+
         Route::middleware('permission:'.Permissions::SITES_VIEW)->group(function () {
             Route::resource('sites', SiteController::class)->only(['index']);
             // Registered before /domains/{domain} (destroy) below so the literal
@@ -177,6 +182,9 @@ Route::middleware('setup.complete')->group(function () {
             });
 
             Route::get('/sites/{site}', [SiteController::class, 'show'])->name('sites.show');
+            Route::get('/api/sites/{site}/resources/live', [ResourceMetricsController::class, 'site'])
+                ->middleware('throttle:30,1')
+                ->name('sites.resources.live');
 
             // Flat "Analisis" section: a single page, no sub-module segment.
             Route::get('/sites/{site}/analytics', AnalyticsController::class)->name('sites.analytics');

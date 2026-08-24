@@ -6,6 +6,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Dashboard y resumen del servidor actualizan CPU, RAM, red, procesos e I/O sin recargar. Standalone y VM leen su propio sistema; una instancia VPS queda confinada a su slice cgroups v2 y avisa explícitamente si esa fuente no está disponible.
+- Uso de recursos agrega el dominio principal y sus subdominios, recibe nuevas muestras automáticamente y ofrece desglose por sitio sin confundir estadísticas observadas con límites comerciales de la cuenta.
 - El gestor de archivos del dominio principal presenta ahora su familia como carpetas hermanas con nombres completos —principal y subdominios—, excluye dominios no asociados y oculta la carpeta física `subdomains` para conservar las fronteras de identidad Unix. La vista SSL usa tarjetas compactas y separa correctamente la etiqueta del correo ACME.
 - Seguridad → SSL del dominio principal centraliza ahora el estado y las acciones de todos sus subdominios, permite activar pendientes o reemitirlos en conjunto y redirige allí cualquier acceso desde la ficha de un subdominio.
 - Los buzones Maildir conservan a `vmail` como propietario pero usan setgid y ACL heredables para el usuario de la cuenta y el panel; la actualización repara árboles existentes y el explorador devuelve un diagnóstico útil si una carpeta no puede leerse. En la terminal, estado y reconexión forman ahora un bloque compacto alineado al extremo derecho.

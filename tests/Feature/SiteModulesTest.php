@@ -85,12 +85,13 @@ class SiteModulesTest extends TestCase
         $this->actingAs($this->owner())
             ->get(SiteModules::url($site, 'server', 'usage'))
             ->assertOk()
-            ->assertSee('Uso de recursos del sitio')
-            ->assertSee('Espacio utilizado')
-            ->assertSee('Inodos utilizados')
+            ->assertSee('Uso de recursos del dominio y sus subdominios')
+            ->assertSee('Archivos')
+            ->assertSee('Inodos')
             ->assertSee('Bases de datos')
-            ->assertSee('Tráfico reciente')
-            ->assertSee('Recalcular uso')
+            ->assertSee('Transferencia mensual')
+            ->assertSee('Conectando')
+            ->assertDontSee('Recalcular uso')
             ->assertDontSee('Últimas 30 días')
             ->assertDontSee('Recursos compartidos del servidor');
     }

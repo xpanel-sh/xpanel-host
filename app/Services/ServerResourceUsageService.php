@@ -9,9 +9,14 @@ use Throwable;
 
 class ServerResourceUsageService
 {
+    public function __construct(private readonly LiveResourceMetricsService $liveMetrics) {}
+
     public function collect(): ServerResourceSample
     {
         $previous = ServerResourceSample::query()->latest('sampled_at')->first();
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            return $this->collectManagedInstance($previous);
+        }
         $snapshot = $this->snapshot();
         $since = $previous?->sampled_at ?? now();
 
@@ -22,6 +27,34 @@ class ServerResourceUsageService
             'io_write_bytes' => $this->delta($snapshot['io_write_total'], $previous?->io_write_total),
             'request_count' => (int) SiteResourceSample::query()->where('sampled_at', '>', $since)->sum('request_count'),
             'transfer_bytes' => (int) SiteResourceSample::query()->where('sampled_at', '>', $since)->sum('transfer_bytes'),
+            'sampled_at' => now(),
+        ]);
+
+        ServerResourceSample::query()->where('sampled_at', '<', now()->subDays(31))->delete();
+
+        return $sample;
+    }
+
+    private function collectManagedInstance(?ServerResourceSample $previous): ServerResourceSample
+    {
+        $live = $this->liveMetrics->account();
+        $elapsed = max(1, $previous?->sampled_at?->diffInSeconds(now()) ?? 1);
+        $read = (int) (($live['io']['read_bytes_per_second'] ?? 0) * $elapsed);
+        $write = (int) (($live['io']['write_bytes_per_second'] ?? 0) * $elapsed);
+        $since = $previous?->sampled_at ?? now();
+
+        $sample = ServerResourceSample::create([
+            'cpu_percent' => $live['cpu']['percent'],
+            'memory_bytes' => $live['memory']['used'],
+            'process_count' => $live['processes'],
+            'request_count' => (int) SiteResourceSample::query()->where('sampled_at', '>', $since)->sum('request_count'),
+            'transfer_bytes' => (int) SiteResourceSample::query()->where('sampled_at', '>', $since)->sum('transfer_bytes'),
+            'io_read_bytes' => $read,
+            'io_write_bytes' => $write,
+            'cpu_total_ticks' => 0,
+            'cpu_idle_ticks' => 0,
+            'io_read_total' => (int) ($previous?->io_read_total ?? 0) + $read,
+            'io_write_total' => (int) ($previous?->io_write_total ?? 0) + $write,
             'sampled_at' => now(),
         ]);
 
