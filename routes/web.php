@@ -45,6 +45,7 @@ use App\Http\Controllers\SiteDiagnosticController;
 use App\Http\Controllers\SiteMigrationController;
 use App\Http\Controllers\SiteOperationController;
 use App\Http\Controllers\SiteTerminalController;
+use App\Http\Controllers\SiteWebSettingsController;
 use App\Http\Controllers\SubdomainController;
 use App\Http\Controllers\TeamChatController;
 use App\Http\Controllers\TeamController;
@@ -188,6 +189,7 @@ Route::middleware('setup.complete')->group(function () {
 
             // Flat "Analisis" section: a single page, no sub-module segment.
             Route::get('/sites/{site}/analytics', AnalyticsController::class)->name('sites.analytics');
+            Route::get('/sites/{site}/advanced/web-settings', SiteWebSettingsController::class)->name('sites.web-settings.index');
             Route::get('/sites/{site}/advanced/cache-manager', [CacheController::class, 'index'])->name('sites.cache.index');
             Route::get('/sites/{site}/advanced/folder-index-manager', [FolderIndexController::class, 'index'])->name('sites.folder-index.index');
             Route::get('/sites/{site}/advanced/hotlink-protection', [HotlinkController::class, 'index'])->name('sites.hotlink.index');

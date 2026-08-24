@@ -61,12 +61,12 @@
                             <div class="mb-4 flex flex-wrap items-center gap-4 text-xs">
                                 <span class="flex items-center gap-2"><span class="h-0.5 w-5 bg-primary"></span>CPU <strong class="text-mono" data-live-metric="cpu.percent" data-live-format="percent">—</strong></span>
                                 <span class="flex items-center gap-2"><span class="h-0.5 w-5 bg-success"></span>RAM <strong class="text-mono" data-live-metric="memory.percent" data-live-format="percent">—</strong></span>
-                                <span class="ms-auto text-secondary-foreground">Últimas 60 lecturas</span>
+                                <span class="ms-auto text-secondary-foreground"><span data-live-chart-scale>Escala 0–5%</span> · últimas 60 lecturas</span>
                             </div>
-                            <svg class="min-h-48 w-full grow" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Porcentaje utilizado de CPU y memoria">
+                            <svg class="min-h-48 w-full grow" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Porcentaje utilizado de CPU y memoria" data-live-chart-container data-live-chart-min="5">
                                 <line x1="0" y1="0" x2="600" y2="0" stroke="currentColor" opacity=".08"/><line x1="0" y1="35" x2="600" y2="35" stroke="currentColor" opacity=".08"/><line x1="0" y1="70" x2="600" y2="70" stroke="currentColor" opacity=".08"/><line x1="0" y1="105" x2="600" y2="105" stroke="currentColor" opacity=".08"/><line x1="0" y1="139" x2="600" y2="139" stroke="currentColor" opacity=".08"/>
-                                <polyline data-live-chart="cpu.chart_percent" data-live-chart-max="100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="text-primary"/>
-                                <polyline data-live-chart="memory.percent" data-live-chart-max="100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="text-success"/>
+                                <polyline data-live-chart="cpu.chart_percent" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="text-primary"/>
+                                <polyline data-live-chart="memory.percent" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="text-success"/>
                             </svg>
                         </div>
                     </div>

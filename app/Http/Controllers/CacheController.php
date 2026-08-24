@@ -6,16 +6,12 @@ use App\Models\Site;
 use App\Services\SiteCacheManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Number;
-use Illuminate\View\View;
 
 class CacheController extends Controller
 {
-    public function index(Site $site, SiteCacheManager $cache): View
+    public function index(Site $site): RedirectResponse
     {
-        return view('sites.advanced.cache-manager', [
-            'site' => $site,
-            'targets' => collect($cache->targets($site->document_root))->map(fn ($path) => ['path' => $path, 'exists' => is_dir($path)]),
-        ]);
+        return to_route('sites.web-settings.index', $site);
     }
 
     public function purge(Site $site, SiteCacheManager $cache): RedirectResponse

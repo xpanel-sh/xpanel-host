@@ -20,17 +20,31 @@
         return String(value);
     };
     const chartState = new WeakMap();
-    const updateChart = (element, value) => {
+    const appendChartPoint = (element, value) => {
         if (value === null || value === undefined || !Number.isFinite(Number(value))) return;
         const points = chartState.get(element) || [];
         points.push(Math.max(0, Number(value)));
         while (points.length > 60) points.shift();
         chartState.set(element, points);
-        const max = Math.max(Number(element.dataset.liveChartMax) || 0, 1, ...points);
+    };
+    const drawChart = (element, max) => {
+        const points = chartState.get(element) || [];
+        if (!points.length) return;
         const width = 600; const height = 140; const drawableHeight = height - 8;
         const chartPoints = points.length === 1 ? [points[0], points[0]] : points;
         const count = Math.max(1, chartPoints.length - 1);
         element.setAttribute('points', chartPoints.map((point, index) => `${(index / count) * width},${height - 4 - (point / max) * drawableHeight}`).join(' '));
+    };
+    const renderCharts = payload => {
+        document.querySelectorAll('[data-live-chart]').forEach(element => appendChartPoint(element, valueAt(payload, element.dataset.liveChart)));
+        document.querySelectorAll('[data-live-chart-container]').forEach(container => {
+            const series = Array.from(container.querySelectorAll('[data-live-chart]'));
+            const observed = Math.max(0, ...series.flatMap(element => chartState.get(element) || []));
+            const minimum = Math.max(1, Number(container.dataset.liveChartMin) || 5);
+            const scale = [minimum, 10, 25, 50, 75, 100].find(limit => limit >= observed * 1.15) || 100;
+            series.forEach(element => drawChart(element, scale));
+            document.querySelectorAll('[data-live-chart-scale]').forEach(element => { element.textContent = `Escala 0–${scale}%`; });
+        });
     };
     const render = payload => {
         document.querySelectorAll('[data-live-metric]').forEach(element => {
@@ -41,7 +55,7 @@
             element.style.width = `${value}%`;
             element.setAttribute('aria-valuenow', String(value));
         });
-        document.querySelectorAll('[data-live-chart]').forEach(element => updateChart(element, valueAt(payload, element.dataset.liveChart)));
+        renderCharts(payload);
         document.querySelectorAll('[data-live-sampled-at]').forEach(element => {
             const value = valueAt(payload, element.dataset.liveSampledAt || 'sampled_at');
             element.textContent = value ? new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'sin muestra';

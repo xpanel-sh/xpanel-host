@@ -3,27 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
-use App\Models\SiteWebSetting;
 use App\Services\SiteProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
 
 class HotlinkController extends Controller
 {
-    private const EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'mp3', 'pdf', 'zip'];
+    public const EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'mp3', 'pdf', 'zip'];
 
-    public function index(Site $site): View
+    public function index(Site $site): RedirectResponse
     {
-        return view('sites.advanced.hotlink-protection', [
-            'site' => $site,
-            'settings' => $site->webSettings ?? new SiteWebSetting([
-                'hotlink_protection' => false, 'hotlink_extensions' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-                'hotlink_allowed_referrers' => [],
-            ]),
-            'extensions' => self::EXTENSIONS,
-        ]);
+        return to_route('sites.web-settings.index', $site);
     }
 
     public function update(Request $request, Site $site, SiteProvisioner $provisioner): RedirectResponse

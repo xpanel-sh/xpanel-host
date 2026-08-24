@@ -100,4 +100,22 @@ class AnalyticsAndCacheTest extends TestCase
         $this->assertDatabaseHas('site_web_settings', ['site_id' => $site->id, 'directory_listing' => true]);
         $this->assertStringContainsString('autoindex on;', file_get_contents(storage_path('app/gateways/'.$site->domain.'.conf')));
     }
+
+    public function test_web_settings_consolidates_the_existing_advanced_controls(): void
+    {
+        $site = $this->site();
+        $owner = $this->actingAs($this->owner());
+
+        $owner->get(route('sites.web-settings.index', $site))
+            ->assertOk()
+            ->assertSee('Configuración web')
+            ->assertSee('Listado de carpetas')
+            ->assertSee('Protección Hotlink')
+            ->assertSee('Caché de aplicación');
+
+        foreach (['sites.cache.index', 'sites.folder-index.index', 'sites.hotlink.index'] as $legacyRoute) {
+            $owner->get(route($legacyRoute, $site))
+                ->assertRedirect(route('sites.web-settings.index', $site));
+        }
+    }
 }

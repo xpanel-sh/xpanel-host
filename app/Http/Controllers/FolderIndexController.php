@@ -3,20 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
-use App\Models\SiteWebSetting;
 use App\Services\SiteProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class FolderIndexController extends Controller
 {
-    public function index(Site $site): View
+    public function index(Site $site): RedirectResponse
     {
-        return view('sites.advanced.folder-index-manager', [
-            'site' => $site,
-            'settings' => $site->webSettings ?? new SiteWebSetting(['directory_listing' => false]),
-        ]);
+        return to_route('sites.web-settings.index', $site);
     }
 
     public function update(Request $request, Site $site, SiteProvisioner $provisioner): RedirectResponse

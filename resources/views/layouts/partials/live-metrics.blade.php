@@ -2,6 +2,6 @@
 
 @once
     @push('scripts')
-        <script src="{{ asset('assets/js/live-metrics.js') }}"></script>
+        <script src="{{ asset('assets/js/live-metrics.js') }}?v={{ filemtime(public_path('assets/js/live-metrics.js')) }}"></script>
     @endpush
 @endonce
