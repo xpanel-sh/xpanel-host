@@ -43,11 +43,11 @@
             <p class="mb-5 text-sm text-secondary-foreground">El dominio principal y todos sus dominios aparcados deben resolver a la IP pública de este VDS; el puerto 80 debe ser accesible. Certbot los incluirá en el mismo certificado mediante webroot, sin detener el servidor web.</p>
           @endif
           @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
-            <form id="ssl-control-form" method="post" action="{{ route('sites.ssl.issue-all', $site) }}" class="grid md:grid-cols-2 gap-4">
+            <form id="ssl-control-form" method="post" action="{{ route('sites.ssl.issue-all', $site) }}" class="grid max-w-4xl gap-4 lg:grid-cols-[minmax(280px,480px)_auto]">
               @csrf
               <label class="grid gap-2"><span class="kt-form-label">Correo ACME</span><input class="kt-input" type="email" name="email" required value="{{ old('email', config('xpanel.acme_email')) }}" placeholder="admin@tudominio.com"></label>
               <label class="flex items-center gap-2 mt-7"><input type="hidden" name="https_redirect" value="0"><input type="checkbox" name="https_redirect" value="1" @checked(old('https_redirect', true))> Redirigir HTTP a HTTPS</label>
-              <div class="md:col-span-2 flex gap-2">
+              <div class="flex justify-end gap-2 lg:col-span-2">
                 <button class="kt-btn kt-btn-primary" type="submit" @disabled($pendingCertificates === 0)>{{ $pendingCertificates > 0 ? 'Activar SSL pendientes' : 'Todo está protegido' }}</button>
                 @if($activeCertificates > 0)<button class="kt-btn kt-btn-outline" type="submit" name="include_active" value="1">Reemitir todos</button>@endif
               </div>

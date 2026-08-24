@@ -12,20 +12,20 @@
     @if($site->type !== 'php')
       <div class="kt-card"><div class="kt-card-content p-5 text-sm text-secondary-foreground">Este sitio es estático. Cambia su tipo a PHP desde Editar sitio para habilitar estos ajustes.</div></div>
     @else
-      <div class="grid gap-5 md:grid-cols-3">
-        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Versión</div><div class="mt-2 text-xl font-semibold text-mono">PHP {{ $site->php_version }}</div></div></div>
-        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Motor</div><div class="mt-2 text-xl font-semibold text-mono">{{ ucfirst($site->web_server) }}</div></div></div>
-        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Errores en pantalla</div><div class="mt-2 text-xl font-semibold text-mono">{{ $settings->display_errors ? 'Activos' : 'Ocultos' }}</div></div></div>
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Versión</div><div class="mt-1 text-lg font-semibold text-mono">PHP {{ $site->php_version }}</div></div></div>
+        <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Motor</div><div class="mt-1 text-lg font-semibold text-mono">{{ ucfirst($site->web_server) }}</div></div></div>
+        <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Errores en pantalla</div><div class="mt-1 text-lg font-semibold text-mono">{{ $settings->display_errors ? 'Activos' : 'Ocultos' }}</div></div></div>
       </div>
       <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Límites del sitio</h2></div><div class="kt-card-content p-5">
-        <form method="post" action="{{ route('sites.php.configuration.update', $site) }}" class="grid gap-4 md:grid-cols-2">
+        <form method="post" action="{{ route('sites.php.configuration.update', $site) }}" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           @csrf @method('PUT')
           @foreach(['memory_limit' => 'Memoria máxima', 'upload_max_filesize' => 'Archivo máximo de subida', 'post_max_size' => 'Tamaño máximo POST'] as $field => $label)
             <label class="grid gap-2 text-sm"><span class="font-medium text-mono">{{ $label }}</span><select class="kt-select" name="{{ $field }}" required>@foreach(['32M','64M','128M','256M','512M','1G','2G'] as $size)<option value="{{ $size }}" @selected(old($field, $settings->{$field}) === $size)>{{ $size }}</option>@endforeach</select></label>
           @endforeach
           <label class="grid gap-2 text-sm"><span class="font-medium text-mono">Tiempo máximo de ejecución (segundos)</span><input class="kt-input" type="number" name="max_execution_time" min="10" max="900" value="{{ old('max_execution_time', $settings->max_execution_time) }}" required></label>
-          <label class="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" name="display_errors" value="1" @checked(old('display_errors', $settings->display_errors))> Mostrar errores PHP en pantalla <span class="text-secondary-foreground">(solo recomendado durante desarrollo)</span></label>
-          @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<div class="md:col-span-2"><button class="kt-btn kt-btn-primary" type="submit">Guardar y aplicar</button></div>@endif
+          <label class="flex items-center gap-2 text-sm md:col-span-2 xl:col-span-3"><input type="checkbox" name="display_errors" value="1" @checked(old('display_errors', $settings->display_errors))> Mostrar errores PHP en pantalla <span class="text-secondary-foreground">(solo recomendado durante desarrollo)</span></label>
+          @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))<div class="flex justify-end md:col-span-2 xl:col-span-1"><button class="kt-btn kt-btn-primary" type="submit">Guardar y aplicar</button></div>@endif
         </form>
         <p class="mt-4 text-xs text-secondary-foreground">La versión PHP se cambia desde Editar sitio porque requiere cambiar también el socket y el motor. Las extensiones son paquetes globales del servidor y aquí solo se muestran en PHP info.</p>
       </div></section>

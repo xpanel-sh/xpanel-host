@@ -34,7 +34,7 @@
                             @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
                                 <form method="post" action="{{ route('sites.folder-index.update', $site) }}" class="grid gap-4">@csrf @method('PUT')
                                     <label class="flex items-start gap-3 rounded-lg border border-border p-4"><input class="mt-0.5" type="checkbox" name="directory_listing" value="1" @checked($settings->directory_listing)><span><strong class="block text-sm text-mono">Permitir listado público</strong><span class="mt-1 block text-xs text-secondary-foreground">Nginx mostrará los archivos si no encuentra un documento índice.</span></span></label>
-                                    <button class="kt-btn kt-btn-primary w-fit">Guardar listado</button>
+                                    <div class="flex justify-end"><button class="kt-btn kt-btn-primary">Guardar listado</button></div>
                                 </form>
                             @endif
                         </div>
@@ -48,7 +48,7 @@
                                     <label class="flex items-center gap-2"><input type="checkbox" name="enabled" value="1" @checked($settings->hotlink_protection)> Activar protección Hotlink</label>
                                     <fieldset><legend class="mb-2 text-sm font-medium text-mono">Tipos protegidos</legend><div class="flex flex-wrap gap-3">@foreach($extensions as $extension)<label class="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><input type="checkbox" name="extensions[]" value="{{ $extension }}" @checked(in_array($extension, old('extensions', $settings->hotlink_extensions ?? ['jpg','jpeg','png','gif','webp']), true))> .{{ $extension }}</label>@endforeach</div></fieldset>
                                     <label class="grid gap-2 text-sm"><span class="font-medium text-mono">Dominios referentes adicionales</span><textarea class="kt-textarea min-h-28 font-mono" name="allowed_referrers" placeholder="cdn.example.com&#10;*.trusted.example">{{ old('allowed_referrers', implode("\n", $settings->hotlink_allowed_referrers ?? [])) }}</textarea><span class="text-xs text-secondary-foreground">Uno por línea. El dominio del sitio y las solicitudes directas permanecen permitidos.</span></label>
-                                    <button class="kt-btn kt-btn-primary w-fit">Guardar protección</button>
+                                    <div class="flex justify-end"><button class="kt-btn kt-btn-primary">Guardar protección</button></div>
                                 </form>
                             @endif
                         </div>

@@ -15,15 +15,15 @@
     @if(session('status'))<div class="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
     @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
 
-    <div class="grid gap-5 md:grid-cols-3">
-      <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Backups disponibles</div><div class="mt-2 text-2xl font-semibold text-mono">{{ $backups->total() }}</div></div></div>
-      <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Programación</div><div class="mt-2 text-lg font-semibold text-mono">{{ $policy->enabled ? ($policy->frequency === 'daily' ? 'Diaria' : 'Semanal') : 'Manual' }}</div></div></div>
-      <div class="kt-card"><div class="kt-card-content p-5"><div class="text-sm text-secondary-foreground">Retención</div><div class="mt-2 text-lg font-semibold text-mono">{{ $policy->retention_count }} copias</div></div></div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Backups disponibles</div><div class="mt-1 text-xl font-semibold text-mono">{{ $backups->total() }}</div></div></div>
+      <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Programación</div><div class="mt-1 text-lg font-semibold text-mono">{{ $policy->enabled ? ($policy->frequency === 'daily' ? 'Diaria' : 'Semanal') : 'Manual' }}</div></div></div>
+      <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Retención</div><div class="mt-1 text-lg font-semibold text-mono">{{ $policy->retention_count }} copias</div></div></div>
     </div>
 
     @if(auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
     <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Política automática</h2></div><div class="kt-card-content p-5">
-      <form method="post" action="{{ route('sites.backups.policy', $site) }}" class="grid gap-4 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
+      <form method="post" action="{{ route('sites.backups.policy', $site) }}" class="grid max-w-4xl gap-4 md:grid-cols-[auto_220px_220px_auto] md:items-end">
         @csrf @method('PUT')
         <label class="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="enabled" value="1" @checked($policy->enabled)> Activar</label>
         <label class="grid gap-2 text-sm"><span class="font-medium text-mono">Frecuencia</span><select class="kt-select" name="frequency"><option value="daily" @selected($policy->frequency === 'daily')>Diaria</option><option value="weekly" @selected($policy->frequency === 'weekly')>Semanal</option></select></label>

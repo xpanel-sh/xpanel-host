@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Las vistas de SSH, PHP, Cron, Git, IP, phpMyAdmin, backups, FTP, errores, dominios, malware, SSL y analítica comparten ahora una composición compacta: indicadores horizontales, campos cortos con ancho proporcional y acciones alineadas al final del formulario.
 - Avanzado agrupa listado de carpetas, protección Hotlink y purga de caché en una única vista «Configuración web»; las rutas de lectura anteriores redirigen a la nueva sección para conservar compatibilidad.
 - Dashboard y resumen del servidor actualizan CPU, RAM, red, procesos e I/O sin recargar. Standalone y VM leen su propio sistema; una instancia VPS queda confinada a su slice cgroups v2 y avisa explícitamente si esa fuente no está disponible.
 - Uso de recursos agrega el dominio principal y sus subdominios, recibe nuevas muestras automáticamente y ofrece desglose por sitio sin confundir estadísticas observadas con límites comerciales de la cuenta.

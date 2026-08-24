@@ -32,17 +32,17 @@
                         </div>
                     @endif
 
-                    <div class="grid gap-5 md:grid-cols-3">
-                        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-xs text-secondary-foreground">Subdominios</div><div class="mt-2 text-2xl font-semibold text-mono">{{ $subdomains->count() }}</div></div></div>
-                        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-xs text-secondary-foreground">Motor heredado</div><div class="mt-2 text-lg font-semibold text-mono">{{ ucfirst($site->web_server) }}</div></div></div>
-                        <div class="kt-card"><div class="kt-card-content p-5"><div class="text-xs text-secondary-foreground">DNS requerido</div><div class="mt-2 text-lg font-semibold text-mono">A/AAAA o wildcard</div></div></div>
+                    <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                        <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Subdominios</div><div class="mt-1 text-xl font-semibold text-mono">{{ $subdomains->count() }}</div></div></div>
+                        <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">Motor heredado</div><div class="mt-1 text-lg font-semibold text-mono">{{ ucfirst($site->web_server) }}</div></div></div>
+                        <div class="kt-card"><div class="kt-card-content p-4"><div class="text-xs text-secondary-foreground">DNS requerido</div><div class="mt-1 text-lg font-semibold text-mono">A/AAAA o wildcard</div></div></div>
                     </div>
 
                     @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
                         <div class="kt-card">
                             <div class="kt-card-header"><h2 class="kt-card-title">Nuevo subdominio</h2></div>
                             <div class="kt-card-content p-5">
-                                <form method="POST" action="{{ route('sites.subdomains.store', $site) }}" class="grid gap-4 lg:grid-cols-[1fr_1.5fr_auto] lg:items-end">
+                                <form method="POST" action="{{ route('sites.subdomains.store', $site) }}" class="grid max-w-6xl gap-4 lg:grid-cols-[minmax(260px,0.8fr)_minmax(320px,1.2fr)_auto] lg:items-end">
                                     @csrf
                                     <label class="grid gap-2 text-sm">
                                         <span class="font-medium text-mono">Nombre</span>
