@@ -42,6 +42,7 @@ class LiveResourceMetricsService
             'warning' => $warning,
             'cpu' => [
                 'percent' => $raw['cpu_percent'],
+                'chart_percent' => $this->cpuChartPercent($raw['cpu_percent'], $mode, (int) $context['cpu_limit_percent']),
                 'limit_percent' => (int) $context['cpu_limit_percent'],
                 'cores' => (int) $context['cpu'],
             ],
@@ -266,6 +267,19 @@ class LiveResourceMetricsService
     private function usage(int $used, int $limit): array
     {
         return ['used' => max(0, $used), 'limit' => max(0, $limit), 'percent' => $limit > 0 ? round(min(100, max(0, $used / $limit * 100)), 1) : null];
+    }
+
+    private function cpuChartPercent(int|float|null $percent, string $mode, int $limit): ?float
+    {
+        if ($percent === null) {
+            return null;
+        }
+
+        if ($mode === 'vps-instance' && $limit > 0) {
+            return round(min(100, max(0, (float) $percent / $limit * 100)), 2);
+        }
+
+        return round(min(100, max(0, (float) $percent)), 2);
     }
 
     /** @param array<string, int> $values @return array{previous:?array,elapsed:float} */

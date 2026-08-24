@@ -63,6 +63,8 @@ class LiveResourceMetricsTest extends TestCase
         $this->assertSame(536870912, $second['memory']['limit']);
         $this->assertSame(17, $second['processes']);
         $this->assertSame(200, $second['cpu']['limit_percent']);
+        $this->assertIsFloat($second['cpu']['chart_percent']);
+        $this->assertLessThanOrEqual(100, $second['cpu']['chart_percent']);
         $this->assertNull($first['cpu']['percent']);
         $this->assertNotNull($second['cpu']['percent']);
     }

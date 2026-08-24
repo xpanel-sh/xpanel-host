@@ -27,8 +27,10 @@
         while (points.length > 60) points.shift();
         chartState.set(element, points);
         const max = Math.max(Number(element.dataset.liveChartMax) || 0, 1, ...points);
-        const width = 600; const height = 140; const count = Math.max(1, points.length - 1);
-        element.setAttribute('points', points.map((point, index) => `${(index / count) * width},${height - (point / max) * (height - 8)}`).join(' '));
+        const width = 600; const height = 140; const drawableHeight = height - 8;
+        const chartPoints = points.length === 1 ? [points[0], points[0]] : points;
+        const count = Math.max(1, chartPoints.length - 1);
+        element.setAttribute('points', chartPoints.map((point, index) => `${(index / count) * width},${height - 4 - (point / max) * drawableHeight}`).join(' '));
     };
     const render = payload => {
         document.querySelectorAll('[data-live-metric]').forEach(element => {
