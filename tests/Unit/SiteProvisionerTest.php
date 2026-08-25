@@ -41,6 +41,8 @@ class SiteProvisionerTest extends TestCase
             '-',
             '0',
             'active',
+            'system',
+            '-',
         ], null, 1800);
 
         $generator = new VirtualHostGenerator;

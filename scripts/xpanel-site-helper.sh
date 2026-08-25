@@ -20,6 +20,9 @@ BACKUP_ROOT="${XPANEL_BACKUP_ROOT:-$STATE_ROOT/backups}"
 CUSTOM_FPM_POOL_DIR="${XPANEL_FPM_POOL_DIR:-}"
 CUSTOM_FPM_CONFIG="${XPANEL_FPM_CONFIG:-}"
 CUSTOM_FPM_SERVICE="${XPANEL_FPM_SERVICE:-}"
+PHP_PROFILE_ROOT="${XPANEL_PHP_PROFILE_ROOT:-$(grep '^XPANEL_PHP_PROFILE_ROOT=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+PHP_PROFILE_ROOT="${PHP_PROFILE_ROOT:-/etc/xpanel-host/php-profiles}"
+SYSTEMD_SLICE="${XPANEL_SYSTEMD_SLICE:-$(grep '^XPANEL_SYSTEMD_SLICE=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 
 fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
@@ -45,6 +48,8 @@ valid_file_access_root() {
 }
 valid_ipv4() { [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && php -r 'exit(filter_var($argv[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? 0 : 1);' "$1"; }
 valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; }
+valid_php_profile() { [[ "$1" == "system" || "$1" =~ ^(local|i[a-f0-9]{12})-p[1-9][0-9]*$ ]]; }
+valid_php_extensions() { [[ "$1" == "-" || "$1" =~ ^(bcmath|curl|gd|imagick|intl|mbstring|mysql|opcache|pgsql|redis|soap|sqlite3|xml|zip)(,(bcmath|curl|gd|imagick|intl|mbstring|mysql|opcache|pgsql|redis|soap|sqlite3|xml|zip))*$ ]]; }
 
 set_root_env() {
   local key="$1" value="$2"
@@ -133,6 +138,119 @@ reload_php_fpm() {
     service="$CUSTOM_FPM_SERVICE"
   fi
   defer_service_reload "$service"
+}
+
+php_profile_assert_root() {
+  [[ "$PHP_PROFILE_ROOT" == "/etc/xpanel-host/php-profiles" || "$PHP_PROFILE_ROOT" =~ ^/etc/xpanel-vps/instances/[a-f0-9-]{36}/php-profiles$ ]] || fail "Invalid PHP profile root."
+}
+
+php_profile_service() { printf 'xpanel-php-profile-%s.service' "$1"; }
+
+php_profile_remove_domain() {
+  local domain="$1" profile_dir service
+  php_profile_assert_root
+  [[ -d "$PHP_PROFILE_ROOT" && ! -L "$PHP_PROFILE_ROOT" ]] || return 0
+  for profile_dir in "$PHP_PROFILE_ROOT"/*; do
+    [[ -d "$profile_dir/pools" && ! -L "$profile_dir" ]] || continue
+    valid_php_profile "$(basename "$profile_dir")" || continue
+    if [[ -f "$profile_dir/pools/xpanel-$domain.conf" ]]; then
+      rm -f -- "$profile_dir/pools/xpanel-$domain.conf"
+      service="$(php_profile_service "$(basename "$profile_dir")")"
+      systemctl is-active --quiet "$service" && defer_service_reload "$service" || true
+    fi
+  done
+}
+
+php_profile_link_module() {
+  local version="$1" target="$2" module="$3" link_name="20-$module.ini" existing
+  [[ -f "/etc/php/$version/mods-available/$module.ini" && ! -L "/etc/php/$version/mods-available/$module.ini" ]] || fail "PHP module $module is not installed for PHP $version."
+  existing="$(find "/etc/php/$version/fpm/conf.d" -maxdepth 1 -type l -name "*-$module.ini" -printf '%f\n' 2>/dev/null | sort | head -n1 || true)"
+  [[ -z "$existing" ]] || link_name="$existing"
+  [[ -e "$target/$link_name" || -L "$target/$link_name" ]] || ln -s "/etc/php/$version/mods-available/$module.ini" "$target/$link_name"
+}
+
+php_profile_prepare() {
+  local version="$1" profile="$2" extensions="$3" directory config service module slice_line=""
+  valid_php_profile "$profile" && [[ "$profile" != "system" ]] || fail "Invalid isolated PHP profile."
+  valid_php_extensions "$extensions" || fail "Invalid PHP extension selection."
+  php_profile_assert_root
+  directory="$PHP_PROFILE_ROOT/$profile"
+  config="$directory/php-fpm.conf"
+  service="$(php_profile_service "$profile")"
+  install -d -o root -g root -m 0755 "$PHP_PROFILE_ROOT" "$directory" "$directory/pools"
+  rm -rf -- "$directory/conf.d"
+  install -d -o root -g root -m 0755 "$directory/conf.d"
+  if [[ "$extensions" != "-" ]]; then
+    IFS=',' read -ra selected <<< "$extensions"
+    for module in "${selected[@]}"; do
+      case "$module" in
+        mysql) for module in pdo mysqlnd mysqli pdo_mysql; do php_profile_link_module "$version" "$directory/conf.d" "$module"; done ;;
+        pgsql) for module in pdo pgsql pdo_pgsql; do php_profile_link_module "$version" "$directory/conf.d" "$module"; done ;;
+        sqlite3) for module in pdo sqlite3 pdo_sqlite; do php_profile_link_module "$version" "$directory/conf.d" "$module"; done ;;
+        xml) for module in dom simplexml xml xmlreader xmlwriter xsl; do php_profile_link_module "$version" "$directory/conf.d" "$module"; done ;;
+        *) php_profile_link_module "$version" "$directory/conf.d" "$module" ;;
+      esac
+    done
+  fi
+  cat > "$config" <<EOF
+[global]
+pid = /run/php/xpanel-php-profile-$profile.pid
+error_log = syslog
+daemonize = no
+include = $directory/pools/*.conf
+EOF
+  if [[ -n "$SYSTEMD_SLICE" ]]; then
+    [[ "$SYSTEMD_SLICE" =~ ^xpanel-instance-[a-f0-9-]{36}\.slice$ ]] || fail "Invalid PHP profile slice."
+    slice_line="Slice=$SYSTEMD_SLICE"
+  fi
+  cat > "/etc/systemd/system/$service" <<EOF
+[Unit]
+Description=XPanel isolated PHP profile $profile
+After=network.target
+Before=nginx.service apache2.service
+
+[Service]
+Type=simple
+$slice_line
+Environment=PHP_INI_SCAN_DIR=$directory/conf.d
+ExecStart=/usr/sbin/php-fpm$version --nodaemonize --fpm-config $config
+ExecReload=/bin/kill -USR2 \$MAINPID
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=$directory /run/php /home -/var/www -/srv/www
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  PHP_INI_SCAN_DIR="$directory/conf.d" "php-fpm$version" -t -y "$config"
+  systemctl daemon-reload
+  systemctl enable "$service" >/dev/null
+  systemctl restart "$service"
+}
+
+php_extension_install() {
+  local version="$2" extension="$3"
+  [[ "$version" =~ ^8\.[1-4]$ ]] || fail "Invalid PHP version."
+  [[ "$extension" =~ ^(bcmath|curl|gd|imagick|intl|mbstring|mysql|opcache|pgsql|redis|soap|sqlite3|xml|zip)$ ]] || fail "Invalid PHP extension."
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  apt-get install -y "php$version-$extension"
+}
+
+php_profile_remove() {
+  local profile="$2" directory service
+  valid_php_profile "$profile" && [[ "$profile" != "system" ]] || fail "Invalid isolated PHP profile."
+  php_profile_assert_root
+  directory="$PHP_PROFILE_ROOT/$profile"
+  service="$(php_profile_service "$profile")"
+  [[ ! -L "$directory" ]] || fail "Invalid PHP profile directory."
+  systemctl disable --now "$service" >/dev/null 2>&1 || true
+  rm -f -- "/etc/systemd/system/$service"
+  [[ ! -d "$directory" ]] || rm -rf -- "$directory"
+  systemctl daemon-reload
 }
 
 remove_php_pool() {
@@ -346,7 +464,7 @@ node_project_prepare() {
 site_action() {
   local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   local web_root="${8:-$document_root}"
-  local node_version="${9:--}" runtime_port="${10:-0}" site_status="${11:-active}" node_exec=""
+  local node_version="${9:--}" runtime_port="${10:-0}" site_status="${11:-active}" php_profile="${12:-system}" php_extensions="${13:--}" node_exec=""
   valid_domain "$domain" || fail "Invalid site domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   [[ "$type" == "php" || "$type" == "static" || "$type" == "node" ]] || fail "Invalid site type."
@@ -355,6 +473,9 @@ site_action() {
   valid_document_root "$web_root" || fail "Web root must be under the account public_html tree or a supported legacy web root."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
   [[ "$site_status" == "active" || "$site_status" == "suspended" ]] || fail "Invalid site status."
+  valid_php_profile "$php_profile" || fail "Invalid PHP profile."
+  valid_php_extensions "$php_extensions" || fail "Invalid PHP extensions."
+  [[ "$php_profile" != "system" || "$php_extensions" == "-" ]] || fail "System PHP profile cannot receive an extension list."
   if [[ "$type" == "node" ]]; then
     [[ "$engine" == "nginx" ]] || fail "Node.js sites currently require Nginx."
     [[ "$node_version" =~ ^(20|22|24)$ ]] || fail "Invalid Node.js version."
@@ -385,6 +506,7 @@ site_action() {
       install -o root -g root -m 0644 "$ols_registry_source" /usr/local/lsws/conf/xpanel/registry.conf
     fi
     rm -f "/etc/nginx/sites-enabled/xpanel-gateway-$domain.conf" "/etc/nginx/sites-available/xpanel-gateway-$domain.conf"
+    php_profile_remove_domain "$domain"
     remove_php_pool "$php_version" "$pool"
     systemctl daemon-reload
     reload_web_server "$engine"
@@ -413,10 +535,20 @@ site_action() {
   if [[ "$type" == "php" ]]; then
     if [[ "$engine" != "openlitespeed" ]]; then
       [[ -f "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
-      install -o root -g root -m 0644 "$pool_source" "$pool"
-      test_php_fpm "$php_version"
-      reload_php_fpm "$php_version"
+      php_profile_remove_domain "$domain"
+      if [[ "$php_profile" == "system" ]]; then
+        install -o root -g root -m 0644 "$pool_source" "$pool"
+        test_php_fpm "$php_version"
+        reload_php_fpm "$php_version"
+      else
+        remove_php_pool "$php_version" "$pool"
+        php_profile_assert_root
+        install -d -o root -g root -m 0755 "$PHP_PROFILE_ROOT/$php_profile/pools"
+        install -o root -g root -m 0644 "$pool_source" "$PHP_PROFILE_ROOT/$php_profile/pools/xpanel-$domain.conf"
+        php_profile_prepare "$php_version" "$php_profile" "$php_extensions"
+      fi
     else
+      [[ "$php_profile" == "system" ]] || fail "OpenLiteSpeed does not support isolated PHP profiles."
       remove_php_pool "$php_version" "$pool"
     fi
     if [[ ! -e "$web_root/index.php" && ! -e "$web_root/index.html" ]]; then
@@ -490,8 +622,25 @@ site_restart() {
   valid_document_root "$document_root" || fail "Invalid document root."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
   if [[ "$type" == "php" && "$engine" != "openlitespeed" ]]; then
-    test_php_fpm "$php_version"
-    reload_php_fpm "$php_version"
+    local profile_dir profile_name profile_config profile_found=0
+    php_profile_assert_root
+    if [[ -d "$PHP_PROFILE_ROOT" && ! -L "$PHP_PROFILE_ROOT" ]]; then
+      for profile_dir in "$PHP_PROFILE_ROOT"/*; do
+        [[ -f "$profile_dir/pools/xpanel-$domain.conf" && ! -L "$profile_dir" ]] || continue
+        profile_name="$(basename "$profile_dir")"
+        valid_php_profile "$profile_name" || continue
+        profile_config="$profile_dir/php-fpm.conf"
+        [[ -f "$profile_config" && ! -L "$profile_config" ]] || fail "PHP profile configuration is unavailable."
+        PHP_INI_SCAN_DIR="$profile_dir/conf.d" "php-fpm$php_version" -t -y "$profile_config"
+        defer_service_reload "$(php_profile_service "$profile_name")"
+        profile_found=1
+        break
+      done
+    fi
+    if [[ "$profile_found" == "0" ]]; then
+      test_php_fpm "$php_version"
+      reload_php_fpm "$php_version"
+    fi
   fi
   if [[ "$type" == "node" ]]; then
     systemctl restart "xpanel-node-$domain.service"
@@ -1906,6 +2055,8 @@ case "$ACTION" in
   panel-access-apply) panel_access_apply "$@" ;;
   panel-ssl-enable) panel_ssl_enable ;;
   apply|remove) site_action "$@" ;;
+  php-extension-install) php_extension_install "$@" ;;
+  php-profile-remove) php_profile_remove "$@" ;;
   site-root-migrate) site_root_migrate "$@" ;;
   site-restart) site_restart "$@" ;;
   cron-sync) cron_sync "$@" ;;

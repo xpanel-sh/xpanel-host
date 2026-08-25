@@ -118,7 +118,7 @@ class GitAndProtectedDirectoriesTest extends TestCase
                 'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'apply',
                 $site->domain, $site->web_server, $site->type, $site->php_version, $site->document_root, $site->systemUser(),
                 $site->webRoot(),
-                '-', '0', 'active',
+                '-', '0', 'active', 'system', '-',
             ], null, 1800);
         });
 

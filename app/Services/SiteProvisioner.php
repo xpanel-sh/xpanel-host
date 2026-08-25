@@ -52,6 +52,8 @@ class SiteProvisioner
             (string) ($site->node_version ?? '-'),
             (string) ($site->runtime_port ?? '0'),
             $site->status,
+            $site->phpProfile?->runtimeKey() ?? 'system',
+            $site->phpProfile?->extensionArgument() ?? '-',
         ], timeout: 1800);
     }
 

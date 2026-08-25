@@ -243,6 +243,11 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/access/terminal-token', [SiteTerminalController::class, 'token'])->middleware('throttle:10,1')->name('sites.access.terminal.token');
             Route::post('/sites/ikode/terminal-token', [AccountTerminalController::class, 'token'])->middleware('throttle:10,1')->name('sites.ikode.terminal.token');
             Route::put('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'update'])->name('sites.php.configuration.update');
+            Route::put('/sites/{site}/advanced/php-configuration/profile', [PhpConfigurationController::class, 'assignProfile'])->name('sites.php.profile.assign');
+            Route::post('/sites/{site}/advanced/php-configuration/profiles', [PhpConfigurationController::class, 'storeProfile'])->name('sites.php.profiles.store');
+            Route::put('/sites/{site}/advanced/php-configuration/profiles/{phpProfile}', [PhpConfigurationController::class, 'updateProfile'])->name('sites.php.profiles.update');
+            Route::delete('/sites/{site}/advanced/php-configuration/profiles/{phpProfile}', [PhpConfigurationController::class, 'destroyProfile'])->name('sites.php.profiles.destroy');
+            Route::post('/sites/{site}/advanced/php-configuration/extensions/{extension}', [PhpConfigurationController::class, 'installExtension'])->where('extension', '[a-z0-9]+')->name('sites.php.extensions.install');
             Route::post('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'store'])->name('sites.cron.store');
             Route::put('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'update'])->name('sites.cron.update');
             Route::delete('/sites/{site}/advanced/cron-jobs/{cronJob}', [CronJobController::class, 'destroy'])->name('sites.cron.destroy');

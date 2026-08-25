@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 
-#[Fillable(['parent_site_id', 'domain', 'document_root', 'public_path', 'system_user', 'php_version', 'node_version', 'runtime_port', 'node_start_command', 'type', 'tenancy_mode', 'wildcard_domain', 'wildcard_ssl_status', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
+#[Fillable(['parent_site_id', 'domain', 'document_root', 'public_path', 'system_user', 'php_version', 'php_profile_id', 'node_version', 'runtime_port', 'node_start_command', 'type', 'tenancy_mode', 'wildcard_domain', 'wildcard_ssl_status', 'web_server', 'status', 'ssl_status', 'ssl_expires_at', 'ssl_issuer', 'https_redirect'])]
 class Site extends Model
 {
     protected static function booted(): void
@@ -156,6 +156,11 @@ class Site extends Model
     public function phpSettings(): HasOne
     {
         return $this->hasOne(SitePhpSetting::class);
+    }
+
+    public function phpProfile(): BelongsTo
+    {
+        return $this->belongsTo(PhpProfile::class);
     }
 
     public function webSettings(): HasOne

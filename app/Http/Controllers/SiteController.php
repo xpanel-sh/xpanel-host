@@ -145,6 +145,9 @@ class SiteController extends Controller
         }
 
         try {
+            if (($data['php_version'] ?? $site->php_version) !== $site->php_version) {
+                $data['php_profile_id'] = null;
+            }
             $site->update($data);
             $provisioner->provision($site, $previous);
             if ($site->accessSettings()->exists()) {

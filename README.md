@@ -54,7 +54,7 @@ Servidor Linux o MicroVM
 | **Correo** | Postfix, Dovecot, Maildir, Roundcube y XMail, SPF, DKIM, DMARC y verificación DNS |
 | **Archivos** | Gestor general confinado al hogar de la cuenta y gestor independiente confinado por dominio |
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
-| **PHP y tareas** | Límites PHP por sitio, resumen seguro del runtime y tareas Cron administradas sin ejecución como root |
+| **PHP y tareas** | Límites y perfiles PHP-FPM por sitio, selección aislada de extensiones y tareas Cron administradas sin ejecución como root |
 | **Tráfico y seguridad** | Analítica desde logs, caché, listado de carpetas, protección Hotlink y reglas IPv4/IPv6 por sitio |
 | **Acceso y equipo** | Propietario, roles, permisos, chat interno, notificaciones persistentes, SFTP confinado, FTPS opcional y SSH por llaves |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
@@ -141,7 +141,7 @@ php artisan xpanel:admin-password --generate
 5. Crea el sitio y copia los archivos al document root o usa el file manager.
 6. Abre **Seguridad → SSL** y emite el certificado.
 7. Crea una base desde **Bases de datos → Administración** si la aplicación la necesita.
-8. Ajusta memoria, subidas y tiempo de ejecución desde **Avanzado → Configuración PHP**.
+8. Ajusta memoria, subidas, tiempo de ejecución y el perfil de extensiones desde **Avanzado → Configuración PHP**. Los perfiles se comparten sólo cuando tú los asignas expresamente; usar PHP 8.3 en dos sitios no obliga a que ambos carguen las mismas extensiones.
 9. Si la aplicación necesita procesos periódicos, créalos desde **Avanzado → Cron Jobs**.
 
 ### Cuenta de alojamiento y gestores de archivos

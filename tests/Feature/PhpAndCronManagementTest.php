@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\PhpProfile;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
@@ -56,6 +57,43 @@ class PhpAndCronManagementTest extends TestCase
             'post_max_size' => '64M',
             'max_execution_time' => 60,
         ])->assertSessionHasErrors('post_max_size');
+    }
+
+    public function test_php_profile_is_created_applied_and_can_be_customized_per_site(): void
+    {
+        $site = $this->site();
+        $this->actingAs($this->owner())->post(route('sites.php.profiles.store', $site), [
+            'name' => 'WordPress aislado',
+            'extensions' => ['curl', 'mbstring', 'mysql', 'opcache', 'xml', 'zip'],
+        ])->assertRedirect()->assertSessionHas('status');
+
+        $profile = PhpProfile::firstOrFail();
+        $this->assertSame($profile->id, $site->fresh()->php_profile_id);
+        $this->assertSame(['curl', 'mbstring', 'mysql', 'opcache', 'xml', 'zip'], $profile->extensions);
+
+        $this->actingAs($this->owner())->put(route('sites.php.profiles.update', [$site, $profile]), [
+            'name' => 'WordPress producción', 'extensions' => ['curl', 'mysql', 'opcache'],
+        ])->assertRedirect()->assertSessionHas('status');
+        $this->assertSame(['curl', 'mysql', 'opcache'], $profile->fresh()->extensions);
+    }
+
+    public function test_profile_must_match_php_version_and_openlitespeed_cannot_use_it(): void
+    {
+        $site = $this->site();
+        $otherVersion = PhpProfile::create(['name' => 'Legacy', 'php_version' => '8.2', 'extensions' => []]);
+        $this->actingAs($this->owner())->put(route('sites.php.profile.assign', $site), ['php_profile_id' => $otherVersion->id])
+            ->assertSessionHasErrors('php_profile_id');
+
+        $site->update(['web_server' => 'openlitespeed']);
+        $this->actingAs($this->owner())->post(route('sites.php.profiles.store', $site), ['name' => 'No permitido'])
+            ->assertStatus(422);
+    }
+
+    public function test_php_info_legacy_url_redirects_to_the_unified_configuration(): void
+    {
+        $site = $this->site();
+        $this->actingAs($this->owner())->get(route('sites.php.info', $site))
+            ->assertRedirect(route('sites.php.configuration', $site));
     }
 
     public function test_cron_job_is_staged_as_the_limited_site_user(): void
