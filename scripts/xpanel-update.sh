@@ -198,7 +198,7 @@ if [[ -z "$(env_value XPANEL_XMAIL_ENABLED)" ]]; then
 fi
 
 missing_services=()
-for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm tar gzip unzip zipinfo crontab rsync ip ps sshd vsftpd nft clamscan freshclam flock wp setfacl; do
+for command_name in nginx certbot mariadb mariadb-dump postfix doveconf opendkim composer node npm python3 tar gzip unzip zipinfo crontab rsync ip ps sshd vsftpd nft clamscan freshclam flock wp setfacl; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     missing_services+=("$command_name")
   fi
@@ -271,6 +271,7 @@ if [[ "$terminal_enabled" == "true" ]]; then
   bash "$ROOT/scripts/xpanel-site-helper.sh" access-sync "$account_user" "$account_home" 0 0 0 1
 fi
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:access-sync
+bash "$ROOT/scripts/configure-mail-rate-policy.sh"
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:mail-sync
 
 roundcube_enabled="$(env_value XPANEL_ROUNDCUBE_ENABLED)"

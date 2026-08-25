@@ -336,6 +336,8 @@ Host muestra estos valores exactos en **Correos → DNS del correo** para cada d
 
 Cada dominio recibe al sincronizar su primera cuenta una clave RSA DKIM independiente. La clave privada queda fuera del directorio público y OpenDKIM firma el correo saliente; el panel solo enseña la clave pública que debe copiarse en `xpanel._domainkey`.
 
+Cada buzón dispone además de límites configurables de destinatarios salientes por hora y por día (100 y 500 por defecto). El control se aplica en Postfix usando la identidad SMTP autenticada, no la IP compartida del cliente. Al alcanzar el cupo se rechazan nuevos destinatarios hasta el siguiente periodo. Las aplicaciones alojadas deben usar SMTP autenticado local en el puerto 587: los usuarios de sitios no pueden evadir la política mediante `sendmail` ni conectándose directamente a los puertos SMTP externos; nftables reserva esa entrega al proceso de Postfix.
+
 Si el servidor tenía una versión anterior sin OpenDKIM, actualiza el repositorio y ejecuta una vez el instalador idempotente para añadir el servicio y su conexión con Postfix:
 
 ```bash

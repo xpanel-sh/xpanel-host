@@ -1778,18 +1778,26 @@ access_remove() {
 
 mail_sync() {
   local source="$STATE_ROOT/storage/app/mail"
-  for name in domains mailboxes users sender-login aliases dkim-selector; do
+  for name in domains mailboxes users sender-login aliases send-limits dkim-selector; do
     [[ -f "$source/$name" ]] || fail "Missing staged mail file: $name"
   done
   if grep -Ev '^([a-z0-9]([a-z0-9.-]*[a-z0-9])? OK)?$' "$source/domains" | grep -q .; then
     fail "Invalid mail domain map."
   fi
-  install -d -o root -g dovecot -m 0750 /etc/xpanel-host/mail
+  while read -r email hourly daily extra; do
+    [[ -z "$email" ]] && continue
+    [[ -z "${extra:-}" && "$email" =~ ^[A-Za-z0-9._+-]+@[a-z0-9.-]+$ ]] || fail "Invalid outbound mail limit account."
+    [[ "$hourly" =~ ^[0-9]+$ && "$daily" =~ ^[0-9]+$ ]] || fail "Invalid outbound mail limit values."
+    (( hourly >= 10 && hourly <= 10000 && daily >= hourly && daily <= 100000 )) || fail "Outbound mail limits are outside the allowed range."
+  done < "$source/send-limits"
+  getent group xpanel-mail-policy >/dev/null || fail "The outbound mail policy service is not installed."
+  install -d -o root -g root -m 0755 /etc/xpanel-host/mail
   install -o root -g dovecot -m 0640 "$source/users" /etc/xpanel-host/mail/users
   install -o root -g root -m 0644 "$source/domains" /etc/xpanel-host/mail/domains
   install -o root -g root -m 0644 "$source/mailboxes" /etc/xpanel-host/mail/mailboxes
   install -o root -g root -m 0644 "$source/sender-login" /etc/xpanel-host/mail/sender-login
   install -o root -g root -m 0644 "$source/aliases" /etc/xpanel-host/mail/aliases
+  install -o root -g xpanel-mail-policy -m 0640 "$source/send-limits" /etc/xpanel-host/mail/send-limits
   postmap /etc/xpanel-host/mail/domains
   postmap /etc/xpanel-host/mail/mailboxes
   postmap /etc/xpanel-host/mail/sender-login
@@ -1843,6 +1851,7 @@ mail_sync() {
   doveconf -n >/dev/null
   postfix check
   opendkim -n -x /etc/opendkim.conf
+  systemctl is-active --quiet xpanel-mail-rate-policy
   systemctl reload opendkim
   systemctl reload dovecot
   systemctl reload postfix

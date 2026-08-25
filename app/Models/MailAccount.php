@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['domain_id', 'local_part', 'password', 'quota_mb', 'status'])]
+#[Fillable(['domain_id', 'local_part', 'password', 'quota_mb', 'hourly_send_limit', 'daily_send_limit', 'status'])]
 #[Hidden(['password'])]
 class MailAccount extends Model
 {
@@ -15,6 +15,8 @@ class MailAccount extends Model
     {
         return [
             'password' => 'hashed',
+            'hourly_send_limit' => 'integer',
+            'daily_send_limit' => 'integer',
         ];
     }
 

@@ -123,6 +123,7 @@ class MailProvisioner
         $users = [];
         $mailboxes = [];
         $senderLogin = [];
+        $sendLimits = [];
         $firstAccountByDomain = [];
 
         foreach ($accounts as $account) {
@@ -133,6 +134,7 @@ class MailProvisioner
             $domains[$domain] = $domain.' OK';
             $mailboxes[] = $email.' OK';
             $senderLogin[] = $email.' '.$email;
+            $sendLimits[] = $email.' '.$account->hourly_send_limit.' '.$account->daily_send_limit;
             $firstAccountByDomain[$domain] ??= $email;
             $users[] = implode(':', [
                 $email,
@@ -154,6 +156,7 @@ class MailProvisioner
         $this->atomicWrite($directory.'/mailboxes', implode("\n", $mailboxes).($mailboxes ? "\n" : ''));
         $this->atomicWrite($directory.'/users', implode("\n", $users).($users ? "\n" : ''));
         $this->atomicWrite($directory.'/sender-login', implode("\n", $senderLogin).($senderLogin ? "\n" : ''));
+        $this->atomicWrite($directory.'/send-limits', implode("\n", $sendLimits).($sendLimits ? "\n" : ''));
         $this->atomicWrite($directory.'/dkim-selector', (string) config('xpanel.dkim_selector', 'xpanel')."\n");
         $aliases = [];
         foreach ($firstAccountByDomain as $domain => $email) {

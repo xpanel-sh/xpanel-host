@@ -52,6 +52,8 @@ XMail ─────┘
 - La credencial IMAP/SMTP se cifra con `APP_KEY`, se elimina al cerrar sesión y nunca se escribe en logs ni en la base de cuentas.
 - El inicio de sesión se limita por combinación de IP y buzón, además de un límite global por IP.
 - El remitente SMTP siempre es el buzón autenticado; Postfix conserva además su restricción `sender_login_maps`.
+- Cada buzón limita destinatarios salientes por hora y por día (100/500 de forma predeterminada). Postfix atribuye el consumo al usuario SASL autenticado, rechaza nuevos destinatarios al alcanzar el cupo y vuelve a permitirlos al comenzar el siguiente periodo.
+- Las webs alojadas no pueden evadir esos límites mediante el binario local `sendmail` ni conectándose directamente a un servidor SMTP externo. La salida a los puertos SMTP habituales 25, 465, 587 y 2525 queda reservada a Postfix, mientras localhost permanece disponible para XMail y aplicaciones. Los sitios deben enviar con una cuenta SMTP autenticada local por el puerto 587; los topes se ajustan desde **Correos → Límites**.
 - Los nombres de carpeta, UID, destinatarios, tamaños y cabeceras se validan antes de llegar a IMAP o SMTP.
 - Los recursos remotos y el contenido activo de mensajes HTML quedan bloqueados.
 - Los cuerpos mayores a 10 MiB no se cargan en la vista y los adjuntos se limitan por `XPANEL_XMAIL_ATTACHMENT_MAX_BYTES` (50 MiB de forma predeterminada).

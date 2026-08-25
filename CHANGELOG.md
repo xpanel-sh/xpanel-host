@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Correo saliente protegido por cuenta: cada buzón tiene límites configurables de destinatarios por hora y día, aplicados por un policy service local de Postfix sobre la identidad SASL. Las webs alojadas ya no pueden evadirlos mediante `sendmail` ni SMTP externo directo; nftables reserva esa salida a Postfix y la instalación o actualización despliega todo automáticamente.
 - El builder de XFlow utiliza ahora un lienzo navegable sin barras de desplazamiento, con paneo, zoom, ajuste automático, paneles laterales plegables y conectores visibles. Las condiciones disponen de salidas Verdadero/Falso, las líneas incluyen contraste y flechas, y las instrucciones aparecen como avisos temporales; también traduce sus estados y oculta campos de programación que no aplican a la frecuencia elegida.
 - Las vistas de SSH, PHP, Cron, Git, IP, phpMyAdmin, backups, FTP, errores, dominios, malware, SSL y analítica comparten ahora una composición compacta: indicadores horizontales, campos cortos con ancho proporcional y acciones alineadas al final del formulario.
 - Avanzado agrupa listado de carpetas, protección Hotlink y purga de caché en una única vista «Configuración web»; las rutas de lectura anteriores redirigen a la nueva sección para conservar compatibilidad.

@@ -40,6 +40,7 @@ class MailProvisionerTest extends TestCase
         $this->assertStringContainsString(config('xpanel.account_home').'/mail/mail.example.com/ventas', $users);
         $this->assertStringNotContainsString('Mail-Password-That-Must-Not-Leak', $users);
         $this->assertStringContainsString('postmaster@mail.example.com ventas@mail.example.com', file_get_contents(storage_path('app/mail/aliases')));
+        $this->assertSame("ventas@mail.example.com 100 500\n", file_get_contents(storage_path('app/mail/send-limits')));
         $privateKey = file_get_contents(storage_path('app/mail/dkim/mail.example.com.private'));
         $publicRecord = file_get_contents(storage_path('app/mail/dkim/mail.example.com.txt'));
         $this->assertStringContainsString('BEGIN PRIVATE KEY', $privateKey);
@@ -87,5 +88,6 @@ class MailProvisionerTest extends TestCase
             'admin@restore.example.com',
             file_get_contents(storage_path('app/mail/users')),
         );
+        $this->assertSame("admin@restore.example.com 100 500\n", file_get_contents(storage_path('app/mail/send-limits')));
     }
 }

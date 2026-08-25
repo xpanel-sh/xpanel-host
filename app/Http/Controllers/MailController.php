@@ -64,7 +64,16 @@ class MailController extends Controller
             'domain_id' => 'required|exists:domains,id',
             'password' => 'required|string|min:12',
             'quota_mb' => 'required|integer|min:128|max:102400',
+            'hourly_send_limit' => 'sometimes|integer|min:10|max:10000',
+            'daily_send_limit' => 'sometimes|integer|min:10|max:100000',
         ]);
+        $data['hourly_send_limit'] ??= 100;
+        $data['daily_send_limit'] ??= 500;
+        if ($data['daily_send_limit'] < $data['hourly_send_limit']) {
+            return back()->withInput($request->except('password'))->withErrors([
+                'daily_send_limit' => 'El límite diario debe ser mayor o igual que el límite por hora.',
+            ]);
+        }
 
         $exists = MailAccount::where('domain_id', $data['domain_id'])
             ->where('local_part', $data['local_part'])
@@ -126,5 +135,28 @@ class MailController extends Controller
         }
 
         return redirect()->route('mail.index')->with('status', "Contrasena de {$mailAccount->email} actualizada.");
+    }
+
+    public function updateLimits(Request $request, MailAccount $mailAccount, MailProvisioner $provisioner): RedirectResponse
+    {
+        $data = $request->validate([
+            'hourly_send_limit' => 'required|integer|min:10|max:10000',
+            'daily_send_limit' => 'required|integer|min:10|max:100000|gte:hourly_send_limit',
+        ]);
+        $original = $mailAccount->only(['hourly_send_limit', 'daily_send_limit', 'status']);
+        $mailAccount->update($data + ['status' => 'provisioning']);
+        try {
+            $provisioner->apply($mailAccount);
+        } catch (\Throwable $exception) {
+            $mailAccount->forceFill(array_merge($original, ['status' => 'error']))->save();
+            try {
+                $provisioner->sync();
+            } catch (\Throwable) {
+            }
+
+            return back()->withErrors(['server' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('mail.index')->with('status', "Límites de {$mailAccount->email} actualizados.");
     }
 }

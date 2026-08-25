@@ -175,6 +175,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/mail', [MailController::class, 'store'])->name('mail.store');
             Route::delete('/mail/{mailAccount}', [MailController::class, 'destroy'])->name('mail.destroy');
             Route::post('/mail/{mailAccount}/password', [MailController::class, 'resetPassword'])->name('mail.reset-password');
+            Route::put('/mail/{mailAccount}/limits', [MailController::class, 'updateLimits'])->name('mail.update-limits');
             Route::put('/mail/domains/{domain}/settings', [DomainMailSettingsController::class, 'update'])->name('mail.domains.settings');
 
             Route::post('/server-ip-addresses', [ServerIpAddressController::class, 'store'])->name('server-ip-addresses.store');

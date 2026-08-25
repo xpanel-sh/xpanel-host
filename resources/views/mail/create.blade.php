@@ -68,6 +68,14 @@
                                         <label class="kt-form-label max-w-56">Cuota MB</label>
                                         <input class="kt-input" type="number" name="quota_mb" value="{{ old('quota_mb', 1024) }}" min="128" max="102400" required>
                                     </div>
+                                    <div class="flex items-start flex-wrap lg:flex-nowrap gap-2.5">
+                                        <label class="kt-form-label max-w-56 pt-2">Envío saliente</label>
+                                        <div class="grid grow gap-3 sm:grid-cols-2">
+                                            <label class="grid gap-1.5 text-xs"><span>Destinatarios por hora</span><input class="kt-input" type="number" name="hourly_send_limit" value="{{ old('hourly_send_limit', 100) }}" min="10" max="10000" required></label>
+                                            <label class="grid gap-1.5 text-xs"><span>Destinatarios por día</span><input class="kt-input" type="number" name="daily_send_limit" value="{{ old('daily_send_limit', 500) }}" min="10" max="100000" required></label>
+                                            <p class="kt-form-description sm:col-span-2">Se cuentan destinatarios, no mensajes, para impedir envíos masivos con CC/BCC.</p>
+                                        </div>
+                                    </div>
                                     <div class="flex justify-end gap-2.5">
                                         <a href="{{ route('mail.index') }}" class="kt-btn kt-btn-outline">Cancelar</a>
                                         <button class="kt-btn kt-btn-primary">Crear correo</button>

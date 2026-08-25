@@ -858,6 +858,7 @@ if [[ "${XPANEL_PHPMYADMIN_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-phpmyadmin.sh"
 fi
 configure_mail_server
+bash "$ROOT/scripts/configure-mail-rate-policy.sh"
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:mail-sync
 configure_certbot_renewal
 configure_panel_vhost

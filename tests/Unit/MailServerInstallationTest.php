@@ -112,4 +112,27 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('the previous configuration was restored', $helper);
         $this->assertStringContainsString('syncOutboundRouting()', $syncCommand);
     }
+
+    public function test_installs_per_account_outbound_mail_policy_and_prevents_local_bypass(): void
+    {
+        $installer = file_get_contents(base_path('install.sh'));
+        $updater = file_get_contents(base_path('scripts/xpanel-update.sh'));
+        $configurator = file_get_contents(base_path('scripts/configure-mail-rate-policy.sh'));
+        $policy = file_get_contents(base_path('scripts/xpanel-mail-rate-policy.py'));
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('configure-mail-rate-policy.sh', $installer);
+        $this->assertStringContainsString('configure-mail-rate-policy.sh', $updater);
+        $this->assertStringContainsString('authorized_submit_users = root, postfix, $site_user', $configurator);
+        $this->assertStringContainsString('check_policy_service inet:127.0.0.1:10040', $configurator);
+        $this->assertStringContainsString('User=xpanel-mail-policy', $configurator);
+        $this->assertStringContainsString('NoNewPrivileges=true', $configurator);
+        $this->assertStringContainsString('table inet xpanel_host_mail_egress', $configurator);
+        $this->assertStringContainsString('meta skuid $postfix_uid tcp dport { 25, 465, 587, 2525 } accept', $configurator);
+        $this->assertStringContainsString('tcp dport { 25, 465, 587, 2525 } reject', $configurator);
+        $this->assertStringContainsString('sasl_username', $policy);
+        $this->assertStringContainsString('Límite horario de destinatarios salientes alcanzado', $policy);
+        $this->assertStringContainsString('send-limits', $helper);
+        $this->assertStringContainsString('systemctl is-active --quiet xpanel-mail-rate-policy', $helper);
+    }
 }

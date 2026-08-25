@@ -43,7 +43,10 @@ class MailManagementTest extends TestCase
 
         $response->assertRedirect(route('mail.index'));
         $this->assertDatabaseHas('mail_accounts', ['domain_id' => $domain->id, 'local_part' => 'ventas']);
-        $this->assertSame('staged', MailAccount::where('local_part', 'ventas')->firstOrFail()->status);
+        $account = MailAccount::where('local_part', 'ventas')->firstOrFail();
+        $this->assertSame('staged', $account->status);
+        $this->assertSame(100, $account->hourly_send_limit);
+        $this->assertSame(500, $account->daily_send_limit);
         $this->assertStringContainsString('ventas@'.$domain->domain, file_get_contents(storage_path('app/mail/users')));
     }
 
@@ -209,6 +212,53 @@ class MailManagementTest extends TestCase
             ->assertRedirect(route('mail.index'));
 
         $this->assertNotEquals($originalHash, $account->fresh()->password);
+    }
+
+    public function test_outbound_recipient_limits_can_be_updated_per_mailbox(): void
+    {
+        $domain = $this->domain();
+        $account = MailAccount::create([
+            'domain_id' => $domain->id,
+            'local_part' => 'limited',
+            'password' => 'a-very-long-password',
+            'quota_mb' => 1024,
+        ]);
+
+        $this->actingAs($this->userWithRole('developer'))
+            ->put(route('mail.update-limits', $account), [
+                'hourly_send_limit' => 40,
+                'daily_send_limit' => 180,
+            ])
+            ->assertRedirect(route('mail.index'));
+
+        $account->refresh();
+        $this->assertSame(40, $account->hourly_send_limit);
+        $this->assertSame(180, $account->daily_send_limit);
+        $this->assertSame('staged', $account->status);
+        $this->assertStringContainsString(
+            "limited@{$domain->domain} 40 180",
+            file_get_contents(storage_path('app/mail/send-limits')),
+        );
+    }
+
+    public function test_daily_limit_cannot_be_lower_than_hourly_limit(): void
+    {
+        $domain = $this->domain();
+        $account = MailAccount::create([
+            'domain_id' => $domain->id,
+            'local_part' => 'safe',
+            'password' => 'a-very-long-password',
+            'quota_mb' => 1024,
+        ]);
+
+        $this->actingAs($this->userWithRole('developer'))
+            ->from(route('mail.index'))
+            ->put(route('mail.update-limits', $account), [
+                'hourly_send_limit' => 500,
+                'daily_send_limit' => 100,
+            ])
+            ->assertRedirect(route('mail.index'))
+            ->assertSessionHasErrors('daily_send_limit');
     }
 
     public function test_duplicate_local_part_on_same_domain_is_rejected(): void

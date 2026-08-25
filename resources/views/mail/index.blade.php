@@ -187,6 +187,8 @@
                                                     <span>{{ $account->domain->domain }}</span>
                                                     <span class="text-muted-foreground">·</span>
                                                     <span>{{ number_format($account->quota_mb / 1024, 1) }} GB de cuota</span>
+                                                    <span class="text-muted-foreground">·</span>
+                                                    <span>{{ number_format($account->hourly_send_limit) }}/h · {{ number_format($account->daily_send_limit) }}/día</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -233,6 +235,24 @@
                                                             <input type="password" name="password" required minlength="12" autocomplete="new-password"
                                                                    class="kt-input kt-input-sm" placeholder="Mínimo 12 caracteres">
                                                             <button class="kt-btn kt-btn-sm kt-btn-primary" type="submit">Actualizar contraseña</button>
+                                                        </form>
+                                                    </div>
+                                                </details>
+                                                <details class="relative inline-block text-left">
+                                                    <summary class="kt-btn kt-btn-outline kt-btn-sm cursor-pointer list-none">
+                                                        <i class="ki-filled ki-shield-tick"></i>
+                                                        Límites
+                                                    </summary>
+                                                    <div class="absolute end-0 z-20 mt-2 w-80 rounded-xl border border-border bg-background p-4 shadow-2xl">
+                                                        <form action="{{ route('mail.update-limits', $account) }}" method="POST" class="grid gap-3">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <div class="text-xs text-secondary-foreground">Controla destinatarios aceptados mediante SMTP autenticado.</div>
+                                                            <div class="grid grid-cols-2 gap-2">
+                                                                <label class="grid gap-1 text-xs"><span>Por hora</span><input class="kt-input kt-input-sm" type="number" name="hourly_send_limit" value="{{ $account->hourly_send_limit }}" min="10" max="10000" required></label>
+                                                                <label class="grid gap-1 text-xs"><span>Por día</span><input class="kt-input kt-input-sm" type="number" name="daily_send_limit" value="{{ $account->daily_send_limit }}" min="10" max="100000" required></label>
+                                                            </div>
+                                                            <button class="kt-btn kt-btn-sm kt-btn-primary" type="submit">Guardar límites</button>
                                                         </form>
                                                     </div>
                                                 </details>
