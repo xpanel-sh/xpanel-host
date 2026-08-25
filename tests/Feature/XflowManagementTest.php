@@ -80,7 +80,14 @@ class XflowManagementTest extends TestCase
             ->assertSee('.xflow-canvas-wrap{grid-column:2', false)
             ->assertSee('xflow-branch-chip', false)
             ->assertSee('type-${escapeHtml(node.type)}', false)
+            ->assertSee('id="xflow_json_import"', false)
+            ->assertSee('id="xflow_export_json"', false)
+            ->assertSee('data-branch-menu=', false)
+            ->assertSee('draggable="true"', false)
+            ->assertSee('id="xflow_workflow_inspector"', false)
+            ->assertSee("Esta conexión formaría un ciclo", false)
             ->assertSee('overflow:hidden', false)
+            ->assertDontSee('Punto inicial')
             ->assertDontSee('XFlow guardado y validado.');
         $other = $this->site('other.example.com');
         $this->actingAs($owner)->get(route('sites.xflow.builder', [$other, $workflow]))->assertNotFound();
@@ -191,6 +198,31 @@ class XflowManagementTest extends TestCase
         $output = $run->steps()->where('node_id', 'check-1')->firstOrFail()->output;
 
         $this->assertSame([$allowed->domain], $output['sites']);
+    }
+
+    public function test_condition_executes_only_the_matching_branch(): void
+    {
+        $owner = $this->user();
+        $site = $this->site();
+        $nodes = [
+            ['id' => 'trigger-1', 'type' => 'trigger', 'handler' => 'trigger.manual', 'label' => 'Inicio', 'x' => 80, 'y' => 80, 'config' => []],
+            ['id' => 'condition-1', 'type' => 'condition', 'handler' => 'condition.site_status', 'label' => 'Está suspendido', 'x' => 300, 'y' => 180, 'config' => ['target' => 'site', 'site_id' => $site->id, 'operator' => 'equals', 'value' => 'suspended']],
+            ['id' => 'true-1', 'type' => 'action', 'handler' => 'action.notify', 'label' => 'Rama verdadera', 'x' => 120, 'y' => 360, 'config' => ['title' => 'Verdadero', 'message' => 'No debe ejecutarse']],
+            ['id' => 'false-1', 'type' => 'action', 'handler' => 'action.notify', 'label' => 'Rama falsa', 'x' => 480, 'y' => 360, 'config' => ['title' => 'Falso', 'message' => 'Debe ejecutarse']],
+        ];
+        $workflow = $this->workflow($owner, [
+            'scope' => 'site', 'site_id' => $site->id, 'nodes' => $nodes,
+            'edges' => [
+                ['from' => 'trigger-1', 'to' => 'condition-1', 'branch' => 'always'],
+                ['from' => 'condition-1', 'to' => 'true-1', 'branch' => 'true'],
+                ['from' => 'condition-1', 'to' => 'false-1', 'branch' => 'false'],
+            ],
+        ]);
+
+        $run = app(XflowRunner::class)->run($workflow);
+
+        $this->assertDatabaseHas('xflow_run_steps', ['run_id' => $run->id, 'node_id' => 'false-1']);
+        $this->assertDatabaseMissing('xflow_run_steps', ['run_id' => $run->id, 'node_id' => 'true-1']);
     }
 
     public function test_due_scheduled_workflow_is_executed_and_rescheduled(): void

@@ -43,12 +43,21 @@ class XflowGraphValidator
 
         $cleanEdges = [];
         $adjacency = [];
+        $nodeTypes = collect($cleanNodes)->pluck('type', 'id');
         foreach ($edges as $edge) {
             $from = (string) ($edge['from'] ?? '');
             $to = (string) ($edge['to'] ?? '');
             $branch = (string) ($edge['branch'] ?? 'always');
             if ($from === $to || ! isset($ids[$from], $ids[$to]) || ! in_array($branch, ['always', 'success', 'failure', 'true', 'false'], true)) {
                 throw ValidationException::withMessages(['graph' => 'XFlow contiene una conexión inválida.']);
+            }
+            $allowedBranches = match ($nodeTypes->get($from)) {
+                'condition' => ['true', 'false'],
+                'action' => ['always', 'success', 'failure'],
+                default => ['always'],
+            };
+            if (! in_array($branch, $allowedBranches, true)) {
+                throw ValidationException::withMessages(['graph' => 'La salida elegida no corresponde al tipo de nodo de origen.']);
             }
             $key = $from.'>'.$to.'>'.$branch;
             $cleanEdges[$key] = compact('from', 'to', 'branch');

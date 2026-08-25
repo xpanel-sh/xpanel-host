@@ -16,26 +16,25 @@
 .xflow-line{fill:none;stroke:currentColor;stroke-linecap:round;stroke-width:2}
 .xflow-arrow{fill:hsl(var(--primary))}.xflow-branch-chip{stroke-width:1}.xflow-branch-chip.always,.xflow-branch-chip.success,.xflow-branch-chip.failure{fill:hsl(var(--background));stroke:hsl(var(--border))}.xflow-branch-chip.true{fill:color-mix(in srgb,hsl(var(--success)) 13%,hsl(var(--background)));stroke:color-mix(in srgb,hsl(var(--success)) 35%,hsl(var(--border)))}.xflow-branch-chip.false{fill:color-mix(in srgb,hsl(var(--warning)) 15%,hsl(var(--background)));stroke:color-mix(in srgb,hsl(var(--warning)) 40%,hsl(var(--border)))}
 .xflow-line-label{fill:hsl(var(--foreground));font-size:10px;font-weight:600}.xflow-line-label.true{fill:hsl(var(--success))}.xflow-line-label.false{fill:hsl(var(--warning-foreground))}
-.xflow-node{position:absolute;width:220px;min-height:100px;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--background));box-shadow:0 8px 24px rgba(15,23,42,.09);cursor:grab;user-select:none;transition:border-color .15s,box-shadow .15s}
+.xflow-node{position:absolute;width:220px;min-height:64px;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--background));box-shadow:0 8px 24px rgba(15,23,42,.09);cursor:grab;user-select:none;transition:border-color .15s,box-shadow .15s}
 .xflow-node:hover{border-color:color-mix(in srgb,hsl(var(--primary)) 45%,hsl(var(--border)))}
 .xflow-node:active{cursor:grabbing}
 .xflow-node:focus-visible,.xflow-node.selected{outline:2px solid hsl(var(--primary));outline-offset:2px}
 .xflow-node.connecting{box-shadow:0 0 0 4px color-mix(in srgb,hsl(var(--primary)) 22%,transparent),0 8px 24px rgba(15,23,42,.09)}
-.xflow-node-head{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid hsl(var(--border));border-radius:12px 12px 0 0;background:color-mix(in srgb,hsl(var(--muted)) 58%,hsl(var(--background)))}
+.xflow-node-head{display:flex;min-height:62px;align-items:center;gap:9px;padding:10px 14px;border-radius:12px;background:color-mix(in srgb,hsl(var(--muted)) 58%,hsl(var(--background)))}
 .xflow-node.type-trigger .xflow-node-head{background:color-mix(in srgb,hsl(var(--primary)) 10%,hsl(var(--background)))}
 .xflow-node.type-condition .xflow-node-head{background:color-mix(in srgb,hsl(var(--warning)) 13%,hsl(var(--background)))}
 .xflow-node.type-action .xflow-node-head{background:color-mix(in srgb,hsl(var(--success)) 8%,hsl(var(--background)))}
 .xflow-node.type-condition{border-color:color-mix(in srgb,hsl(var(--warning)) 28%,hsl(var(--border)))}
-.xflow-node-body{padding:10px 14px 13px;color:hsl(var(--muted-foreground));font-size:11px}.xflow-branches{display:flex;justify-content:space-around;border-top:1px dashed hsl(var(--border));padding:6px 18px 8px;font-size:9px;font-weight:600}.xflow-branch-tag{border:1px solid hsl(var(--border));border-radius:999px;padding:2px 7px;background:hsl(var(--muted))}.xflow-branch-tag.true{border-color:color-mix(in srgb,hsl(var(--success)) 35%,hsl(var(--border)));background:color-mix(in srgb,hsl(var(--success)) 10%,hsl(var(--background)));color:hsl(var(--success))}.xflow-branch-tag.false{border-color:color-mix(in srgb,hsl(var(--warning)) 40%,hsl(var(--border)));background:color-mix(in srgb,hsl(var(--warning)) 12%,hsl(var(--background)));color:hsl(var(--warning-foreground))}
 .xflow-port{position:absolute;z-index:8;display:grid;width:15px;height:15px;padding:0;place-items:center;appearance:none;border:2px solid hsl(var(--background));border-radius:999px;background:hsl(var(--primary));box-shadow:0 0 0 1px hsl(var(--primary)),0 2px 7px rgba(15,23,42,.2);cursor:crosshair;transition:transform .15s,box-shadow .15s}
 .xflow-port::after{content:'';width:4px;height:4px;border-radius:999px;background:hsl(var(--primary-foreground))}
 .xflow-port:hover,.xflow-port:focus-visible{transform:scale(1.35);box-shadow:0 0 0 5px color-mix(in srgb,hsl(var(--primary)) 22%,transparent)}
 .xflow-port.in{top:-8px;left:50%;transform:translateX(-50%);background:hsl(var(--background));border-color:hsl(var(--primary))}.xflow-port.in:hover,.xflow-port.in:focus-visible{transform:translateX(-50%) scale(1.35)}
 .xflow-port.in::after{background:hsl(var(--primary))}
-.xflow-port.out{bottom:-8px;left:50%;transform:translateX(-50%)}.xflow-port.out:hover,.xflow-port.out:focus-visible{transform:translateX(-50%) scale(1.35)}
-.xflow-port.out.true{left:32%;background:hsl(var(--success));box-shadow:0 0 0 1px hsl(var(--success))}.xflow-port.out.false{left:68%;background:hsl(var(--warning));box-shadow:0 0 0 1px hsl(var(--warning))}
+.xflow-port.out{bottom:-10px;left:50%;width:20px;height:20px;transform:translateX(-50%);border-width:1px;background:hsl(var(--background));color:hsl(var(--primary));box-shadow:0 0 0 1px hsl(var(--primary)),0 2px 7px rgba(15,23,42,.14)}.xflow-port.out::after{content:'+';width:auto;height:auto;background:transparent;color:currentColor;font-size:15px;font-weight:500;line-height:1}.xflow-port.out:hover,.xflow-port.out:focus-visible{transform:translateX(-50%) scale(1.15)}
+.xflow-branch-picker{position:absolute;z-index:25;top:calc(100% + 18px);left:50%;display:none;width:142px;transform:translateX(-50%);gap:4px;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--background));padding:5px;box-shadow:0 10px 24px rgba(15,23,42,.14)}.xflow-node.branch-open .xflow-branch-picker{display:grid}.xflow-branch-choice{display:flex;align-items:center;gap:7px;border-radius:7px;padding:6px 8px;color:hsl(var(--foreground));font-size:10px;text-align:left}.xflow-branch-choice:hover,.xflow-branch-choice:focus-visible{background:hsl(var(--muted))}.xflow-branch-choice-dot{width:7px;height:7px;border-radius:999px;background:hsl(var(--success))}.xflow-branch-choice.false .xflow-branch-choice-dot{background:hsl(var(--warning))}
 .xflow-node.connect-target .xflow-port.in{animation:xflow-port-pulse 1s ease-in-out infinite}
-.xflow-palette-item{width:100%;display:flex;gap:9px;align-items:flex-start;padding:9px;border:1px solid transparent;border-radius:9px;text-align:left}
+.xflow-palette-item{width:100%;display:flex;gap:9px;align-items:flex-start;padding:9px;border:1px solid transparent;border-radius:9px;text-align:left;cursor:grab}.xflow-palette-item:active{cursor:grabbing}
 .xflow-palette-item:hover,.xflow-palette-item:focus-visible{border-color:hsl(var(--primary));background:hsl(var(--muted))}
 .xflow-toast{position:absolute;z-index:30;top:16px;left:50%;display:flex;max-width:min(560px,calc(100% - 32px));align-items:center;gap:9px;transform:translate(-50%,0);border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--background));padding:9px 13px;color:hsl(var(--muted-foreground));box-shadow:0 10px 28px rgba(15,23,42,.13);font-size:12px;opacity:1;transition:opacity .2s,transform .2s;pointer-events:none}
 .xflow-toast.is-success{border-color:color-mix(in srgb,hsl(var(--success)) 35%,hsl(var(--border)));color:hsl(var(--success))}
@@ -80,6 +79,8 @@
    <div class="flex items-center gap-2">
     <button class="xflow-panel-toggle kt-btn kt-btn-sm kt-btn-icon kt-btn-outline is-active" id="xflow_toggle_palette" type="button" title="Mostrar u ocultar nodos" aria-label="Mostrar u ocultar nodos" aria-pressed="true"><i class="ki-filled ki-menu"></i></button>
     <button class="xflow-panel-toggle kt-btn kt-btn-sm kt-btn-icon kt-btn-outline is-active" id="xflow_toggle_inspector" type="button" title="Mostrar u ocultar propiedades" aria-label="Mostrar u ocultar propiedades" aria-pressed="true"><i class="ki-filled ki-setting-3"></i></button>
+    <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-outline" type="button" data-kt-modal-toggle="#xflow_json_modal" title="Importar o revisar JSON" aria-label="Importar o revisar JSON"><i class="ki-filled ki-file-up"></i></button>
+    <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-outline" id="xflow_export_json" type="button" title="Descargar JSON" aria-label="Descargar JSON"><i class="ki-filled ki-cloud-down"></i></button>
     <select class="kt-select w-28" name="status">
      <option value="draft" @selected($workflow->status === 'draft')>Borrador</option>
      <option value="active" @selected($workflow->status === 'active')>Activo</option>
@@ -96,13 +97,13 @@
 
   <div class="xflow-workspace relative grow" id="xflow_workspace">
    <aside class="xflow-panel xflow-palette border-e border-input p-3">
-    <div class="mb-3"><div class="font-semibold text-mono">Nodos</div><p class="text-xs text-secondary-foreground">Pulsa para añadir al lienzo.</p></div>
+    <div class="mb-3"><div class="font-semibold text-mono">Nodos</div><p class="text-xs text-secondary-foreground">Pulsa para añadir o arrastra hasta el lienzo.</p></div>
     @foreach(['condition' => 'Condiciones', 'action' => 'Acciones'] as $type => $title)
      <div class="mb-4">
       <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary-foreground">{{ $title }}</div>
       <div class="grid gap-1">
        @foreach(collect($catalog)->where('type', $type) as $handler => $definition)
-        <button class="xflow-palette-item" type="button" data-add-node="{{ $handler }}">
+        <button class="xflow-palette-item" type="button" draggable="true" data-add-node="{{ $handler }}">
          <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><i class="ki-filled {{ $definition['icon'] }}"></i></span>
          <span><span class="block text-xs font-medium text-mono">{{ $definition['label'] }}</span><span class="mt-1 block text-[10px] leading-4 text-secondary-foreground">{{ $definition['description'] }}</span></span>
         </button>
@@ -132,8 +133,8 @@
    </main>
 
    <aside class="xflow-panel xflow-inspector border-s border-input p-4">
-    <div class="mb-4"><div class="font-semibold text-mono">Propiedades</div><p class="text-xs text-secondary-foreground">Configuración del workflow y nodo seleccionado.</p></div>
-    <div class="grid gap-3 border-b border-input pb-4">
+    <div class="mb-4"><div class="font-semibold text-mono" id="xflow_inspector_title">Propiedades del workflow</div><p class="text-xs text-secondary-foreground" id="xflow_inspector_subtitle">Configuración general, disparador y comportamiento.</p></div>
+    <div class="grid gap-3" id="xflow_workflow_inspector">
      <label class="grid gap-1 text-xs"><span class="font-medium text-mono">Descripción</span><textarea class="kt-input min-h-20" name="description" maxlength="500">{{ $workflow->description }}</textarea></label>
      @if($workflow->trigger_type === 'schedule')
       <label class="grid gap-1 text-xs"><span>Frecuencia</span><select class="kt-select" id="xflow_frequency" name="trigger_config[frequency]">@foreach($schedules as $value => $label)<option value="{{ $value }}" @selected(($workflow->trigger_config['frequency'] ?? 'daily') === $value)>{{ $label }}</option>@endforeach</select></label>
@@ -153,9 +154,9 @@
      @endif
     </div>
 
-    <div id="xflow_empty_inspector" class="py-8 text-center text-xs text-secondary-foreground">Selecciona un nodo para editarlo.</div>
-    <div id="xflow_node_inspector" class="hidden grid gap-3 pt-4">
+    <div id="xflow_node_inspector" class="hidden grid gap-3">
      <div class="flex items-center justify-between"><span class="text-sm font-semibold text-mono" id="xflow_node_type"></span><button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-ghost text-danger" type="button" id="xflow_delete_node" title="Eliminar nodo"><i class="ki-filled ki-trash"></i></button></div>
+     <p class="text-xs leading-5 text-secondary-foreground" id="xflow_node_description"></p>
      <label class="grid gap-1 text-xs"><span>Etiqueta</span><input class="kt-input" id="xflow_node_label" maxlength="120"></label>
      <div id="xflow_target_fields" class="grid gap-3">
       <label class="grid gap-1 text-xs"><span>Objetivo</span><select class="kt-select" id="xflow_node_target"><option value="workflow">Alcance del workflow</option>@if(!$workflow->site)<option value="site">Un sitio específico</option><option value="all">Todos los sitios</option>@endif</select></label>
@@ -179,9 +180,26 @@
  <form id="xflow_run_form" method="post" action="{{ route('xflow.run', $workflow) }}">@csrf</form>
 </div>
 
+<div class="kt-modal" data-kt-modal="true" id="xflow_json_modal">
+ <div class="kt-modal-content max-w-[720px]">
+  <div class="kt-modal-header px-5 py-4">
+   <div><h3 class="text-base font-semibold text-mono">JSON del workflow</h3><p class="text-xs text-secondary-foreground">Pega un XFlow compatible o selecciona un archivo JSON.</p></div>
+   <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim" type="button" data-kt-modal-dismiss="true" aria-label="Cerrar"><i class="ki-filled ki-cross"></i></button>
+  </div>
+  <div class="kt-modal-body grid gap-4 px-5 py-4">
+   <textarea class="kt-input min-h-80 font-mono text-xs leading-5" id="xflow_json_content" spellcheck="false" aria-label="Contenido JSON del workflow"></textarea>
+   <div class="flex flex-wrap items-center justify-between gap-3">
+    <label class="kt-btn kt-btn-outline cursor-pointer"><i class="ki-filled ki-file-up"></i> Seleccionar JSON<input class="hidden" id="xflow_json_file" type="file" accept="application/json,.json"></label>
+    <div class="flex gap-2"><button class="kt-btn kt-btn-outline" id="xflow_json_download" type="button"><i class="ki-filled ki-cloud-down"></i> Descargar</button><button class="kt-btn kt-btn-primary" id="xflow_json_import" type="button"><i class="ki-filled ki-check"></i> Importar al lienzo</button></div>
+   </div>
+  </div>
+ </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
  const catalog = @json($catalog);
+ const currentTrigger = @json($workflow->trigger_type);
  const canvas = document.getElementById('xflow_canvas');
  const stage = document.getElementById('xflow_stage');
  const workspace = document.getElementById('xflow_workspace');
@@ -191,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
  const toastMessage = document.getElementById('xflow_toast_message');
  let nodes = @json($workflow->nodes ?? []);
  let edges = @json($workflow->edges ?? []);
- let selected = nodes[0]?.id ?? null;
+ let selected = null;
  let connecting = null;
  let drag = null;
  let panDrag = null;
@@ -200,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
  let zoom = 1;
  let seq = Date.now();
  let toastTimer = null;
+ let branchMenuNode = null;
 
  const byId = id => nodes.find(node => node.id === id);
  const definition = node => catalog[node.handler] || {};
@@ -237,9 +256,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const minimumX = Math.min(...nodes.map(node => Number(node.x) || 0));
   const maximumX = Math.max(...nodes.map(node => (Number(node.x) || 0) + 220));
   const minimumY = Math.min(...nodes.map(node => Number(node.y) || 0));
-  const maximumY = Math.max(...nodes.map(node => (Number(node.y) || 0) + 115));
+  const maximumY = Math.max(...nodes.map(node => (Number(node.y) || 0) + 80));
   const graphWidth = Math.max(220, maximumX - minimumX);
-  const graphHeight = Math.max(115, maximumY - minimumY);
+  const graphHeight = Math.max(80, maximumY - minimumY);
   zoom = Math.max(.3, Math.min(1.15, Math.min((width - 120) / graphWidth, (height - 120) / graphHeight)));
   panX = width / 2 - ((minimumX + maximumX) / 2) * zoom;
   panY = height / 2 - ((minimumY + maximumY) / 2) * zoom;
@@ -261,22 +280,93 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('xflow_edges_json').value = JSON.stringify(edges);
  }
 
+ function workflowJson() {
+  const form = document.getElementById('xflow_builder_form');
+  const triggerConfig = {};
+  new FormData(form).forEach((value, key) => {
+   const match = key.match(/^trigger_config\[([^\]]+)]$/);
+   if (match) triggerConfig[match[1]] = value;
+  });
+  return {
+   schema: 'xpanel.xflow/v1',
+   name: form.elements.name.value,
+   description: form.elements.description?.value || '',
+   status: form.elements.status.value,
+   trigger_type: currentTrigger,
+   trigger_config: triggerConfig,
+   nodes,
+   edges,
+  };
+ }
+
+ function fillJsonEditor() {
+  document.getElementById('xflow_json_content').value = JSON.stringify(workflowJson(), null, 2);
+ }
+
+ function downloadJson() {
+  const payload = JSON.stringify(workflowJson(), null, 2);
+  const blob = new Blob([payload], {type: 'application/json;charset=utf-8'});
+  const link = document.createElement('a');
+  const filename = (document.getElementById('xflow_builder_form').elements.name.value || 'workflow').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'workflow';
+  link.href = URL.createObjectURL(blob);
+  link.download = filename + '.xflow.json';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+  showToast('JSON del workflow descargado.', 'success');
+ }
+
+ function importJson() {
+  try {
+   const payload = JSON.parse(document.getElementById('xflow_json_content').value);
+   if (!payload || !Array.isArray(payload.nodes) || !Array.isArray(payload.edges) || payload.nodes.length < 1 || payload.nodes.length > 50 || payload.edges.length > 100) throw new Error('El JSON debe contener entre 1 y 50 nodos y hasta 100 conexiones.');
+   if (payload.schema && payload.schema !== 'xpanel.xflow/v1') throw new Error('La versión del JSON no es compatible con este builder.');
+   if (payload.trigger_type && payload.trigger_type !== currentTrigger) throw new Error(`Este workflow requiere un disparador ${currentTrigger}.`);
+   if (!payload.nodes.some(node => node?.type === 'trigger' && node?.handler === 'trigger.' + currentTrigger)) throw new Error('El JSON no contiene el disparador requerido.');
+   nodes = payload.nodes;
+   edges = payload.edges;
+   branchMenuNode = null;
+   connecting = null;
+   selected = null;
+   const form = document.getElementById('xflow_builder_form');
+   if (typeof payload.name === 'string' && payload.name.trim()) form.elements.name.value = payload.name.slice(0, 120);
+   if (typeof payload.description === 'string' && form.elements.description) form.elements.description.value = payload.description.slice(0, 500);
+   if (['draft', 'active', 'paused'].includes(payload.status)) form.elements.status.value = payload.status;
+   Object.entries(payload.trigger_config || {}).forEach(([key, value]) => {
+    const field = form.elements.namedItem(`trigger_config[${key}]`);
+    if (field) field.value = value;
+   });
+   syncScheduleFields();
+   render();
+   requestAnimationFrame(fitGraph);
+   document.querySelector('#xflow_json_modal [data-kt-modal-dismiss]')?.click();
+   showToast('JSON importado. Revisa el flujo y pulsa Guardar para aplicarlo.', 'success', 5200);
+  } catch (error) {
+   showToast(error instanceof Error ? error.message : 'No se pudo importar el JSON.', 'danger', 6000);
+  }
+ }
+
  function renderLines() {
   const paths = edges.map(edge => {
    const source = byId(edge.from);
    const target = byId(edge.to);
    if (!source || !target) return '';
    const conditionBranch = source.type === 'condition' && ['true', 'false'].includes(edge.branch);
-   const startX = source.x + (conditionBranch ? (edge.branch === 'true' ? 70 : 150) : 110);
-   const startY = source.y + (source.type === 'condition' ? 115 : 100);
+   const startX = source.x + 110;
+   const startY = source.y + 64;
    const endX = target.x + 110;
    const endY = target.y;
    const curve = Math.max(55, Math.abs(endY - startY) * .45);
-   const labelX = (startX + endX) / 2;
-   const labelY = (startY + endY) / 2;
+   const splitY = startY + (conditionBranch ? 38 : 0);
+   const branchX = conditionBranch ? startX + (edge.branch === 'true' ? -38 : 38) : startX;
+   const labelX = conditionBranch ? branchX : (startX + endX) / 2;
+   const labelY = conditionBranch ? splitY + 15 : (startY + endY) / 2;
    const branchLabel = branchLabels[edge.branch] || edge.branch;
    const chipWidth = Math.max(48, branchLabel.length * 6 + 20);
-   const path = `M ${startX} ${startY} C ${startX} ${startY + curve}, ${endX} ${endY - curve}, ${endX} ${endY}`;
+   const path = conditionBranch
+    ? `M ${startX} ${startY} L ${startX} ${splitY} C ${startX} ${splitY + 18}, ${branchX} ${splitY + 18}, ${branchX} ${splitY + 36} C ${branchX} ${splitY + curve}, ${endX} ${endY - curve}, ${endX} ${endY}`
+    : `M ${startX} ${startY} C ${startX} ${startY + curve}, ${endX} ${endY - curve}, ${endX} ${endY}`;
    const label = edge.branch === 'always' ? '' : `<rect class="xflow-branch-chip ${escapeHtml(edge.branch)}" x="${labelX - chipWidth / 2}" y="${labelY - 11}" width="${chipWidth}" height="22" rx="11"/><text class="xflow-line-label ${escapeHtml(edge.branch)}" x="${labelX}" y="${labelY + 3.5}" text-anchor="middle">${escapeHtml(branchLabel)}</text>`;
    return `<path class="xflow-line-halo" d="${path}"/><path class="xflow-line" marker-end="url(#xflow_arrow)" d="${path}"/>${label}`;
   }).join('');
@@ -286,17 +376,15 @@ document.addEventListener('DOMContentLoaded', () => {
  function renderNodes() {
   nodesRoot.innerHTML = nodes.map(node => {
    const outputPorts = node.type === 'condition'
-    ? `<button class="xflow-port out true" type="button" data-output="${escapeHtml(node.id)}" data-branch="true" title="Salida verdadera" aria-label="Conectar rama verdadera desde ${escapeHtml(node.label)}"></button><button class="xflow-port out false" type="button" data-output="${escapeHtml(node.id)}" data-branch="false" title="Salida falsa" aria-label="Conectar rama falsa desde ${escapeHtml(node.label)}"></button>`
-    : `<button class="xflow-port out" type="button" data-output="${escapeHtml(node.id)}" data-branch="always" title="Salida: iniciar conexión" aria-label="Conectar desde ${escapeHtml(node.label)}"></button>`;
+    ? `<button class="xflow-port out" type="button" data-branch-menu="${escapeHtml(node.id)}" title="Añadir una rama" aria-label="Elegir rama desde ${escapeHtml(node.label)}"></button><div class="xflow-branch-picker" data-branch-picker><button class="xflow-branch-choice" type="button" data-output="${escapeHtml(node.id)}" data-branch="true"><span class="xflow-branch-choice-dot"></span>Verdadero</button><button class="xflow-branch-choice false" type="button" data-output="${escapeHtml(node.id)}" data-branch="false"><span class="xflow-branch-choice-dot"></span>Falso</button></div>`
+    : `<button class="xflow-port out" type="button" data-output="${escapeHtml(node.id)}" data-branch="always" title="Añadir siguiente paso" aria-label="Conectar desde ${escapeHtml(node.label)}"></button>`;
    return `
-   <div class="xflow-node type-${escapeHtml(node.type)} ${selected === node.id ? 'selected' : ''} ${connecting?.from === node.id ? 'connecting' : ''} ${connecting && connecting.from !== node.id ? 'connect-target' : ''}" tabindex="0" data-node="${escapeHtml(node.id)}" style="left:${node.x}px;top:${node.y}px">
+   <div class="xflow-node type-${escapeHtml(node.type)} ${selected === node.id ? 'selected' : ''} ${connecting?.from === node.id ? 'connecting' : ''} ${connecting && connecting.from !== node.id ? 'connect-target' : ''} ${branchMenuNode === node.id ? 'branch-open' : ''}" tabindex="0" data-node="${escapeHtml(node.id)}" style="left:${node.x}px;top:${node.y}px">
     <button class="xflow-port in" type="button" data-input="${escapeHtml(node.id)}" title="Entrada: conectar aquí" aria-label="Conectar a ${escapeHtml(node.label)}"></button>
     <div class="xflow-node-head">
      <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><i class="ki-filled ${escapeHtml(definition(node).icon || 'ki-abstract-26')}"></i></span>
      <span class="min-w-0"><span class="block truncate text-xs font-semibold text-mono">${escapeHtml(node.label)}</span><span class="block truncate text-[10px] text-secondary-foreground">${escapeHtml(definition(node).label || node.handler)}</span></span>
     </div>
-    <div class="xflow-node-body">${node.type === 'condition' ? 'Evalúa y continúa por una de dos ramas' : node.type === 'trigger' ? 'Punto inicial' : 'Acción segura de XPanel'}</div>
-    ${node.type === 'condition' ? '<div class="xflow-branches"><span class="xflow-branch-tag true">Verdadero</span><span class="xflow-branch-tag false">Falso</span></div>' : ''}
     ${outputPorts}
    </div>
   `}).join('');
@@ -315,13 +403,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
  function renderInspector() {
   const node = byId(selected);
-  const empty = document.getElementById('xflow_empty_inspector');
+  const workflowInspector = document.getElementById('xflow_workflow_inspector');
   const inspector = document.getElementById('xflow_node_inspector');
-  empty.classList.toggle('hidden', Boolean(node));
+  workflowInspector.classList.toggle('hidden', Boolean(node));
   inspector.classList.toggle('hidden', !node);
+  document.getElementById('xflow_inspector_title').textContent = node ? 'Propiedades del nodo' : 'Propiedades del workflow';
+  document.getElementById('xflow_inspector_subtitle').textContent = node ? 'Solo se muestra la configuración del elemento seleccionado.' : 'Configuración general, disparador y comportamiento.';
   if (!node) return;
 
   document.getElementById('xflow_node_type').textContent = definition(node).label || node.handler;
+  document.getElementById('xflow_node_description').textContent = definition(node).description || '';
   document.getElementById('xflow_node_label').value = node.label;
   const target = document.getElementById('xflow_node_target');
   target.value = node.config?.target || 'workflow';
@@ -342,7 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
    <div class="flex items-center gap-2">
     <span class="min-w-0 grow truncate text-xs">→ ${escapeHtml(byId(edge.to)?.label || edge.to)}</span>
     <select class="kt-select h-8 w-24 text-xs" data-edge-branch="${escapeHtml(edge.from)}|${escapeHtml(edge.to)}">
-     ${Object.entries(branchLabels).map(([value, label]) => `<option value="${value}" ${edge.branch === value ? 'selected' : ''}>${label}</option>`).join('')}
+     ${Object.entries(branchLabels).filter(([value]) => {
+      const sourceType = byId(edge.from)?.type;
+      return sourceType === 'condition' ? ['true', 'false'].includes(value) : sourceType === 'action' ? ['always', 'success', 'failure'].includes(value) : value === 'always';
+     }).map(([value, label]) => `<option value="${value}" ${edge.branch === value ? 'selected' : ''}>${label}</option>`).join('')}
     </select>
     <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-ghost" type="button" data-edge-delete="${escapeHtml(edge.from)}|${escapeHtml(edge.to)}" aria-label="Eliminar conexión"><i class="ki-filled ki-cross"></i></button>
    </div>
@@ -357,20 +451,45 @@ document.addEventListener('DOMContentLoaded', () => {
   sync();
  }
 
- function addNode(handler) {
+ function addNode(handler, position = null) {
   const nodeDefinition = catalog[handler];
   if (!nodeDefinition) return;
   const {width, height} = viewport();
   const id = 'node-' + (++seq);
   const offset = (nodes.length % 5) * 18;
-  nodes.push({id, type: nodeDefinition.type, handler, label: nodeDefinition.label, x: (width / 2 - panX) / zoom - 110 + offset, y: (height / 2 - panY) / zoom - 50 + offset, config: {target: 'workflow', site_id: null, operator: 'equals', value: '', retries: 0}});
+  const x = position ? position.x : (width / 2 - panX) / zoom - 110 + offset;
+  const y = position ? position.y : (height / 2 - panY) / zoom - 32 + offset;
+  nodes.push({id, type: nodeDefinition.type, handler, label: nodeDefinition.label, x, y, config: {target: 'workflow', site_id: null, operator: 'equals', value: '', retries: 0}});
   selected = id;
   render();
-  showToast('Nodo añadido. Usa su salida inferior para enlazarlo.', 'success');
+  showToast('Nodo añadido. Usa el botón + para enlazar el siguiente paso.', 'success');
+ }
+
+ function createsCycle(from, to) {
+  const pending = [to];
+  const visited = new Set();
+  while (pending.length) {
+   const current = pending.pop();
+   if (current === from) return true;
+   if (visited.has(current)) continue;
+   visited.add(current);
+   edges.filter(edge => edge.from === current).forEach(edge => pending.push(edge.to));
+  }
+  return false;
  }
 
  function selectNode(id) {
-  if (connecting && connecting.from !== id) {
+  if (connecting && connecting.from === id) {
+   showToast('Un nodo no puede conectarse consigo mismo.', 'danger');
+   return;
+  }
+  if (connecting && createsCycle(connecting.from, id)) {
+   connecting = null;
+   render();
+   showToast('Esta conexión formaría un ciclo. Usa Programación o Eventos para repetir el workflow.', 'danger', 5600);
+   return;
+  }
+  if (connecting) {
    if (!edges.some(edge => edge.from === connecting.from && edge.to === id && edge.branch === connecting.branch)) edges.push({from: connecting.from, to: id, branch: connecting.branch});
    connecting = null;
    selected = id;
@@ -399,7 +518,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('xflow_schedule_fields')?.classList.toggle('hidden', !['daily', 'weekly'].includes(frequency));
  }
 
- document.querySelectorAll('[data-add-node]').forEach(button => button.addEventListener('click', () => addNode(button.dataset.addNode)));
+ document.querySelectorAll('[data-add-node]').forEach(button => {
+  button.addEventListener('click', () => addNode(button.dataset.addNode));
+  button.addEventListener('dragstart', event => {
+   event.dataTransfer.effectAllowed = 'copy';
+   event.dataTransfer.setData('application/x-xflow-node', button.dataset.addNode);
+   event.dataTransfer.setData('text/plain', button.dataset.addNode);
+  });
+ });
  document.getElementById('xflow_center_graph').addEventListener('click', () => {
   fitGraph();
   showToast('Workflow ajustado al lienzo.', 'success');
@@ -407,6 +533,22 @@ document.addEventListener('DOMContentLoaded', () => {
  document.getElementById('xflow_zoom_in').addEventListener('click', () => setZoom(zoom + .15));
  document.getElementById('xflow_zoom_out').addEventListener('click', () => setZoom(zoom - .15));
  document.getElementById('xflow_frequency')?.addEventListener('change', syncScheduleFields);
+ document.querySelector('[data-kt-modal-toggle="#xflow_json_modal"]')?.addEventListener('click', fillJsonEditor);
+ document.getElementById('xflow_export_json').addEventListener('click', downloadJson);
+ document.getElementById('xflow_json_download').addEventListener('click', downloadJson);
+ document.getElementById('xflow_json_import').addEventListener('click', importJson);
+ document.getElementById('xflow_json_file').addEventListener('change', event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (file.size > 1024 * 1024) {
+   showToast('El archivo JSON no puede superar 1 MiB.', 'danger');
+   event.target.value = '';
+   return;
+  }
+  const reader = new FileReader();
+  reader.addEventListener('load', () => { document.getElementById('xflow_json_content').value = String(reader.result || ''); });
+  reader.readAsText(file);
+ });
 
  function togglePanel(panel) {
   if (window.matchMedia('(max-width:1100px)').matches) {
@@ -430,18 +572,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
  canvas.addEventListener('pointerdown', event => {
   if (event.target.closest('[data-node]') || event.target.closest('.xflow-canvas-actions')) return;
-  panDrag = {x: event.clientX, y: event.clientY, panX, panY};
+  panDrag = {x: event.clientX, y: event.clientY, panX, panY, moved: false};
   canvas.classList.add('is-panning');
   canvas.setPointerCapture(event.pointerId);
  });
  canvas.addEventListener('pointermove', event => {
   if (!panDrag) return;
+  if (Math.abs(event.clientX - panDrag.x) > 3 || Math.abs(event.clientY - panDrag.y) > 3) panDrag.moved = true;
   panX = panDrag.panX + event.clientX - panDrag.x;
   panY = panDrag.panY + event.clientY - panDrag.y;
   applyViewport();
  });
- canvas.addEventListener('pointerup', () => { panDrag = null; canvas.classList.remove('is-panning'); });
+ canvas.addEventListener('pointerup', () => {
+  const wasMoved = panDrag?.moved;
+  panDrag = null;
+  canvas.classList.remove('is-panning');
+  if (!wasMoved) {
+   selected = null;
+   branchMenuNode = null;
+   connecting = null;
+   render();
+  }
+ });
  canvas.addEventListener('pointercancel', () => { panDrag = null; canvas.classList.remove('is-panning'); });
+ canvas.addEventListener('dragover', event => {
+  if (!event.dataTransfer.types.includes('application/x-xflow-node')) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy';
+ });
+ canvas.addEventListener('drop', event => {
+  const handler = event.dataTransfer.getData('application/x-xflow-node') || event.dataTransfer.getData('text/plain');
+  if (!catalog[handler]) return;
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  addNode(handler, {
+   x: (event.clientX - rect.left - panX) / zoom - 110,
+   y: (event.clientY - rect.top - panY) / zoom - 32,
+  });
+ });
  canvas.addEventListener('wheel', event => {
   event.preventDefault();
   const rect = canvas.getBoundingClientRect();
@@ -450,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
  nodesRoot.addEventListener('pointerdown', event => {
   const card = event.target.closest('[data-node]');
-  if (!card || event.target.closest('.xflow-port')) return;
+  if (!card || event.target.closest('.xflow-port, .xflow-branch-picker')) return;
   if (connecting) {
    selectNode(card.dataset.node);
    return;
@@ -479,12 +647,19 @@ document.addEventListener('DOMContentLoaded', () => {
  nodesRoot.addEventListener('pointerup', () => { drag = null; });
  nodesRoot.addEventListener('pointercancel', () => { drag = null; });
  nodesRoot.addEventListener('click', event => {
+  const branchMenu = event.target.closest('[data-branch-menu]');
   const output = event.target.closest('[data-output]');
   const input = event.target.closest('[data-input]');
   const card = event.target.closest('[data-node]');
-  if (output) {
+  if (branchMenu) {
+   event.stopPropagation();
+   branchMenuNode = branchMenuNode === branchMenu.dataset.branchMenu ? null : branchMenu.dataset.branchMenu;
+   selected = branchMenu.dataset.branchMenu;
+   render();
+  } else if (output) {
    event.stopPropagation();
    connecting = {from: output.dataset.output, branch: output.dataset.branch || 'always'};
+   branchMenuNode = null;
    selected = connecting.from;
    render();
    showToast(`Rama ${branchLabels[connecting.branch] || connecting.branch}: pulsa la entrada superior del nodo de destino.`);
@@ -535,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!node || node.type === 'trigger') return;
   nodes = nodes.filter(item => item.id !== selected);
   edges = edges.filter(edge => edge.from !== selected && edge.to !== selected);
-  selected = nodes[0]?.id ?? null;
+  selected = null;
   render();
   showToast('Nodo eliminado.', 'success');
  });
@@ -559,8 +734,9 @@ document.addEventListener('DOMContentLoaded', () => {
  });
  document.getElementById('xflow_builder_form').addEventListener('submit', sync);
  document.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || !connecting) return;
+  if (event.key !== 'Escape' || (!connecting && !branchMenuNode)) return;
   connecting = null;
+  branchMenuNode = null;
   render();
   showToast('Conexión cancelada.');
  });
