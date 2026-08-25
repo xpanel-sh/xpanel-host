@@ -8,20 +8,25 @@
 .xflow-workspace.palette-collapsed{--xflow-palette:0px}.xflow-workspace.inspector-collapsed{--xflow-inspector:0px}
 .xflow-workspace.palette-collapsed .xflow-palette,.xflow-workspace.inspector-collapsed .xflow-inspector{display:none}
 .xflow-panel{min-height:0;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin}
-.xflow-canvas-wrap{position:relative;min-width:0;min-height:0;overflow:hidden;overscroll-behavior:none;background-color:hsl(var(--muted));background-image:radial-gradient(hsl(var(--border)) 1px,transparent 1px);background-size:20px 20px}
+.xflow-palette{grid-column:1}.xflow-canvas-wrap{grid-column:2;position:relative;min-width:0;min-height:0;overflow:hidden;overscroll-behavior:none;background-color:hsl(var(--muted));background-image:radial-gradient(hsl(var(--border)) 1px,transparent 1px);background-size:20px 20px}.xflow-inspector{grid-column:3}
 .xflow-canvas{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:grab}
 .xflow-canvas.is-panning{cursor:grabbing}.xflow-stage{position:absolute;left:0;top:0;width:4000px;height:2600px;transform-origin:0 0;will-change:transform}
 .xflow-lines{position:absolute;inset:0;width:4000px;height:2600px;overflow:visible;color:hsl(var(--primary));pointer-events:none}
-.xflow-line-halo{fill:none;stroke:hsl(var(--background));stroke-linecap:round;stroke-width:8}
-.xflow-line{fill:none;stroke:currentColor;stroke-linecap:round;stroke-width:3.5;filter:drop-shadow(0 1px 1px color-mix(in srgb,currentColor 30%,transparent))}
-.xflow-line-label{paint-order:stroke;stroke:hsl(var(--background));stroke-width:6px;stroke-linejoin:round;fill:hsl(var(--foreground));font-size:11px;font-weight:600}
+.xflow-line-halo{fill:none;stroke:hsl(var(--background));stroke-linecap:round;stroke-width:5}
+.xflow-line{fill:none;stroke:currentColor;stroke-linecap:round;stroke-width:2}
+.xflow-arrow{fill:hsl(var(--primary))}.xflow-branch-chip{stroke-width:1}.xflow-branch-chip.always,.xflow-branch-chip.success,.xflow-branch-chip.failure{fill:hsl(var(--background));stroke:hsl(var(--border))}.xflow-branch-chip.true{fill:color-mix(in srgb,hsl(var(--success)) 13%,hsl(var(--background)));stroke:color-mix(in srgb,hsl(var(--success)) 35%,hsl(var(--border)))}.xflow-branch-chip.false{fill:color-mix(in srgb,hsl(var(--warning)) 15%,hsl(var(--background)));stroke:color-mix(in srgb,hsl(var(--warning)) 40%,hsl(var(--border)))}
+.xflow-line-label{fill:hsl(var(--foreground));font-size:10px;font-weight:600}.xflow-line-label.true{fill:hsl(var(--success))}.xflow-line-label.false{fill:hsl(var(--warning-foreground))}
 .xflow-node{position:absolute;width:220px;min-height:100px;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--background));box-shadow:0 8px 24px rgba(15,23,42,.09);cursor:grab;user-select:none;transition:border-color .15s,box-shadow .15s}
 .xflow-node:hover{border-color:color-mix(in srgb,hsl(var(--primary)) 45%,hsl(var(--border)))}
 .xflow-node:active{cursor:grabbing}
 .xflow-node:focus-visible,.xflow-node.selected{outline:2px solid hsl(var(--primary));outline-offset:2px}
 .xflow-node.connecting{box-shadow:0 0 0 4px color-mix(in srgb,hsl(var(--primary)) 22%,transparent),0 8px 24px rgba(15,23,42,.09)}
-.xflow-node-head{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid hsl(var(--border))}
-.xflow-node-body{padding:10px 14px 13px;color:hsl(var(--muted-foreground));font-size:11px}.xflow-branches{display:flex;justify-content:space-around;border-top:1px dashed hsl(var(--border));padding:5px 24px 7px;font-size:9px;font-weight:600;color:hsl(var(--muted-foreground))}
+.xflow-node-head{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid hsl(var(--border));border-radius:12px 12px 0 0;background:color-mix(in srgb,hsl(var(--muted)) 58%,hsl(var(--background)))}
+.xflow-node.type-trigger .xflow-node-head{background:color-mix(in srgb,hsl(var(--primary)) 10%,hsl(var(--background)))}
+.xflow-node.type-condition .xflow-node-head{background:color-mix(in srgb,hsl(var(--warning)) 13%,hsl(var(--background)))}
+.xflow-node.type-action .xflow-node-head{background:color-mix(in srgb,hsl(var(--success)) 8%,hsl(var(--background)))}
+.xflow-node.type-condition{border-color:color-mix(in srgb,hsl(var(--warning)) 28%,hsl(var(--border)))}
+.xflow-node-body{padding:10px 14px 13px;color:hsl(var(--muted-foreground));font-size:11px}.xflow-branches{display:flex;justify-content:space-around;border-top:1px dashed hsl(var(--border));padding:6px 18px 8px;font-size:9px;font-weight:600}.xflow-branch-tag{border:1px solid hsl(var(--border));border-radius:999px;padding:2px 7px;background:hsl(var(--muted))}.xflow-branch-tag.true{border-color:color-mix(in srgb,hsl(var(--success)) 35%,hsl(var(--border)));background:color-mix(in srgb,hsl(var(--success)) 10%,hsl(var(--background)));color:hsl(var(--success))}.xflow-branch-tag.false{border-color:color-mix(in srgb,hsl(var(--warning)) 40%,hsl(var(--border)));background:color-mix(in srgb,hsl(var(--warning)) 12%,hsl(var(--background)));color:hsl(var(--warning-foreground))}
 .xflow-port{position:absolute;z-index:8;display:grid;width:15px;height:15px;padding:0;place-items:center;appearance:none;border:2px solid hsl(var(--background));border-radius:999px;background:hsl(var(--primary));box-shadow:0 0 0 1px hsl(var(--primary)),0 2px 7px rgba(15,23,42,.2);cursor:crosshair;transition:transform .15s,box-shadow .15s}
 .xflow-port::after{content:'';width:4px;height:4px;border-radius:999px;background:hsl(var(--primary-foreground))}
 .xflow-port:hover,.xflow-port:focus-visible{transform:scale(1.35);box-shadow:0 0 0 5px color-mix(in srgb,hsl(var(--primary)) 22%,transparent)}
@@ -41,6 +46,7 @@
 @keyframes xflow-port-pulse{50%{box-shadow:0 0 0 7px color-mix(in srgb,hsl(var(--primary)) 20%,transparent)}}
 @media(max-width:1100px){
  .xflow-workspace{grid-template-columns:minmax(0,1fr)}
+ .xflow-canvas-wrap{grid-column:1}
  .xflow-panel{position:absolute;z-index:40;top:0;bottom:0;display:none;width:290px;background:hsl(var(--background));box-shadow:0 10px 30px rgba(0,0,0,.15)}
  .xflow-panel.is-open{display:block}
  .xflow-palette{left:0}.xflow-inspector{right:0}
@@ -67,9 +73,8 @@
     <div class="min-w-0">
      <div class="flex items-center gap-2">
       <input class="min-w-0 max-w-80 border-0 bg-transparent p-0 text-lg font-semibold text-mono focus:outline-none" name="name" value="{{ $workflow->name }}" maxlength="120" required>
-      <span class="kt-badge {{ $workflow->status === 'active' ? 'kt-badge-success' : 'kt-badge-outline' }}">{{ $statusLabel }}</span>
      </div>
-     <div class="truncate text-xs text-secondary-foreground">{{ $workflow->site?->domain ?? 'Cuenta completa' }} · {{ $triggerLabel }}</div>
+     <div class="truncate text-xs text-secondary-foreground">{{ $workflow->site?->domain ?? 'Cuenta completa' }} · {{ $triggerLabel }} · <span class="{{ $workflow->status === 'active' ? 'text-success' : '' }}">{{ $statusLabel }}</span></div>
     </div>
    </div>
    <div class="flex items-center gap-2">
@@ -268,11 +273,14 @@ document.addEventListener('DOMContentLoaded', () => {
    const endY = target.y;
    const curve = Math.max(55, Math.abs(endY - startY) * .45);
    const labelX = (startX + endX) / 2;
-   const labelY = (startY + endY) / 2 - 7;
+   const labelY = (startY + endY) / 2;
+   const branchLabel = branchLabels[edge.branch] || edge.branch;
+   const chipWidth = Math.max(48, branchLabel.length * 6 + 20);
    const path = `M ${startX} ${startY} C ${startX} ${startY + curve}, ${endX} ${endY - curve}, ${endX} ${endY}`;
-   return `<path class="xflow-line-halo" d="${path}"/><path class="xflow-line" marker-end="url(#xflow_arrow)" d="${path}"/><text class="xflow-line-label" x="${labelX}" y="${labelY}" text-anchor="middle">${escapeHtml(branchLabels[edge.branch] || edge.branch)}</text>`;
+   const label = edge.branch === 'always' ? '' : `<rect class="xflow-branch-chip ${escapeHtml(edge.branch)}" x="${labelX - chipWidth / 2}" y="${labelY - 11}" width="${chipWidth}" height="22" rx="11"/><text class="xflow-line-label ${escapeHtml(edge.branch)}" x="${labelX}" y="${labelY + 3.5}" text-anchor="middle">${escapeHtml(branchLabel)}</text>`;
+   return `<path class="xflow-line-halo" d="${path}"/><path class="xflow-line" marker-end="url(#xflow_arrow)" d="${path}"/>${label}`;
   }).join('');
-  svg.innerHTML = `<defs><marker id="xflow_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker></defs>${paths}`;
+  svg.innerHTML = `<defs><marker id="xflow_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="xflow-arrow" d="M 0 0 L 10 5 L 0 10 z"/></marker></defs>${paths}`;
  }
 
  function renderNodes() {
@@ -281,14 +289,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ? `<button class="xflow-port out true" type="button" data-output="${escapeHtml(node.id)}" data-branch="true" title="Salida verdadera" aria-label="Conectar rama verdadera desde ${escapeHtml(node.label)}"></button><button class="xflow-port out false" type="button" data-output="${escapeHtml(node.id)}" data-branch="false" title="Salida falsa" aria-label="Conectar rama falsa desde ${escapeHtml(node.label)}"></button>`
     : `<button class="xflow-port out" type="button" data-output="${escapeHtml(node.id)}" data-branch="always" title="Salida: iniciar conexión" aria-label="Conectar desde ${escapeHtml(node.label)}"></button>`;
    return `
-   <div class="xflow-node ${selected === node.id ? 'selected' : ''} ${connecting?.from === node.id ? 'connecting' : ''} ${connecting && connecting.from !== node.id ? 'connect-target' : ''}" tabindex="0" data-node="${escapeHtml(node.id)}" style="left:${node.x}px;top:${node.y}px">
+   <div class="xflow-node type-${escapeHtml(node.type)} ${selected === node.id ? 'selected' : ''} ${connecting?.from === node.id ? 'connecting' : ''} ${connecting && connecting.from !== node.id ? 'connect-target' : ''}" tabindex="0" data-node="${escapeHtml(node.id)}" style="left:${node.x}px;top:${node.y}px">
     <button class="xflow-port in" type="button" data-input="${escapeHtml(node.id)}" title="Entrada: conectar aquí" aria-label="Conectar a ${escapeHtml(node.label)}"></button>
     <div class="xflow-node-head">
      <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><i class="ki-filled ${escapeHtml(definition(node).icon || 'ki-abstract-26')}"></i></span>
      <span class="min-w-0"><span class="block truncate text-xs font-semibold text-mono">${escapeHtml(node.label)}</span><span class="block truncate text-[10px] text-secondary-foreground">${escapeHtml(definition(node).label || node.handler)}</span></span>
     </div>
     <div class="xflow-node-body">${node.type === 'condition' ? 'Evalúa y continúa por una de dos ramas' : node.type === 'trigger' ? 'Punto inicial' : 'Acción segura de XPanel'}</div>
-    ${node.type === 'condition' ? '<div class="xflow-branches"><span>Verdadero</span><span>Falso</span></div>' : ''}
+    ${node.type === 'condition' ? '<div class="xflow-branches"><span class="xflow-branch-tag true">Verdadero</span><span class="xflow-branch-tag false">Falso</span></div>' : ''}
     ${outputPorts}
    </div>
   `}).join('');

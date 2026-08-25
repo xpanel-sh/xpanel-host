@@ -77,6 +77,9 @@ class XflowManagementTest extends TestCase
             ->assertSee('id="xflow_toggle_palette"', false)
             ->assertSee('class="xflow-port out"', false)
             ->assertSee('data-branch="true"', false)
+            ->assertSee('.xflow-canvas-wrap{grid-column:2', false)
+            ->assertSee('xflow-branch-chip', false)
+            ->assertSee('type-${escapeHtml(node.type)}', false)
             ->assertSee('overflow:hidden', false)
             ->assertDontSee('XFlow guardado y validado.');
         $other = $this->site('other.example.com');
