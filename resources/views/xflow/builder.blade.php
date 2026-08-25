@@ -4,26 +4,31 @@
 @push('styles')
 <style>
 .xflow-shell{height:calc(100vh - var(--header-height) - 42px);min-height:620px;overflow:hidden}
-.xflow-workspace{display:grid;grid-template-columns:230px minmax(0,1fr) 320px;min-height:0;overflow:hidden}
+.xflow-workspace{--xflow-palette:230px;--xflow-inspector:320px;display:grid;grid-template-columns:var(--xflow-palette) minmax(0,1fr) var(--xflow-inspector);min-height:0;overflow:hidden;transition:grid-template-columns .2s ease}
+.xflow-workspace.palette-collapsed{--xflow-palette:0px}.xflow-workspace.inspector-collapsed{--xflow-inspector:0px}
+.xflow-workspace.palette-collapsed .xflow-palette,.xflow-workspace.inspector-collapsed .xflow-inspector{display:none}
 .xflow-panel{min-height:0;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin}
 .xflow-canvas-wrap{position:relative;min-width:0;min-height:0;overflow:hidden;overscroll-behavior:none;background-color:hsl(var(--muted));background-image:radial-gradient(hsl(var(--border)) 1px,transparent 1px);background-size:20px 20px}
-.xflow-canvas{position:absolute;inset:0;overflow:hidden;touch-action:none}
-.xflow-lines{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-.xflow-line{fill:none;stroke:hsl(var(--primary));stroke-linecap:round;stroke-width:2.5}
-.xflow-line-label{paint-order:stroke;stroke:hsl(var(--muted));stroke-width:5px;stroke-linejoin:round;fill:hsl(var(--muted-foreground));font-size:10px}
-.xflow-node{position:absolute;width:200px;min-height:92px;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--background));box-shadow:0 8px 24px rgba(15,23,42,.09);cursor:grab;user-select:none;transition:border-color .15s,box-shadow .15s}
+.xflow-canvas{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:grab}
+.xflow-canvas.is-panning{cursor:grabbing}.xflow-stage{position:absolute;left:0;top:0;width:4000px;height:2600px;transform-origin:0 0;will-change:transform}
+.xflow-lines{position:absolute;inset:0;width:4000px;height:2600px;overflow:visible;color:hsl(var(--primary));pointer-events:none}
+.xflow-line-halo{fill:none;stroke:hsl(var(--background));stroke-linecap:round;stroke-width:8}
+.xflow-line{fill:none;stroke:currentColor;stroke-linecap:round;stroke-width:3.5;filter:drop-shadow(0 1px 1px color-mix(in srgb,currentColor 30%,transparent))}
+.xflow-line-label{paint-order:stroke;stroke:hsl(var(--background));stroke-width:6px;stroke-linejoin:round;fill:hsl(var(--foreground));font-size:11px;font-weight:600}
+.xflow-node{position:absolute;width:220px;min-height:100px;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--background));box-shadow:0 8px 24px rgba(15,23,42,.09);cursor:grab;user-select:none;transition:border-color .15s,box-shadow .15s}
 .xflow-node:hover{border-color:color-mix(in srgb,hsl(var(--primary)) 45%,hsl(var(--border)))}
 .xflow-node:active{cursor:grabbing}
 .xflow-node:focus-visible,.xflow-node.selected{outline:2px solid hsl(var(--primary));outline-offset:2px}
 .xflow-node.connecting{box-shadow:0 0 0 4px color-mix(in srgb,hsl(var(--primary)) 22%,transparent),0 8px 24px rgba(15,23,42,.09)}
 .xflow-node-head{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid hsl(var(--border))}
-.xflow-node-body{padding:10px 14px;color:hsl(var(--muted-foreground));font-size:11px}
-.xflow-port{position:absolute;z-index:5;top:50%;display:grid;width:22px;height:22px;padding:0;place-items:center;transform:translateY(-50%);appearance:none;border:2px solid hsl(var(--background));border-radius:999px;background:hsl(var(--primary));box-shadow:0 2px 8px rgba(15,23,42,.2);cursor:crosshair;transition:transform .15s,box-shadow .15s}
-.xflow-port::after{content:'';width:6px;height:6px;border-radius:999px;background:hsl(var(--primary-foreground))}
-.xflow-port:hover,.xflow-port:focus-visible{transform:translateY(-50%) scale(1.18);box-shadow:0 0 0 4px color-mix(in srgb,hsl(var(--primary)) 20%,transparent)}
-.xflow-port.in{left:-12px;background:hsl(var(--background));border-color:hsl(var(--primary))}
+.xflow-node-body{padding:10px 14px 13px;color:hsl(var(--muted-foreground));font-size:11px}.xflow-branches{display:flex;justify-content:space-around;border-top:1px dashed hsl(var(--border));padding:5px 24px 7px;font-size:9px;font-weight:600;color:hsl(var(--muted-foreground))}
+.xflow-port{position:absolute;z-index:8;display:grid;width:15px;height:15px;padding:0;place-items:center;appearance:none;border:2px solid hsl(var(--background));border-radius:999px;background:hsl(var(--primary));box-shadow:0 0 0 1px hsl(var(--primary)),0 2px 7px rgba(15,23,42,.2);cursor:crosshair;transition:transform .15s,box-shadow .15s}
+.xflow-port::after{content:'';width:4px;height:4px;border-radius:999px;background:hsl(var(--primary-foreground))}
+.xflow-port:hover,.xflow-port:focus-visible{transform:scale(1.35);box-shadow:0 0 0 5px color-mix(in srgb,hsl(var(--primary)) 22%,transparent)}
+.xflow-port.in{top:-8px;left:50%;transform:translateX(-50%);background:hsl(var(--background));border-color:hsl(var(--primary))}.xflow-port.in:hover,.xflow-port.in:focus-visible{transform:translateX(-50%) scale(1.35)}
 .xflow-port.in::after{background:hsl(var(--primary))}
-.xflow-port.out{right:-12px}
+.xflow-port.out{bottom:-8px;left:50%;transform:translateX(-50%)}.xflow-port.out:hover,.xflow-port.out:focus-visible{transform:translateX(-50%) scale(1.35)}
+.xflow-port.out.true{left:32%;background:hsl(var(--success));box-shadow:0 0 0 1px hsl(var(--success))}.xflow-port.out.false{left:68%;background:hsl(var(--warning));box-shadow:0 0 0 1px hsl(var(--warning))}
 .xflow-node.connect-target .xflow-port.in{animation:xflow-port-pulse 1s ease-in-out infinite}
 .xflow-palette-item{width:100%;display:flex;gap:9px;align-items:flex-start;padding:9px;border:1px solid transparent;border-radius:9px;text-align:left}
 .xflow-palette-item:hover,.xflow-palette-item:focus-visible{border-color:hsl(var(--primary));background:hsl(var(--muted))}
@@ -31,14 +36,14 @@
 .xflow-toast.is-success{border-color:color-mix(in srgb,hsl(var(--success)) 35%,hsl(var(--border)));color:hsl(var(--success))}
 .xflow-toast.is-danger{border-color:color-mix(in srgb,hsl(var(--danger)) 35%,hsl(var(--border)));color:hsl(var(--danger))}
 .xflow-toast.is-hidden{opacity:0;transform:translate(-50%,-8px)}
-.xflow-canvas-actions{position:absolute;z-index:15;right:12px;top:12px;display:flex;gap:6px}
-.xflow-mobile-toggle{display:none}
+.xflow-canvas-actions{position:absolute;z-index:15;right:12px;bottom:12px;display:flex;align-items:center;gap:6px}.xflow-zoom-value{min-width:48px;text-align:center;font-size:11px;color:hsl(var(--muted-foreground))}
+.xflow-panel-toggle.is-active{color:hsl(var(--primary));border-color:hsl(var(--primary))}
 @keyframes xflow-port-pulse{50%{box-shadow:0 0 0 7px color-mix(in srgb,hsl(var(--primary)) 20%,transparent)}}
 @media(max-width:1100px){
  .xflow-workspace{grid-template-columns:minmax(0,1fr)}
  .xflow-panel{position:absolute;z-index:40;top:0;bottom:0;display:none;width:290px;background:hsl(var(--background));box-shadow:0 10px 30px rgba(0,0,0,.15)}
  .xflow-panel.is-open{display:block}
- .xflow-palette{left:0}.xflow-inspector{right:0}.xflow-mobile-toggle{display:inline-flex}
+ .xflow-palette{left:0}.xflow-inspector{right:0}
 }
 </style>
 @endpush
@@ -68,8 +73,8 @@
     </div>
    </div>
    <div class="flex items-center gap-2">
-    <button class="xflow-mobile-toggle kt-btn kt-btn-sm kt-btn-outline" type="button" data-toggle-panel="palette">Nodos</button>
-    <button class="xflow-mobile-toggle kt-btn kt-btn-sm kt-btn-outline" type="button" data-toggle-panel="inspector">Propiedades</button>
+    <button class="xflow-panel-toggle kt-btn kt-btn-sm kt-btn-icon kt-btn-outline is-active" id="xflow_toggle_palette" type="button" title="Mostrar u ocultar nodos" aria-label="Mostrar u ocultar nodos" aria-pressed="true"><i class="ki-filled ki-menu"></i></button>
+    <button class="xflow-panel-toggle kt-btn kt-btn-sm kt-btn-icon kt-btn-outline is-active" id="xflow_toggle_inspector" type="button" title="Mostrar u ocultar propiedades" aria-label="Mostrar u ocultar propiedades" aria-pressed="true"><i class="ki-filled ki-setting-3"></i></button>
     <select class="kt-select w-28" name="status">
      <option value="draft" @selected($workflow->status === 'draft')>Borrador</option>
      <option value="active" @selected($workflow->status === 'active')>Activo</option>
@@ -84,7 +89,7 @@
    </div>
   </header>
 
-  <div class="xflow-workspace relative grow">
+  <div class="xflow-workspace relative grow" id="xflow_workspace">
    <aside class="xflow-panel xflow-palette border-e border-input p-3">
     <div class="mb-3"><div class="font-semibold text-mono">Nodos</div><p class="text-xs text-secondary-foreground">Pulsa para añadir al lienzo.</p></div>
     @foreach(['condition' => 'Condiciones', 'action' => 'Acciones'] as $type => $title)
@@ -107,12 +112,17 @@
      <i class="ki-filled ki-information-2"></i>
      <span id="xflow_toast_message">{{ $errors->any() ? $errors->first() : 'Arrastra nodos y usa los conectores laterales para enlazarlos.' }}</span>
     </div>
-    <div class="xflow-canvas-actions">
-     <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-outline bg-background" id="xflow_center_graph" type="button" title="Centrar workflow" aria-label="Centrar workflow"><i class="ki-filled ki-focus"></i></button>
+    <div class="xflow-canvas-actions rounded-lg border border-input bg-background p-1 shadow-sm">
+     <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-ghost" id="xflow_zoom_out" type="button" title="Alejar" aria-label="Alejar"><i class="ki-filled ki-minus"></i></button>
+     <span class="xflow-zoom-value" id="xflow_zoom_value">100%</span>
+     <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-ghost" id="xflow_zoom_in" type="button" title="Acercar" aria-label="Acercar"><i class="ki-filled ki-plus"></i></button>
+     <button class="kt-btn kt-btn-sm kt-btn-icon kt-btn-ghost" id="xflow_center_graph" type="button" title="Ajustar workflow" aria-label="Ajustar workflow"><i class="ki-filled ki-focus"></i></button>
     </div>
     <div class="xflow-canvas" id="xflow_canvas">
-     <svg class="xflow-lines" id="xflow_lines" aria-hidden="true"></svg>
-     <div id="xflow_nodes"></div>
+     <div class="xflow-stage" id="xflow_stage">
+      <svg class="xflow-lines" id="xflow_lines" viewBox="0 0 4000 2600" aria-hidden="true"></svg>
+      <div id="xflow_nodes"></div>
+     </div>
     </div>
    </main>
 
@@ -168,6 +178,8 @@
 document.addEventListener('DOMContentLoaded', () => {
  const catalog = @json($catalog);
  const canvas = document.getElementById('xflow_canvas');
+ const stage = document.getElementById('xflow_stage');
+ const workspace = document.getElementById('xflow_workspace');
  const nodesRoot = document.getElementById('xflow_nodes');
  const svg = document.getElementById('xflow_lines');
  const toast = document.getElementById('xflow_toast');
@@ -177,13 +189,17 @@ document.addEventListener('DOMContentLoaded', () => {
  let selected = nodes[0]?.id ?? null;
  let connecting = null;
  let drag = null;
+ let panDrag = null;
+ let panX = 0;
+ let panY = 0;
+ let zoom = 1;
  let seq = Date.now();
  let toastTimer = null;
 
  const byId = id => nodes.find(node => node.id === id);
  const definition = node => catalog[node.handler] || {};
  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
- const dimensions = () => ({width: Math.max(240, canvas.clientWidth), height: Math.max(260, canvas.clientHeight)});
+ const viewport = () => ({width: Math.max(240, canvas.clientWidth), height: Math.max(260, canvas.clientHeight)});
  const branchLabels = {always: 'Siempre', success: 'Éxito', failure: 'Fallo', true: 'Verdadero', false: 'Falso'};
  const conditionValues = {
   'condition.site_status': [['active', 'Activo'], ['suspended', 'Suspendido']],
@@ -201,26 +217,38 @@ document.addEventListener('DOMContentLoaded', () => {
  }
 
  function clampNode(node) {
-  const {width, height} = dimensions();
-  node.x = Math.max(18, Math.min(Math.max(18, width - 218), Number(node.x) || 18));
-  node.y = Math.max(18, Math.min(Math.max(18, height - 112), Number(node.y) || 18));
+  node.x = Math.max(30, Math.min(3750, Number(node.x) || 30));
+  node.y = Math.max(30, Math.min(2450, Number(node.y) || 30));
  }
 
- function centerGraph() {
+ function applyViewport() {
+  stage.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+  document.getElementById('xflow_zoom_value').textContent = Math.round(zoom * 100) + '%';
+ }
+
+ function fitGraph() {
   if (!nodes.length) return;
-  const {width, height} = dimensions();
+  const {width, height} = viewport();
   const minimumX = Math.min(...nodes.map(node => Number(node.x) || 0));
-  const maximumX = Math.max(...nodes.map(node => (Number(node.x) || 0) + 200));
+  const maximumX = Math.max(...nodes.map(node => (Number(node.x) || 0) + 220));
   const minimumY = Math.min(...nodes.map(node => Number(node.y) || 0));
-  const maximumY = Math.max(...nodes.map(node => (Number(node.y) || 0) + 92));
-  const offsetX = width / 2 - (minimumX + maximumX) / 2;
-  const offsetY = height / 2 - (minimumY + maximumY) / 2;
-  nodes.forEach(node => {
-   node.x = (Number(node.x) || 0) + offsetX;
-   node.y = (Number(node.y) || 0) + offsetY;
-   clampNode(node);
-  });
-  render();
+  const maximumY = Math.max(...nodes.map(node => (Number(node.y) || 0) + 115));
+  const graphWidth = Math.max(220, maximumX - minimumX);
+  const graphHeight = Math.max(115, maximumY - minimumY);
+  zoom = Math.max(.3, Math.min(1.15, Math.min((width - 120) / graphWidth, (height - 120) / graphHeight)));
+  panX = width / 2 - ((minimumX + maximumX) / 2) * zoom;
+  panY = height / 2 - ((minimumY + maximumY) / 2) * zoom;
+  applyViewport();
+ }
+
+ function setZoom(nextZoom, anchorX = canvas.clientWidth / 2, anchorY = canvas.clientHeight / 2) {
+  const previous = zoom;
+  zoom = Math.max(.3, Math.min(1.8, nextZoom));
+  const worldX = (anchorX - panX) / previous;
+  const worldY = (anchorY - panY) / previous;
+  panX = anchorX - worldX * zoom;
+  panY = anchorY - worldY * zoom;
+  applyViewport();
  }
 
  function sync() {
@@ -233,30 +261,37 @@ document.addEventListener('DOMContentLoaded', () => {
    const source = byId(edge.from);
    const target = byId(edge.to);
    if (!source || !target) return '';
-   const startX = source.x + 200;
-   const startY = source.y + 46;
-   const endX = target.x;
-   const endY = target.y + 46;
-   const curve = Math.max(55, Math.abs(endX - startX) * .48);
+   const conditionBranch = source.type === 'condition' && ['true', 'false'].includes(edge.branch);
+   const startX = source.x + (conditionBranch ? (edge.branch === 'true' ? 70 : 150) : 110);
+   const startY = source.y + (source.type === 'condition' ? 115 : 100);
+   const endX = target.x + 110;
+   const endY = target.y;
+   const curve = Math.max(55, Math.abs(endY - startY) * .45);
    const labelX = (startX + endX) / 2;
-   const labelY = (startY + endY) / 2 - 8;
-   return `<path class="xflow-line" marker-end="url(#xflow_arrow)" d="M ${startX} ${startY} C ${startX + curve} ${startY}, ${endX - curve} ${endY}, ${endX} ${endY}"/><text class="xflow-line-label" x="${labelX}" y="${labelY}" text-anchor="middle">${escapeHtml(branchLabels[edge.branch] || edge.branch)}</text>`;
+   const labelY = (startY + endY) / 2 - 7;
+   const path = `M ${startX} ${startY} C ${startX} ${startY + curve}, ${endX} ${endY - curve}, ${endX} ${endY}`;
+   return `<path class="xflow-line-halo" d="${path}"/><path class="xflow-line" marker-end="url(#xflow_arrow)" d="${path}"/><text class="xflow-line-label" x="${labelX}" y="${labelY}" text-anchor="middle">${escapeHtml(branchLabels[edge.branch] || edge.branch)}</text>`;
   }).join('');
-  svg.innerHTML = `<defs><marker id="xflow_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--primary))"/></marker></defs>${paths}`;
+  svg.innerHTML = `<defs><marker id="xflow_arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker></defs>${paths}`;
  }
 
  function renderNodes() {
-  nodesRoot.innerHTML = nodes.map(node => `
-   <div class="xflow-node ${selected === node.id ? 'selected' : ''} ${connecting === node.id ? 'connecting' : ''} ${connecting && connecting !== node.id ? 'connect-target' : ''}" tabindex="0" data-node="${escapeHtml(node.id)}" style="left:${node.x}px;top:${node.y}px">
+  nodesRoot.innerHTML = nodes.map(node => {
+   const outputPorts = node.type === 'condition'
+    ? `<button class="xflow-port out true" type="button" data-output="${escapeHtml(node.id)}" data-branch="true" title="Salida verdadera" aria-label="Conectar rama verdadera desde ${escapeHtml(node.label)}"></button><button class="xflow-port out false" type="button" data-output="${escapeHtml(node.id)}" data-branch="false" title="Salida falsa" aria-label="Conectar rama falsa desde ${escapeHtml(node.label)}"></button>`
+    : `<button class="xflow-port out" type="button" data-output="${escapeHtml(node.id)}" data-branch="always" title="Salida: iniciar conexión" aria-label="Conectar desde ${escapeHtml(node.label)}"></button>`;
+   return `
+   <div class="xflow-node ${selected === node.id ? 'selected' : ''} ${connecting?.from === node.id ? 'connecting' : ''} ${connecting && connecting.from !== node.id ? 'connect-target' : ''}" tabindex="0" data-node="${escapeHtml(node.id)}" style="left:${node.x}px;top:${node.y}px">
     <button class="xflow-port in" type="button" data-input="${escapeHtml(node.id)}" title="Entrada: conectar aquí" aria-label="Conectar a ${escapeHtml(node.label)}"></button>
     <div class="xflow-node-head">
      <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><i class="ki-filled ${escapeHtml(definition(node).icon || 'ki-abstract-26')}"></i></span>
      <span class="min-w-0"><span class="block truncate text-xs font-semibold text-mono">${escapeHtml(node.label)}</span><span class="block truncate text-[10px] text-secondary-foreground">${escapeHtml(definition(node).label || node.handler)}</span></span>
     </div>
-    <div class="xflow-node-body">${node.type === 'condition' ? 'Salidas verdadero / falso' : node.type === 'trigger' ? 'Punto inicial' : 'Acción segura de XPanel'}</div>
-    <button class="xflow-port out" type="button" data-output="${escapeHtml(node.id)}" title="Salida: iniciar conexión" aria-label="Conectar desde ${escapeHtml(node.label)}"></button>
+    <div class="xflow-node-body">${node.type === 'condition' ? 'Evalúa y continúa por una de dos ramas' : node.type === 'trigger' ? 'Punto inicial' : 'Acción segura de XPanel'}</div>
+    ${node.type === 'condition' ? '<div class="xflow-branches"><span>Verdadero</span><span>Falso</span></div>' : ''}
+    ${outputPorts}
    </div>
-  `).join('');
+  `}).join('');
  }
 
  function renderConditionValues(node) {
@@ -317,18 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
  function addNode(handler) {
   const nodeDefinition = catalog[handler];
   if (!nodeDefinition) return;
-  const {width, height} = dimensions();
+  const {width, height} = viewport();
   const id = 'node-' + (++seq);
   const offset = (nodes.length % 5) * 18;
-  nodes.push({id, type: nodeDefinition.type, handler, label: nodeDefinition.label, x: width / 2 - 100 + offset, y: height / 2 - 46 + offset, config: {target: 'workflow', site_id: null, operator: 'equals', value: '', retries: 0}});
+  nodes.push({id, type: nodeDefinition.type, handler, label: nodeDefinition.label, x: (width / 2 - panX) / zoom - 110 + offset, y: (height / 2 - panY) / zoom - 50 + offset, config: {target: 'workflow', site_id: null, operator: 'equals', value: '', retries: 0}});
   selected = id;
   render();
-  showToast('Nodo añadido. Usa el conector derecho para enlazarlo.', 'success');
+  showToast('Nodo añadido. Usa su salida inferior para enlazarlo.', 'success');
  }
 
  function selectNode(id) {
-  if (connecting && connecting !== id) {
-   if (!edges.some(edge => edge.from === connecting && edge.to === id)) edges.push({from: connecting, to: id, branch: 'always'});
+  if (connecting && connecting.from !== id) {
+   if (!edges.some(edge => edge.from === connecting.from && edge.to === id && edge.branch === connecting.branch)) edges.push({from: connecting.from, to: id, branch: connecting.branch});
    connecting = null;
    selected = id;
    render();
@@ -358,26 +393,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
  document.querySelectorAll('[data-add-node]').forEach(button => button.addEventListener('click', () => addNode(button.dataset.addNode)));
  document.getElementById('xflow_center_graph').addEventListener('click', () => {
-  centerGraph();
-  showToast('Workflow centrado en el lienzo.', 'success');
+  fitGraph();
+  showToast('Workflow ajustado al lienzo.', 'success');
  });
+ document.getElementById('xflow_zoom_in').addEventListener('click', () => setZoom(zoom + .15));
+ document.getElementById('xflow_zoom_out').addEventListener('click', () => setZoom(zoom - .15));
  document.getElementById('xflow_frequency')?.addEventListener('change', syncScheduleFields);
+
+ function togglePanel(panel) {
+  if (window.matchMedia('(max-width:1100px)').matches) {
+   const aside = document.querySelector('.xflow-' + panel);
+   const open = aside.classList.toggle('is-open');
+   const mobileButton = document.getElementById('xflow_toggle_' + panel);
+   mobileButton.classList.toggle('is-active', open);
+   mobileButton.setAttribute('aria-pressed', String(open));
+   return;
+  }
+  const className = panel + '-collapsed';
+  const collapsed = workspace.classList.toggle(className);
+  const button = document.getElementById('xflow_toggle_' + panel);
+  button.classList.toggle('is-active', !collapsed);
+  button.setAttribute('aria-pressed', String(!collapsed));
+  localStorage.setItem('xflow.builder.' + panel, collapsed ? 'collapsed' : 'open');
+  setTimeout(fitGraph, 220);
+ }
+ document.getElementById('xflow_toggle_palette').addEventListener('click', () => togglePanel('palette'));
+ document.getElementById('xflow_toggle_inspector').addEventListener('click', () => togglePanel('inspector'));
+
+ canvas.addEventListener('pointerdown', event => {
+  if (event.target.closest('[data-node]') || event.target.closest('.xflow-canvas-actions')) return;
+  panDrag = {x: event.clientX, y: event.clientY, panX, panY};
+  canvas.classList.add('is-panning');
+  canvas.setPointerCapture(event.pointerId);
+ });
+ canvas.addEventListener('pointermove', event => {
+  if (!panDrag) return;
+  panX = panDrag.panX + event.clientX - panDrag.x;
+  panY = panDrag.panY + event.clientY - panDrag.y;
+  applyViewport();
+ });
+ canvas.addEventListener('pointerup', () => { panDrag = null; canvas.classList.remove('is-panning'); });
+ canvas.addEventListener('pointercancel', () => { panDrag = null; canvas.classList.remove('is-panning'); });
+ canvas.addEventListener('wheel', event => {
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  setZoom(zoom + (event.deltaY < 0 ? .1 : -.1), event.clientX - rect.left, event.clientY - rect.top);
+ }, {passive: false});
 
  nodesRoot.addEventListener('pointerdown', event => {
   const card = event.target.closest('[data-node]');
   if (!card || event.target.closest('.xflow-port')) return;
-  selectNode(card.dataset.node);
+  if (connecting) {
+   selectNode(card.dataset.node);
+   return;
+  }
+  selected = card.dataset.node;
+  nodesRoot.querySelectorAll('[data-node]').forEach(item => item.classList.toggle('selected', item.dataset.node === selected));
+  renderInspector();
   const node = byId(card.dataset.node);
   const rect = canvas.getBoundingClientRect();
-  drag = {id: node.id, dx: event.clientX - rect.left - node.x, dy: event.clientY - rect.top - node.y};
+  drag = {id: node.id, dx: (event.clientX - rect.left - panX) / zoom - node.x, dy: (event.clientY - rect.top - panY) / zoom - node.y};
   card.setPointerCapture(event.pointerId);
  });
  nodesRoot.addEventListener('pointermove', event => {
   if (!drag) return;
   const node = byId(drag.id);
   const rect = canvas.getBoundingClientRect();
-  node.x = event.clientX - rect.left - drag.dx;
-  node.y = event.clientY - rect.top - drag.dy;
+  node.x = (event.clientX - rect.left - panX) / zoom - drag.dx;
+  node.y = (event.clientY - rect.top - panY) / zoom - drag.dy;
   clampNode(node);
   const card = nodesRoot.querySelector(`[data-node="${CSS.escape(node.id)}"]`);
   card.style.left = node.x + 'px';
@@ -393,10 +476,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const card = event.target.closest('[data-node]');
   if (output) {
    event.stopPropagation();
-   connecting = output.dataset.output;
-   selected = connecting;
+   connecting = {from: output.dataset.output, branch: output.dataset.branch || 'always'};
+   selected = connecting.from;
    render();
-   showToast('Ahora pulsa el conector izquierdo del nodo de destino.');
+   showToast(`Rama ${branchLabels[connecting.branch] || connecting.branch}: pulsa la entrada superior del nodo de destino.`);
   } else if (input) {
    event.stopPropagation();
    selectNode(input.dataset.input);
@@ -466,21 +549,37 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
   showToast('Conexión eliminada.', 'success');
  });
- document.querySelectorAll('[data-toggle-panel]').forEach(button => button.addEventListener('click', () => document.querySelector('.xflow-' + button.dataset.togglePanel).classList.toggle('is-open')));
  document.getElementById('xflow_builder_form').addEventListener('submit', sync);
+ document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !connecting) return;
+  connecting = null;
+  render();
+  showToast('Conexión cancelada.');
+ });
 
  syncScheduleFields();
  render();
  requestAnimationFrame(() => {
-  centerGraph();
-  showToast(@json($errors->any() ? $errors->first() : 'Arrastra nodos y usa los conectores laterales para enlazarlos.'), @json($errors->any() ? 'danger' : 'info'), @json($errors->any() ? 6000 : 4200));
+  if (window.matchMedia('(max-width:1100px)').matches) {
+   document.querySelectorAll('.xflow-panel-toggle').forEach(button => { button.classList.remove('is-active'); button.setAttribute('aria-pressed', 'false'); });
+  } else {
+   for (const panel of ['palette', 'inspector']) {
+    if (localStorage.getItem('xflow.builder.' + panel) === 'collapsed') {
+     workspace.classList.add(panel + '-collapsed');
+     const button = document.getElementById('xflow_toggle_' + panel);
+     button.classList.remove('is-active');
+     button.setAttribute('aria-pressed', 'false');
+    }
+   }
+  }
+  fitGraph();
+  showToast(@json($errors->any() ? $errors->first() : 'Arrastra el fondo para moverte, usa la rueda para zoom y conecta las salidas inferiores.'), @json($errors->any() ? 'danger' : 'info'), @json($errors->any() ? 6000 : 4800));
  });
  let resizeTimer = null;
  window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-   nodes.forEach(clampNode);
-   render();
+   applyViewport();
   }, 120);
  });
 });
