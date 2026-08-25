@@ -5,7 +5,9 @@ namespace App\Http\Middleware;
 use App\Models\ActivityLog;
 use App\Models\Site;
 use App\Models\User;
+use App\Models\XflowWorkflow;
 use App\Notifications\PanelActivityNotification;
+use App\Services\XflowEventDispatcher;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +24,9 @@ class AuditMutations
             try {
                 $routeName = $request->route()?->getName() ?? 'request';
                 $site = $request->route('site');
+                if (! $site instanceof Site && $request->route('workflow') instanceof XflowWorkflow) {
+                    $site = $request->route('workflow')->site;
+                }
                 $siteExists = $site instanceof Site && Site::whereKey($site->id)->exists();
                 ActivityLog::create([
                     'user_id' => $request->user()->id,
@@ -36,12 +41,29 @@ class AuditMutations
                     ],
                 ]);
                 $this->notifyTeam($request, $routeName, $siteExists ? $site : null, $response);
+                $this->dispatchXflowEvent($routeName, $siteExists ? $site : null, $response);
             } catch (\Throwable $exception) {
                 Log::warning('No se pudo registrar una acción administrativa.', ['exception' => $exception->getMessage()]);
             }
         }
 
         return $response;
+    }
+
+    private function dispatchXflowEvent(string $routeName, ?Site $site, Response $response): void
+    {
+        if ($response->getStatusCode() >= 400) {
+            return;
+        }
+        $event = [
+            'sites.store' => 'site.created', 'sites.update' => 'site.updated', 'sites.restart' => 'site.restarted',
+            'sites.backups.store' => 'backup.completed', 'sites.git.deploy' => 'git.deployed',
+            'sites.cache.purge' => 'cache.purged', 'sites.malware.store' => 'malware.scanned',
+            'sites.ssl.issue' => 'ssl.issued',
+        ][$routeName] ?? null;
+        if ($event) {
+            app(XflowEventDispatcher::class)->dispatch($event, $site, ['route' => $routeName]);
+        }
     }
 
     private function notifyTeam(Request $request, string $routeName, ?Site $site, Response $response): void
@@ -130,6 +152,11 @@ class AuditMutations
             'sites.subdomains.store' => 'Creó un subdominio.',
             'sites.subdomains.destroy' => 'Eliminó un subdominio.',
             'sites.access.terminal.token' => 'Abrió una terminal SSH real del sitio.',
+            'xflow.store' => 'Creó un workflow XFlow.',
+            'xflow.update' => 'Actualizó un workflow XFlow.',
+            'xflow.run' => 'Ejecutó manualmente un workflow XFlow.',
+            'xflow.toggle' => 'Cambió el estado de un workflow XFlow.',
+            'xflow.destroy' => 'Eliminó un workflow XFlow.',
             'mail.store' => 'Creó una cuenta de correo.',
             'mail.destroy' => 'Eliminó una cuenta de correo.',
             'team.store' => 'Añadió un miembro al equipo.',

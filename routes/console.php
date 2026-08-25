@@ -12,6 +12,7 @@ Artisan::command('inspire', function () {
 Schedule::command('xpanel:backups-run')->hourly()->withoutOverlapping();
 Schedule::command('xpanel:ssl-sync')->daily()->withoutOverlapping();
 Schedule::command('xpanel:resources-collect')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('xpanel:xflow-run')->everyMinute()->withoutOverlapping();
 Schedule::call(fn () => DB::table('notifications')
     ->whereNotNull('read_at')
     ->where('created_at', '<', now()->subDays(90))

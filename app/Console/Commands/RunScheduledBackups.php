@@ -7,6 +7,7 @@ use App\Models\BackupPolicy;
 use App\Models\User;
 use App\Notifications\PanelActivityNotification;
 use App\Services\SiteBackupManager;
+use App\Services\XflowEventDispatcher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -16,10 +17,10 @@ class RunScheduledBackups extends Command
 
     protected $description = 'Create backups for every due Host backup policy';
 
-    public function handle(SiteBackupManager $manager): int
+    public function handle(SiteBackupManager $manager, XflowEventDispatcher $xflow): int
     {
         $failed = false;
-        BackupPolicy::with('site')->where('enabled', true)->orderBy('id')->each(function (BackupPolicy $policy) use ($manager, &$failed): void {
+        BackupPolicy::with('site')->where('enabled', true)->orderBy('id')->each(function (BackupPolicy $policy) use ($manager, $xflow, &$failed): void {
             if (! $policy->isDue() || $policy->site === null) {
                 return;
             }
@@ -34,6 +35,7 @@ class RunScheduledBackups extends Command
                     'metadata' => ['backup' => $backup->token, 'status' => 'completed'],
                 ]);
                 $this->info("Backup creado para {$policy->site->domain}: {$backup->token}");
+                $xflow->dispatch('backup.completed', $policy->site, ['backup' => $backup->token, 'source' => 'scheduled']);
             } catch (\Throwable $exception) {
                 $failed = true;
                 ActivityLog::create([

@@ -83,6 +83,13 @@ class GlobalSearchTest extends TestCase
             ->assertOk()->assertJsonCount(0, 'results');
     }
 
+    public function test_global_search_finds_xflow(): void
+    {
+        $this->actingAs($this->user('viewer'))->getJson(route('search', ['q' => 'workflow']))
+            ->assertOk()
+            ->assertJsonFragment(['title' => 'XFlow', 'url' => route('xflow.index')]);
+    }
+
     public function test_mail_index_filters_the_account_selected_from_global_search(): void
     {
         $viewer = $this->user('viewer');

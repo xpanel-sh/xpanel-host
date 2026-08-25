@@ -57,6 +57,7 @@ Servidor Linux o MicroVM
 | **PHP y tareas** | Límites y perfiles PHP-FPM por sitio, selección aislada de extensiones y tareas Cron administradas sin ejecución como root |
 | **Tráfico y seguridad** | Analítica desde logs, caché, listado de carpetas, protección Hotlink y reglas IPv4/IPv6 por sitio |
 | **Acceso y equipo** | Propietario, roles, permisos, chat interno, notificaciones persistentes, SFTP confinado, FTPS opcional y SSH por llaves |
+| **Automatización** | XFlow visual global o por sitio, disparadores manuales, programados, por eventos y webhooks, condiciones, historial y acciones seguras |
 | **Operación** | Instalador idempotente, CLI compartida, actualizaciones y smoke tests |
 | **Despliegue** | Standalone, MicroVM administrada por VM o instancia aislada administrada por VPS |
 
@@ -143,6 +144,20 @@ php artisan xpanel:admin-password --generate
 7. Crea una base desde **Bases de datos → Administración** si la aplicación la necesita.
 8. Ajusta memoria, subidas, tiempo de ejecución y el perfil de extensiones desde **Avanzado → Configuración PHP**. Los perfiles se comparten sólo cuando tú los asignas expresamente; usar PHP 8.3 en dos sitios no obliga a que ambos carguen las mismas extensiones.
 9. Si la aplicación necesita procesos periódicos, créalos desde **Avanzado → Cron Jobs**.
+
+## XFlow: automatizaciones visuales
+
+**XFlow** automatiza operaciones repetibles sin permitir scripts arbitrarios ni entregar privilegios del sistema al navegador. La entrada del menú principal administra los workflows de toda la cuenta; **Sitio → Avanzado → XFlow** muestra únicamente los que están confinados a ese sitio. Un flujo de cuenta puede actuar sobre un sitio elegido o sobre todos, mientras que uno de sitio nunca puede escapar de su dominio asignado.
+
+El builder permite arrastrar nodos, conectarlos y definir ramas de éxito, fallo, verdadero o falso. Incluye:
+
+- Inicio manual, programación cada cinco minutos/hora/día/semana, eventos internos y webhook privado.
+- Condiciones por estado del sitio, estado SSL y tipo de aplicación.
+- Backups, despliegue Git con backup previo, purga de caché, reinicio, malware, reintento SSL y notificaciones al equipo.
+- Reintentos limitados por nodo, prevención de ciclos, exclusión de acciones desconocidas y bloqueo de ejecuciones simultáneas.
+- Historial de ejecuciones con estado, duración, intento, salida y error de cada nodo.
+
+El programador existente ejecuta `xpanel:xflow-run` cada minuto. Los webhooks aceptan como máximo 64 KiB, requieren el token opaco de la URL y conservan el mismo aislamiento de alcance que una ejecución manual. Las acciones pasan por los servicios nativos de Host y, cuando la instalación pertenece a XPanel VPS, continúan atravesando su broker privilegiado.
 
 ### Cuenta de alojamiento y gestores de archivos
 

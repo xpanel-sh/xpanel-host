@@ -158,6 +158,7 @@ class GlobalSearchController extends Controller
             ['Dominios', 'Portafolio y estado DNS', route('domains.index'), 'ki-click', ['dns']],
             ['Correos', 'Buzones, webmail y entrega', route('mail.index'), 'ki-sms', ['email', 'mail']],
             ['Gestor de archivos', 'Archivos de todos los sitios', route('sites.ikode'), 'ki-folder', ['ikode', 'archivos']],
+            ['XFlow', 'Builder visual de workflows y automatizaciones', route('xflow.index'), 'ki-abstract-26', ['workflow', 'flujos', 'automatizacion']],
         ];
         if ($canManage) {
             $pages = array_merge($pages, [

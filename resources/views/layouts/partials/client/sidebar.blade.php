@@ -14,7 +14,13 @@
             'label' => 'Websites',
             'icon' => 'ki-screen',
             'url' => route('sites.index'),
-            'active' => request()->routeIs('sites.*'),
+            'active' => request()->routeIs('sites.*') && ! request()->routeIs('sites.xflow.*'),
+        ],
+        [
+            'label' => 'XFlow',
+            'icon' => 'ki-abstract-26',
+            'url' => route('xflow.index'),
+            'active' => request()->routeIs('xflow.*', 'sites.xflow.*'),
         ],
         [
             'label' => 'Dominios',

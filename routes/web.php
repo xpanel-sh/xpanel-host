@@ -51,6 +51,8 @@ use App\Http\Controllers\TeamChatController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WebServerEngineController;
 use App\Http\Controllers\WordPressController;
+use App\Http\Controllers\XflowController;
+use App\Http\Controllers\XflowWebhookController;
 use App\Http\Controllers\XMailController;
 use App\Models\ActivityLog;
 use App\Models\Domain;
@@ -67,6 +69,8 @@ Route::get('/setup', [SetupController::class, 'create'])->name('setup');
 Route::post('/setup', [SetupController::class, 'store']);
 
 Route::middleware('setup.complete')->group(function () {
+    Route::post('/xflow/hooks/{workflow}/{token}', XflowWebhookController::class)
+        ->middleware('throttle:30,1')->where('token', '[a-f0-9]{64}')->name('xflow.webhook');
     Route::get('/xmail/login', [XMailController::class, 'login'])->name('xmail.login');
     Route::post('/xmail/login', [XMailController::class, 'authenticate'])->middleware('throttle:xmail-login')->name('xmail.authenticate');
     Route::middleware('xmail.auth')->group(function () {
@@ -137,6 +141,9 @@ Route::middleware('setup.complete')->group(function () {
             ->name('resources.live');
 
         Route::middleware('permission:'.Permissions::SITES_VIEW)->group(function () {
+            Route::get('/xflow', [XflowController::class, 'index'])->name('xflow.index');
+            Route::get('/xflow/runs/{run}', [XflowController::class, 'runShow'])->name('xflow.runs.show');
+            Route::get('/xflow/{workflow}/builder', [XflowController::class, 'builder'])->name('xflow.builder');
             Route::resource('sites', SiteController::class)->only(['index']);
             // Registered before /domains/{domain} (destroy) below so the literal
             // segments don't get swallowed by the wildcard.
@@ -151,6 +158,12 @@ Route::middleware('setup.complete')->group(function () {
                 ->name('mail.dns-status');
         });
         Route::middleware('permission:'.Permissions::SITES_MANAGE)->group(function () {
+            Route::get('/xflow/create', [XflowController::class, 'create'])->name('xflow.create');
+            Route::post('/xflow', [XflowController::class, 'store'])->name('xflow.store');
+            Route::put('/xflow/{workflow}', [XflowController::class, 'update'])->name('xflow.update');
+            Route::post('/xflow/{workflow}/run', [XflowController::class, 'run'])->middleware('throttle:10,1')->name('xflow.run');
+            Route::patch('/xflow/{workflow}/toggle', [XflowController::class, 'toggle'])->name('xflow.toggle');
+            Route::delete('/xflow/{workflow}', [XflowController::class, 'destroy'])->name('xflow.destroy');
             Route::post('/sites/{site}/restart', [SiteOperationController::class, 'restart'])->name('sites.restart');
             Route::resource('sites', SiteController::class)->except(['index', 'show']);
 
@@ -215,6 +228,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/files/ftp', [SiteAccessController::class, 'files'])->name('sites.access.files');
             Route::get('/sites/{site}/advanced/ssh-access', [SiteAccessController::class, 'ssh'])->name('sites.access.ssh');
             Route::get('/sites/{site}/advanced/activity-log', [ActivityLogController::class, 'index'])->name('sites.activity.index');
+            Route::get('/sites/{site}/advanced/xflow', [XflowController::class, 'index'])->name('sites.xflow.index');
+            Route::get('/sites/{site}/advanced/xflow/{workflow}/builder', [XflowController::class, 'siteBuilder'])->name('sites.xflow.builder');
             Route::get('/sites/{site}/advanced/php-configuration', [PhpConfigurationController::class, 'index'])->name('sites.php.configuration');
             Route::get('/sites/{site}/advanced/php-info', [PhpConfigurationController::class, 'info'])->name('sites.php.info');
             Route::get('/sites/{site}/advanced/cron-jobs', [CronJobController::class, 'index'])->name('sites.cron.index');

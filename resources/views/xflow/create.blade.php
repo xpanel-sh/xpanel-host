@@ -1,0 +1,19 @@
+@extends('layouts.client')
+@section('title','Crear XFlow')
+@section('content')
+<div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5"><div class="flex flex-col grow kt-scrollable-y-auto pt-5"><main class="grow"><div class="kt-container-fluid grid gap-5">
+ <div><div class="text-sm text-secondary-foreground">XFlow / Nuevo</div><h1 class="text-2xl font-semibold text-mono">Crear automatización</h1><p class="mt-1 text-sm text-secondary-foreground">Define el alcance y el disparador inicial; después construirás el flujo visualmente.</p></div>
+ @if($errors->any())<div class="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+ <form method="post" action="{{ route('xflow.store') }}" class="grid gap-5">@csrf
+  <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Información y alcance</h2></div><div class="kt-card-content grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-4">
+   <label class="grid gap-2 text-sm xl:col-span-2"><span class="font-medium text-mono">Nombre</span><input class="kt-input" name="name" maxlength="120" value="{{ old('name') }}" placeholder="Backup y despliegue de producción" required></label>
+   <label class="grid gap-2 text-sm"><span class="font-medium text-mono">Alcance</span><select class="kt-select" name="scope" id="xflow_scope"><option value="account" @selected(old('scope',$site?'site':'account')==='account')>Cuenta completa</option><option value="site" @selected(old('scope',$site?'site':'account')==='site')>Un sitio</option></select></label>
+   <label class="grid gap-2 text-sm" id="xflow_site_field"><span class="font-medium text-mono">Sitio</span><select class="kt-select" name="site_id"><option value="">Seleccionar…</option>@foreach($sites as $item)<option value="{{ $item->id }}" @selected((string)old('site_id',$site?->id)===(string)$item->id)>{{ $item->domain }}</option>@endforeach</select></label>
+   <label class="grid gap-2 text-sm md:col-span-2 xl:col-span-4"><span class="font-medium text-mono">Descripción</span><input class="kt-input" name="description" maxlength="500" value="{{ old('description') }}" placeholder="Qué hace este flujo y cuándo debería utilizarse"></label>
+  </div></section>
+  <section><h2 class="mb-3 font-semibold text-mono">¿Cómo empieza?</h2><div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">@foreach(['manual'=>['Manual','Se ejecuta cuando tú lo solicitas.','ki-to-right'],'schedule'=>['Programado','Frecuencia automática administrada.','ki-calendar-tick'],'event'=>['Evento XPanel','Responde a backups, Git, SSL y más.','ki-abstract-26'],'webhook'=>['Webhook','Una URL privada inicia el flujo.','ki-code']] as $value=>[$label,$description,$icon])<label class="kt-card cursor-pointer has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary"><div class="kt-card-content flex gap-3 p-4"><input type="radio" name="trigger_type" value="{{ $value }}" @checked(old('trigger_type','manual')===$value)><span><i class="ki-filled {{ $icon }} text-primary"></i><span class="ms-2 font-medium text-mono">{{ $label }}</span><span class="mt-2 block text-xs text-secondary-foreground">{{ $description }}</span></span></div></label>@endforeach</div></section>
+  <div class="flex justify-end gap-2"><a class="kt-btn kt-btn-outline" href="{{ $site?route('sites.xflow.index',$site):route('xflow.index') }}">Cancelar</a><button class="kt-btn kt-btn-primary" type="submit">Crear y abrir builder <i class="ki-filled ki-right"></i></button></div>
+ </form>
+</div></main>@include('layouts.partials.client.footer')</div></div>
+<script>document.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('xflow_scope'),f=document.getElementById('xflow_site_field');const sync=()=>f.classList.toggle('hidden',s.value!=='site');s.addEventListener('change',sync);sync();});</script>
+@endsection

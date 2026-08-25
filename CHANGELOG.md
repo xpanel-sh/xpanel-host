@@ -21,6 +21,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Añadido
 
+- XFlow, constructor visual de automatizaciones disponible tanto para la cuenta completa como dentro de cada sitio. Incluye disparadores manuales, programados, eventos y webhooks privados; condiciones, ramas, reintentos, trazabilidad por nodo y acciones nativas para backups, Git, caché, reinicio, malware, SSL y notificaciones, sin ejecución arbitraria de shell.
 - Perfiles PHP-FPM aislados y reutilizables por versión: cada sitio puede heredar el runtime global o elegir exactamente sus extensiones, sin imponer esa selección a otros sitios que usan la misma versión de PHP. Configuración PHP concentra creación, asignación, instalación y edición en una sola vista compacta.
 - Servicios systemd independientes para perfiles PHP, limpieza segura al retirar un perfil y compatibilidad con la slice cgroups de una instancia VPS. OpenLiteSpeed conserva LSAPI y declara explícitamente que esta modalidad requiere Nginx o Apache.
 - Chat de agentes contenido por completo en el panel derecho de Ikode, con pestañas para conexiones cifradas de Codex/OpenAI y Claude/Anthropic, varios chats por agente, historial y ajustes internos. Cada conversación permanece separada por cuenta o sitio y el contexto se limita en el servidor; secretos, correo, SSL y dependencias voluminosas quedan fuera.
