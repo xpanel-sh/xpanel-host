@@ -71,6 +71,11 @@ class XflowManagementTest extends TestCase
             ->assertSee($workflow->name)
             ->assertSee(route('sites.xflow.builder', [$site, $workflow]), false);
         $this->actingAs($owner)->get(route('sites.xflow.builder', [$site, $workflow]))->assertOk();
+        $this->actingAs($owner)->get(route('sites.xflow.builder', [$site, $workflow]))
+            ->assertSee('id="xflow_center_graph"', false)
+            ->assertSee('class="xflow-port out"', false)
+            ->assertSee('overflow:hidden', false)
+            ->assertDontSee('XFlow guardado y validado.');
         $other = $this->site('other.example.com');
         $this->actingAs($owner)->get(route('sites.xflow.builder', [$other, $workflow]))->assertNotFound();
     }

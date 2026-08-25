@@ -69,7 +69,7 @@ class XflowController extends Controller
         $route = $workflow->site_id ? 'sites.xflow.builder' : 'xflow.builder';
         $parameters = $workflow->site_id ? ['site' => $workflow->site, 'workflow' => $workflow] : ['workflow' => $workflow];
 
-        return redirect()->route($route, $parameters)->with('status', 'XFlow creado. Añade y conecta sus nodos.');
+        return redirect()->route($route, $parameters);
     }
 
     public function builder(XflowWorkflow $workflow, XflowCatalog $catalog): View
@@ -112,7 +112,7 @@ class XflowController extends Controller
         $workflow->next_run_at = $schedule->next($workflow);
         $workflow->save();
 
-        return back()->with('status', 'XFlow guardado y validado.');
+        return back();
     }
 
     public function run(Request $request, XflowWorkflow $workflow, XflowRunner $runner): RedirectResponse
