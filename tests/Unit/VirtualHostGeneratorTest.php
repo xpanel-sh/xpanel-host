@@ -91,6 +91,7 @@ class VirtualHostGeneratorTest extends TestCase
         $pool = file_get_contents($poolPath);
         $this->assertStringContainsString('/run/php/php8.3-fpm-engine-test.example.com.sock', $pool);
         $this->assertStringContainsString('pm = ondemand', $pool);
+        $this->assertStringContainsString('env[HOME] = /var/www/engine-test.example.com', $pool);
 
         $generator->remove($site);
     }
@@ -163,6 +164,7 @@ class VirtualHostGeneratorTest extends TestCase
         $this->assertStringContainsString('proxy_pass http://127.0.0.1:32123;', $gateway);
         $this->assertStringContainsString('proxy_set_header Upgrade $http_upgrade;', $gateway);
         $this->assertStringContainsString('Environment=PORT=32123', $service);
+        $this->assertStringContainsString('Environment=HOME=/var/www/engine-test.example.com', $service);
         $this->assertStringContainsString('ExecStart=/usr/local/bin/npm run serve', $service);
         $this->assertStringContainsString('NoNewPrivileges=true', $service);
         $generator->remove($site);

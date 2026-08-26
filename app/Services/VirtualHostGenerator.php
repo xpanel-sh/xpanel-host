@@ -753,6 +753,7 @@ pm.max_children = 10
 pm.process_idle_timeout = 10s
 pm.max_requests = 500
 chdir = {$site->webRoot()}
+env[HOME] = {$site->document_root}
 catch_workers_output = yes
 php_admin_value[memory_limit] = {$memoryLimit}
 php_admin_value[upload_max_filesize] = {$uploadLimit}
@@ -791,6 +792,7 @@ Type=simple
 Group={$user}
 WorkingDirectory={$site->document_root}
 Environment=NODE_ENV=production
+Environment=HOME={$site->document_root}
 Environment=PORT={$site->runtime_port}
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart={$exec}

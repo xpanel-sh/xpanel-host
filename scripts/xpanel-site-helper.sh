@@ -1662,6 +1662,17 @@ access_sync() {
     done
   fi
 
+  local shell_home="$document_root" passwd_home="" compatibility_home=""
+  [[ "$terminal_scope" != "family" ]] || shell_home="/family"
+  passwd_home="$(getent passwd "$site_user" | cut -d: -f6)"
+  # usermod refuses to change a home while PHP-FPM/Node/SSH still has a
+  # process under that UID. Keep the old passwd home temporarily and mirror
+  # the current root there inside this private jail; /etc/profile immediately
+  # enters the canonical workspace. No hosted process needs to be killed.
+  if [[ "$passwd_home" != "$shell_home" && "$passwd_home" != "$document_root" ]] && valid_document_root "$passwd_home"; then
+    compatibility_home="$passwd_home"
+  fi
+
   # Jail construction (sshd ChrootDirectory). sshd performs the chroot()
   # itself, as root, before dropping to the target user's privileges — unlike
   # a userspace sandbox (bubblewrap was tried first; Ubuntu 24.04's AppArmor
@@ -1687,6 +1698,9 @@ access_sync() {
     install -d -o root -g root -m 0755 "$jail/$shared_dir"
   done
   install -d -o root -g root -m 0755 "$jail/dev" "$jail/etc"
+  if [[ -n "$compatibility_home" ]]; then
+    install -d -o root -g root -m 0755 "$jail$compatibility_home"
+  fi
   if [[ "$terminal_scope" == "family" ]]; then
     install -d -o root -g root -m 0755 "$jail/family"
     for ((family_index=0; family_index<terminal_count; family_index++)); do
@@ -1701,7 +1715,7 @@ access_sync() {
   # string itself.
   local domain_label
   domain_label="$(basename -- "$document_root")"
-  printf 'export PS1="xpanel@%s:\\w\\$ "\n' "$domain_label" > "$jail/etc/profile"
+  printf 'export HOME=%q\ncd -- "$HOME"\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$domain_label" > "$jail/etc/profile"
   chown root:root "$jail/etc/profile"
   chmod 0644 "$jail/etc/profile"
 
@@ -1765,6 +1779,9 @@ access_sync() {
     echo "ExecStart=/bin/mount --bind $document_root $mountpoint_path"
     echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail$document_root"
     echo "ExecStart=/bin/mount --bind $document_root $jail$document_root"
+    if [[ -n "$compatibility_home" ]]; then
+      echo "ExecStart=/bin/mount --bind $document_root $jail$compatibility_home"
+    fi
     if [[ "$terminal_scope" == "family" ]]; then
       for ((family_index=0; family_index<terminal_count; family_index++)); do
         echo "ExecStart=/bin/mount --bind ${terminal_roots[$family_index]} $jail/family/${terminal_domains[$family_index]}"
@@ -1805,9 +1822,7 @@ access_sync() {
     # plainly before letting an owner turn on the terminal on a
     # SFTP-only site. document_root is mirrored inside the jail at the same
     # absolute path, so HOME resolves correctly once chrooted.
-    local shell_home="$document_root"
-    [[ "$terminal_scope" != "family" ]] || shell_home="/family"
-    usermod -s /bin/bash -d "$shell_home" "$site_user"
+    [[ "$(getent passwd "$site_user" | cut -d: -f7)" == "/bin/bash" ]] || usermod -s /bin/bash "$site_user"
     cat > "$ssh_config" <<EOF
 Match User $site_user
     ChrootDirectory $jail
@@ -1822,7 +1837,7 @@ Match User $site_user
 Match all
 EOF
   elif [[ "$sftp_enabled" == "1" ]]; then
-    usermod -s /usr/sbin/nologin -d "$document_root" "$site_user"
+    [[ "$(getent passwd "$site_user" | cut -d: -f7)" == "/usr/sbin/nologin" ]] || usermod -s /usr/sbin/nologin "$site_user"
     cat > "$ssh_config" <<EOF
 Match User $site_user
     ChrootDirectory $jail
@@ -1837,7 +1852,7 @@ Match User $site_user
 Match all
 EOF
   else
-    usermod -s /usr/sbin/nologin -d "$document_root" "$site_user"
+    [[ "$(getent passwd "$site_user" | cut -d: -f7)" == "/usr/sbin/nologin" ]] || usermod -s /usr/sbin/nologin "$site_user"
     rm -f "$ssh_config"
   fi
 

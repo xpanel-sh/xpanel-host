@@ -29,6 +29,10 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('shell_home="/family"', $helper);
         $this->assertStringContainsString('/family/${terminal_domains[$family_index]}', $helper);
         $this->assertStringContainsString('Terminal family contains an unrelated domain.', $helper);
+        $this->assertStringContainsString('compatibility_home="$passwd_home"', $helper);
+        $this->assertStringContainsString('mount --bind $document_root $jail$compatibility_home', $helper);
+        $this->assertStringContainsString("export HOME=%q", $helper);
+        $this->assertStringNotContainsString('usermod -s /bin/bash -d "$shell_home"', $helper);
     }
 
     public function test_panel_receives_scoped_write_acl_for_each_site_root(): void
