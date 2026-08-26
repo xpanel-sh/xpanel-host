@@ -12,10 +12,12 @@ use App\Services\ServerResourceUsageService;
 use App\Services\SiteAccessProvisioner;
 use App\Services\SiteProvisioner;
 use App\Services\SiteResourceUsageService;
+use App\Support\Permissions;
 use App\Support\SiteModules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SiteController extends Controller
@@ -27,8 +29,16 @@ class SiteController extends Controller
         ]);
     }
 
-    public function show(Site $site, ServerContext $serverContext): View
+    public function show(Site $site, ServerContext $serverContext): View|RedirectResponse
     {
+        if ($site->parent_site_id !== null) {
+            if (! auth()->user()?->hasPermission(Permissions::SITES_MANAGE)) {
+                return redirect()->route('sites.subdomains.index', $site->parent);
+            }
+
+            return redirect()->route('sites.subdomains.edit', [$site->parent, $this->subdomainLabel($site)]);
+        }
+
         return view('sites.show', [
             'site' => $site,
             'modules' => SiteModules::catalog(),
@@ -84,7 +94,7 @@ class SiteController extends Controller
     {
         try {
             $data = $this->validated($request);
-        } catch (\Illuminate\Validation\ValidationException $exception) {
+        } catch (ValidationException $exception) {
             throw $exception;
         } catch (\Throwable $exception) {
             report($exception);
@@ -114,8 +124,12 @@ class SiteController extends Controller
         return redirect()->route('sites.index')->with('status', "Sitio {$site->domain} creado.");
     }
 
-    public function edit(Site $site): View
+    public function edit(Site $site): View|RedirectResponse
     {
+        if ($site->parent_site_id !== null) {
+            return redirect()->route('sites.subdomains.edit', [$site->parent, $this->subdomainLabel($site)]);
+        }
+
         return view('sites.edit', [
             'site' => $site,
             'phpVersions' => Site::phpVersions(),
@@ -128,7 +142,7 @@ class SiteController extends Controller
     {
         try {
             $data = $this->validated($request, $site);
-        } catch (\Illuminate\Validation\ValidationException $exception) {
+        } catch (ValidationException $exception) {
             throw $exception;
         } catch (\Throwable $exception) {
             report($exception);
@@ -231,6 +245,14 @@ class SiteController extends Controller
         ]);
     }
 
+    private function subdomainLabel(Site $site): string
+    {
+        $parent = $site->parent;
+        abort_if($parent === null || ! str_ends_with($site->domain, '.'.$parent->domain), 404);
+
+        return substr($site->domain, 0, -strlen('.'.$parent->domain));
+    }
+
     private function validated(Request $request, ?Site $site = null): array
     {
         $request->merge([
@@ -310,5 +332,4 @@ class SiteController extends Controller
 
         return $data;
     }
-
 }

@@ -32,37 +32,33 @@ class ExampleTest extends TestCase
             ->assertDontSee('Acceso rapido a modulos');
     }
 
-    public function test_site_header_has_separate_site_and_subdomain_navigation(): void
+    public function test_site_header_lists_only_primary_sites_and_subdomains_use_parent_context(): void
     {
         $owner = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
         $site = Site::create(['domain' => 'example.com', 'document_root' => '/var/www/example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
         $subdomain = Site::create(['parent_site_id' => $site->id, 'domain' => 'app.example.com', 'document_root' => '/var/www/app.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
 
-        $response = $this->actingAs($owner)->get(route('sites.show', $subdomain));
+        $this->actingAs($owner)->get(route('sites.show', $subdomain))
+            ->assertRedirect(route('sites.subdomains.edit', [$site, 'app']));
+
+        $response = $this->actingAs($owner)->get(route('sites.subdomains.edit', [$site, 'app']));
 
         $response
             ->assertOk()
             ->assertSee('--sidebar-width:310px', false)
-            ->assertDontSee('[--sidebar-width:290px]', false)
-            ->assertSee('Subdominios de example.com')
-            ->assertSee('Mostrar subdominios')
-            ->assertSee('data-header-subdomain-selector', false)
-            ->assertDontSee('data-header-subdomains-list', false)
-            ->assertSee("localStorage.getItem(storageKey) === '1'", false)
+            ->assertSee('Entorno app.example.com')
             ->assertSee('app.example.com')
-            ->assertSee(route('sites.show', $subdomain), false)
+            ->assertSee(route('sites.show', $site), false)
+            ->assertDontSee('Mostrar subdominios')
+            ->assertDontSee('data-header-subdomain-selector', false)
+            ->assertDontSee('data-header-subdomain-toggle', false)
+            ->assertDontSee("localStorage.getItem('xpanel-header-show-subdomains')", false)
             ->assertDontSee('Todos los modulos');
 
         preg_match('/<button[^>]*data-header-site-toggle[^>]*>(.*?)<\/button>/s', $response->getContent(), $siteToggle);
-        preg_match('/<button[^>]*data-header-subdomain-toggle[^>]*>(.*?)<\/button>/s', $response->getContent(), $subdomainToggle);
         $this->assertArrayHasKey(1, $siteToggle);
-        $this->assertArrayHasKey(1, $subdomainToggle);
         $this->assertStringNotContainsString('ki-abstract-26', $siteToggle[1]);
-        $this->assertStringNotContainsString('ki-router', $subdomainToggle[1]);
         $this->assertStringContainsString('ki-click', $response->getContent());
-        $this->assertStringContainsString('ki-router', $response->getContent());
-        $this->assertStringContainsString("selector.classList.toggle('hidden', !toggle.checked)", $response->getContent());
-        $this->assertStringContainsString("selector.classList.toggle('flex', toggle.checked)", $response->getContent());
     }
 
     public function test_first_boot_redirects_to_setup(): void

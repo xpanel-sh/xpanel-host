@@ -216,6 +216,10 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/domains/subdomains', [SubdomainController::class, 'index'])->name('sites.subdomains.index');
             Route::get('/sites/{site}/domains/parked-domains', [ParkedDomainController::class, 'index'])->name('sites.parked-domains.index');
             Route::get('/sites/{site}/domains/redirects', [RedirectController::class, 'index'])->name('sites.redirects.index');
+            Route::get('/sites/{site}/domains/{subdomainLabel}', [SubdomainController::class, 'edit'])
+                ->where('subdomainLabel', '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?')
+                ->middleware('permission:'.Permissions::SITES_MANAGE)
+                ->name('sites.subdomains.edit');
             Route::get('/sites/{site}/website/error-pages', [ErrorPageController::class, 'index'])->name('sites.error-pages.index');
             Route::get('/sites/{site}/website/wordpress', [WordPressController::class, 'index'])->name('sites.wordpress.index');
             Route::get('/sites/{site}/website/auto-installer', [WordPressController::class, 'catalog'])->name('sites.installer.index');
@@ -305,6 +309,9 @@ Route::middleware('setup.complete')->group(function () {
             Route::delete('/sites/{site}/security/ssl', [CertificateController::class, 'destroy'])->name('sites.ssl.destroy');
             Route::post('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'store'])->name('sites.databases.store');
             Route::post('/sites/{site}/domains/subdomains', [SubdomainController::class, 'store'])->name('sites.subdomains.store');
+            Route::put('/sites/{site}/domains/{subdomainLabel}', [SubdomainController::class, 'update'])
+                ->where('subdomainLabel', '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?')
+                ->name('sites.subdomains.update');
             Route::delete('/sites/{site}/domains/subdomains/{subdomain}', [SubdomainController::class, 'destroy'])->name('sites.subdomains.destroy');
             Route::post('/sites/{site}/database/mysql-databases/{siteDatabase}/password', [DatabaseController::class, 'password'])->name('sites.databases.password');
             Route::delete('/sites/{site}/database/mysql-databases/{siteDatabase}', [DatabaseController::class, 'destroy'])->name('sites.databases.destroy');

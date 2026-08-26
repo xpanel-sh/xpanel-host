@@ -44,6 +44,7 @@
         <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted"><i class="ki-filled ki-click"></i></span>
         <div><h3 class="font-semibold text-mono">Dominio y archivos</h3><p class="mt-1 text-xs text-secondary-foreground">La raíz contiene el proyecto completo y queda aislada para archivos, terminal y despliegues.</p></div>
     </div>
+    @if (!($environmentMode ?? false))
     <div class="grid gap-5 md:grid-cols-2">
         <label class="flex flex-col gap-2 md:col-span-2">
             <span class="kt-form-label font-normal text-mono">Dominio</span>
@@ -65,6 +66,23 @@
             <span class="kt-form-description">Úsala cuando el servidor web deba publicar sólo una carpeta, como <code>public</code> en Laravel.</span>
         </label>
     </div>
+    @else
+    <div class="grid gap-4 md:grid-cols-2">
+        <div class="rounded-lg border border-border bg-muted/20 p-4">
+            <div class="text-xs text-secondary-foreground">Hostname</div>
+            <div class="mt-1 truncate font-medium text-mono">{{ $site->domain }}</div>
+        </div>
+        <div class="rounded-lg border border-border bg-muted/20 p-4">
+            <div class="text-xs text-secondary-foreground">Raíz asignada por XPanel</div>
+            <div class="mt-1 truncate font-mono text-sm" title="{{ $site->document_root }}">{{ $site->document_root }}</div>
+        </div>
+        <label class="flex flex-col gap-2 md:col-span-2" data-site-public-path @if ($selectedType === 'node') hidden @endif>
+            <span class="kt-form-label font-normal text-mono">Subcarpeta pública <span class="text-secondary-foreground">(opcional)</span></span>
+            <input class="kt-input max-w-xl font-mono" type="text" name="public_path" value="{{ old('public_path', $site->public_path ?? '') }}" placeholder="public"/>
+            <span class="kt-form-description">Solo cambia qué carpeta publica el servidor web; la raíz protegida del entorno permanece fija.</span>
+        </label>
+    </div>
+    @endif
 </section>
 
 <section class="rounded-xl border border-border p-5" data-runtime-section="php" @if ($selectedType !== 'php') hidden @endif>

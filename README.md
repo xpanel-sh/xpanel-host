@@ -275,7 +275,7 @@ El instalador añade phpMyAdmin desde los paquetes mantenidos por Debian/Ubuntu 
 
 ### Subdominios
 
-Desde **Sitio → Dominios → Subdominios** escribe sólo la etiqueta (`blog`, `tienda`, `api`). Host crea un sitio hijo como `blog.example.com`, su document root y su configuración web. El hijo hereda inicialmente el motor, tipo y versión PHP del sitio principal, pero conserva administración propia para archivos, bases de datos y SSL.
+Desde **Sitio → Dominios → Subdominios** escribe sólo la etiqueta (`blog`, `tienda`, `api`). Host asigna sin intervención del cliente un document root seguro y crea el entorno con la configuración inicial del dominio principal. Después, **Configurar** abre la ruta contextual `/sites/<dominio>/domains/<etiqueta>`, donde ese subdominio puede cambiar independientemente a PHP, Node.js o estático, con su propia versión, proceso, puerto interno y publicación. SSL y el explorador familiar de archivos permanecen centralizados en el dominio principal.
 
 Su proyecto queda agrupado bajo `public_html/<dominio-principal>/subdomains/<etiqueta>`. WordPress, Git, migraciones, restauraciones, backups y reparaciones de permisos del dominio principal tratan `subdomains/` como una frontera: cada hijo conserva sus archivos y su identidad Unix. La sincronización reconoce tanto dominios como subdominios heredados en `/var/www` o `/srv/www` y los migra cuando se aplican cambios reales del sistema.
 
