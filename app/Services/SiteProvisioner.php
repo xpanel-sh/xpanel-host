@@ -27,11 +27,44 @@ class SiteProvisioner
             $this->remove($previous);
         }
 
+        $this->stage($site);
+
+        $this->applyStaged($site);
+    }
+
+    public function stage(Site $site): void
+    {
         $this->vhosts->write($site);
         $this->vhosts->writeGateway($site);
         $this->vhosts->writePhpPool($site);
         $this->vhosts->writeNodeService($site);
         $this->vhosts->writeOpenLiteSpeedRegistry();
+    }
+
+    /**
+     * Installs only runtime references without validating or restarting them.
+     * Site-wide synchronization calls this after every site has been staged,
+     * preventing one stale FPM pool from blocking the first updated site.
+     */
+    public function primeRuntime(Site $site): void
+    {
+        if (! config('xpanel.apply_system_changes')) {
+            return;
+        }
+
+        $this->commands->run([
+            'sudo', '-n', (string) config('xpanel.site_helper'), 'runtime-prime',
+            $site->domain,
+            $site->web_server,
+            $site->type,
+            $site->php_version,
+            $site->systemUser(),
+            $site->phpProfile?->runtimeKey() ?? 'system',
+        ]);
+    }
+
+    public function applyStaged(Site $site): void
+    {
 
         if (! config('xpanel.apply_system_changes')) {
             return;

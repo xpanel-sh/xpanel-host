@@ -168,6 +168,57 @@ php_profile_remove_domain() {
   done
 }
 
+runtime_prime() {
+  local domain="$2" engine="$3" type="$4" php_version="$5" site_user="$6" php_profile="$7"
+  valid_domain "$domain" || fail "Invalid runtime domain."
+  [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid runtime web server."
+  [[ "$type" == "php" || "$type" == "static" || "$type" == "node" ]] || fail "Invalid runtime type."
+  [[ "$php_version" =~ ^8\.[1-4]$ ]] || fail "Invalid runtime PHP version."
+  valid_site_identity "$site_user" || fail "Invalid runtime identity."
+  valid_php_profile "$php_profile" || fail "Invalid runtime PHP profile."
+
+  local pool_source="$STATE_ROOT/storage/app/php-fpm/$domain.conf"
+  local node_source="$STATE_ROOT/storage/app/systemd/xpanel-node-$domain.service"
+  local candidate profile_dir node_unit="/etc/systemd/system/xpanel-node-$domain.service"
+
+  # Remove every installed copy first: a domain may have changed PHP version
+  # or moved between the system runtime and an isolated profile.
+  for candidate in /etc/php/*/fpm/pool.d/xpanel-"$domain".conf; do
+    [[ -e "$candidate" || -L "$candidate" ]] && rm -f -- "$candidate"
+  done
+  candidate="$(fpm_pool_path "$php_version" "$domain")"
+  rm -f -- "$candidate"
+  php_profile_assert_root
+  if [[ -d "$PHP_PROFILE_ROOT" && ! -L "$PHP_PROFILE_ROOT" ]]; then
+    for profile_dir in "$PHP_PROFILE_ROOT"/*; do
+      [[ -d "$profile_dir/pools" && ! -L "$profile_dir" ]] || continue
+      valid_php_profile "$(basename -- "$profile_dir")" || continue
+      rm -f -- "$profile_dir/pools/xpanel-$domain.conf"
+    done
+  fi
+
+  if [[ "$type" == "php" && "$engine" != "openlitespeed" ]]; then
+    [[ -f "$pool_source" && ! -L "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
+    if [[ "$php_profile" == "system" ]]; then
+      candidate="$(fpm_pool_path "$php_version" "$domain")"
+      install -d -o root -g root -m 0755 "$(dirname -- "$candidate")"
+      install -o root -g root -m 0644 "$pool_source" "$candidate"
+    else
+      install -d -o root -g root -m 0755 "$PHP_PROFILE_ROOT/$php_profile/pools"
+      install -o root -g root -m 0644 "$pool_source" "$PHP_PROFILE_ROOT/$php_profile/pools/xpanel-$domain.conf"
+    fi
+  fi
+
+  if [[ "$type" == "node" ]]; then
+    [[ -f "$node_source" && ! -L "$node_source" ]] || fail "Staged Node.js service not found."
+    grep -qxF "User=$site_user" "$node_source" || fail "Invalid staged Node.js service user."
+    install -o root -g root -m 0644 "$node_source" "$node_unit"
+  else
+    rm -f -- "$node_unit"
+  fi
+  systemctl daemon-reload
+}
+
 php_profile_link_module() {
   local version="$1" target="$2" module="$3" link_name="20-$module.ini" existing
   [[ -f "/etc/php/$version/mods-available/$module.ini" && ! -L "/etc/php/$version/mods-available/$module.ini" ]] || fail "PHP module $module is not installed for PHP $version."
@@ -2138,6 +2189,7 @@ case "$ACTION" in
   apply|remove) site_action "$@" ;;
   php-extension-install) php_extension_install "$@" ;;
   php-profile-remove) php_profile_remove "$@" ;;
+  runtime-prime) runtime_prime "$@" ;;
   site-root-migrate) site_root_migrate "$@" ;;
   site-restart) site_restart "$@" ;;
   cron-sync) cron_sync "$@" ;;

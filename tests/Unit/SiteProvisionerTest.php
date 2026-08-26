@@ -53,4 +53,22 @@ class SiteProvisionerTest extends TestCase
         $this->assertFileExists($generator->phpPoolPath($site));
         $generator->remove($site);
     }
+
+    public function test_runtime_can_be_primed_before_global_validation(): void
+    {
+        config()->set('xpanel.apply_system_changes', true);
+        config()->set('xpanel.site_helper', '/opt/xpanel-host/scripts/xpanel-site-helper.sh');
+        $site = new Site([
+            'domain' => 'digital.example.com',
+            'document_root' => '/home/xpa0123456789/public_html/digital.example.com',
+            'php_version' => '8.3', 'type' => 'node', 'web_server' => 'nginx', 'status' => 'active',
+        ]);
+        $commands = Mockery::mock(ServerCommandRunner::class);
+        $commands->shouldReceive('run')->once()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'runtime-prime',
+            'digital.example.com', 'nginx', 'node', '8.3', $site->systemUser(), 'system',
+        ]);
+
+        (new SiteProvisioner(new VirtualHostGenerator, $commands))->primeRuntime($site);
+    }
 }

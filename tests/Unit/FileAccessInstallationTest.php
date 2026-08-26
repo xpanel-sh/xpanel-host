@@ -55,4 +55,15 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringNotContainsString("--exclude='subdomains/'", $helper);
         $this->assertStringNotContainsString('! -name subdomains -exec rm -rf', $helper);
     }
+
+    public function test_runtime_priming_replaces_all_stale_fpm_and_node_references_before_validation(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('runtime_prime()', $helper);
+        $this->assertStringContainsString('/etc/php/*/fpm/pool.d/xpanel-', $helper);
+        $this->assertStringContainsString('$PHP_PROFILE_ROOT/$php_profile/pools/xpanel-$domain.conf', $helper);
+        $this->assertStringContainsString('storage/app/systemd/xpanel-node-$domain.service', $helper);
+        $this->assertStringContainsString('runtime-prime) runtime_prime "$@"', $helper);
+    }
 }

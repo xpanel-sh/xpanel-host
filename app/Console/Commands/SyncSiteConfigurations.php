@@ -31,9 +31,21 @@ class SyncSiteConfigurations extends Command
             }
         });
 
+        // Stage and prime every runtime before validating/restarting any one
+        // of them. PHP-FPM validates all installed pools together, so a stale
+        // path from another migrated subdomain must not block the first site.
         $sites->each(function (Site $site) use ($provisioner): void {
             $site->refresh();
-            $provisioner->provision($site);
+            $provisioner->stage($site);
+        });
+        $sites->each(function (Site $site) use ($provisioner): void {
+            $site->refresh();
+            $provisioner->primeRuntime($site);
+        });
+
+        $sites->each(function (Site $site) use ($provisioner): void {
+            $site->refresh();
+            $provisioner->applyStaged($site);
             Domain::updateOrCreate(['domain' => $site->domain], [
                 'site_id' => $site->id,
                 'type' => $site->parent_site_id === null ? 'primary' : 'subdomain',
