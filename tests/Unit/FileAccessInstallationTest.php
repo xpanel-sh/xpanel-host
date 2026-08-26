@@ -45,6 +45,8 @@ class FileAccessInstallationTest extends TestCase
 
         $this->assertStringContainsString('site_root_migrate()', $helper);
         $this->assertStringContainsString('Canonical site root already exists.', $helper);
+        $this->assertStringContainsString('Canonical site root already exists and is not empty.', $helper);
+        $this->assertStringContainsString('rmdir -- "$canonical_root"', $helper);
         $this->assertStringContainsString('mv -- "$legacy_root" "$canonical_root"', $helper);
         $this->assertStringNotContainsString("--exclude='subdomains/'", $helper);
         $this->assertStringNotContainsString('! -name subdomains -exec rm -rf', $helper);

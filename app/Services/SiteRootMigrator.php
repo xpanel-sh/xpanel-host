@@ -13,27 +13,19 @@ class SiteRootMigrator
 
     public function migrateLegacyRoot(Site $site): bool
     {
-        $legacyRoot = rtrim($site->document_root, '/');
+        $configuredRoot = rtrim($site->document_root, '/');
         $canonicalRoot = $this->canonicalRoot($site);
 
-        if ($canonicalRoot === null || $legacyRoot === $canonicalRoot) {
+        if ($canonicalRoot === null) {
             return false;
         }
 
-        $knownLegacyRoots = [
-            '/var/www/'.$site->domain,
-            '/srv/www/'.$site->domain,
-        ];
+        $knownLegacyRoots = $this->knownLegacyRoots($site);
+        $legacyRoot = $configuredRoot !== $canonicalRoot
+            ? $configuredRoot
+            : $this->recoverablePhysicalRoot($knownLegacyRoots, $canonicalRoot);
 
-        if ($site->parent_site_id !== null) {
-            $parent = $site->parent()->first();
-            $label = $parent ? $this->subdomainLabel($site, $parent) : null;
-            if ($parent && $label) {
-                $knownLegacyRoots[] = rtrim($parent->document_root, '/').'/subdomains/'.$label;
-            }
-        }
-
-        if (! in_array($legacyRoot, $knownLegacyRoots, true)) {
+        if ($legacyRoot === null || $legacyRoot === $canonicalRoot || ! in_array($legacyRoot, $knownLegacyRoots, true)) {
             return false;
         }
 
@@ -66,6 +58,55 @@ class SiteRootMigrator
         }
 
         return true;
+    }
+
+    /** @return list<string> */
+    private function knownLegacyRoots(Site $site): array
+    {
+        $roots = [
+            '/var/www/'.$site->domain,
+            '/srv/www/'.$site->domain,
+        ];
+
+        if ($site->parent_site_id !== null) {
+            $parent = $site->parent()->first();
+            $label = $parent ? $this->subdomainLabel($site, $parent) : null;
+            if ($parent && $label) {
+                $roots[] = rtrim($parent->document_root, '/').'/subdomains/'.$label;
+                $roots[] = $this->workspace->siteRoot($parent->domain).'/subdomains/'.$label;
+                $roots[] = '/var/www/'.$parent->domain.'/subdomains/'.$label;
+                $roots[] = '/srv/www/'.$parent->domain.'/subdomains/'.$label;
+            }
+        }
+
+        return array_values(array_unique($roots));
+    }
+
+    private function recoverablePhysicalRoot(array $knownLegacyRoots, string $canonicalRoot): ?string
+    {
+        if (! config('xpanel.apply_system_changes')) {
+            return null;
+        }
+
+        $canonicalIsMissingOrEmpty = ! is_dir($canonicalRoot) || $this->directoryIsEmpty($canonicalRoot);
+        if (! $canonicalIsMissingOrEmpty) {
+            return null;
+        }
+
+        foreach ($knownLegacyRoots as $candidate) {
+            if ($candidate !== $canonicalRoot && is_dir($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function directoryIsEmpty(string $path): bool
+    {
+        $entries = @scandir($path);
+
+        return is_array($entries) && count($entries) === 2;
     }
 
     private function canonicalRoot(Site $site): ?string

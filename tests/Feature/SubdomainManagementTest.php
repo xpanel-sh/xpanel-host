@@ -285,4 +285,58 @@ class SubdomainManagementTest extends TestCase
         $this->assertTrue((new SiteRootMigrator($commands, app(HostingAccountWorkspace::class)))->migrateLegacyRoot($child));
         $this->assertSame($canonicalRoot, $child->fresh()->document_root);
     }
+
+    public function test_sync_recovers_when_database_is_flat_but_files_are_still_nested(): void
+    {
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $base = storage_path('framework/testing/subdomain-root-recovery-'.uniqid());
+        $parentRoot = $base.'/example.com';
+        $legacyRoot = $parentRoot.'/subdomains/legacy';
+        $canonicalRoot = $base.'/legacy.example.com';
+        mkdir($legacyRoot, 0755, true);
+        mkdir($canonicalRoot, 0755, true);
+        file_put_contents($legacyRoot.'/index.php', 'legacy content');
+
+        try {
+            $parent = $this->parentSite();
+            $parent->update(['document_root' => $parentRoot]);
+            $child = Site::create([
+                'parent_site_id' => $parent->id,
+                'domain' => 'legacy.example.com',
+                'document_root' => $canonicalRoot,
+                'php_version' => '8.3',
+                'type' => 'php',
+                'web_server' => 'nginx',
+                'status' => 'active',
+            ]);
+            $workspace = \Mockery::mock(HostingAccountWorkspace::class);
+            $workspace->shouldReceive('subdomainRoot')->with('example.com', 'legacy')->andReturn($canonicalRoot);
+            $workspace->shouldReceive('siteRoot')->with('example.com')->andReturn($parentRoot);
+            $commands = \Mockery::mock(ServerCommandRunner::class);
+            $commands->shouldReceive('run')->once()->with([
+                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-root-migrate',
+                $legacyRoot, $canonicalRoot, $child->systemUser(),
+            ])->andReturn('');
+
+            $this->assertTrue((new SiteRootMigrator($commands, $workspace))->migrateLegacyRoot($child));
+            $this->assertSame($canonicalRoot, $child->fresh()->document_root);
+        } finally {
+            $this->removeDirectory($base);
+        }
+    }
+
+    private function removeDirectory(string $path): void
+    {
+        if (! is_dir($path)) {
+            return;
+        }
+        foreach (scandir($path) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $target = $path.DIRECTORY_SEPARATOR.$entry;
+            is_dir($target) ? $this->removeDirectory($target) : unlink($target);
+        }
+        rmdir($path);
+    }
 }

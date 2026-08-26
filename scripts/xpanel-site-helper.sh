@@ -290,7 +290,12 @@ site_root_migrate() {
   valid_site_identity "$site_user" || fail "Invalid site identity."
   [[ "$legacy_root" != "$canonical_root" ]] || fail "Site roots are identical."
   [[ -d "$legacy_root" && ! -L "$legacy_root" ]] || fail "Legacy site root is unavailable."
-  [[ ! -e "$canonical_root" && ! -L "$canonical_root" ]] || fail "Canonical site root already exists."
+  if [[ -d "$canonical_root" && ! -L "$canonical_root" ]]; then
+    [[ -z "$(find -P "$canonical_root" -mindepth 1 -maxdepth 1 -print -quit)" ]] || fail "Canonical site root already exists and is not empty."
+    rmdir -- "$canonical_root"
+  else
+    [[ ! -e "$canonical_root" && ! -L "$canonical_root" ]] || fail "Canonical site root already exists."
+  fi
   install -d -o root -g root -m 0755 "$(dirname "$canonical_root")"
   mv -- "$legacy_root" "$canonical_root"
   # Ownership is applied after every root migration has finished. At this
