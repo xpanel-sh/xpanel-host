@@ -46,10 +46,11 @@ class SiteRootMigrator
 
         $site->forceFill(['document_root' => $canonicalRoot])->save();
 
-        // Moving a primary site also moves any legacy subdomain directories
-        // nested below it. Keep those records aligned without moving them twice.
+        // Moving a legacy primary root also moves its old nested subdomain
+        // directories. Point the children at that temporary location so the
+        // child migration can move each one to its flat FQDN root afterwards.
         if ($site->parent_site_id === null) {
-            $site->subdomains()->get()->each(function (Site $child) use ($legacyRoot, $site): void {
+            $site->subdomains()->get()->each(function (Site $child) use ($canonicalRoot, $legacyRoot, $site): void {
                 $label = $this->subdomainLabel($child, $site);
                 if (! $label) {
                     return;
@@ -58,7 +59,7 @@ class SiteRootMigrator
                 $oldChildRoot = $legacyRoot.'/subdomains/'.$label;
                 if (rtrim($child->document_root, '/') === $oldChildRoot) {
                     $child->forceFill([
-                        'document_root' => $this->workspace->subdomainRoot($site->domain, $label),
+                        'document_root' => $canonicalRoot.'/subdomains/'.$label,
                     ])->save();
                 }
             });

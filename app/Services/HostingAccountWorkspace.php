@@ -60,7 +60,7 @@ class HostingAccountWorkspace
             throw new \InvalidArgumentException('Etiqueta de subdominio inválida.');
         }
 
-        return $this->siteRoot($parentDomain).'/subdomains/'.$label;
+        return $this->siteRoot($label.'.'.$parentDomain);
     }
 
     public function acceptsDocumentRoot(string $path): bool

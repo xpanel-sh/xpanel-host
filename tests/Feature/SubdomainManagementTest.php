@@ -269,7 +269,7 @@ class SubdomainManagementTest extends TestCase
         $child = Site::create([
             'parent_site_id' => $parent->id,
             'domain' => 'legacy.example.com',
-            'document_root' => '/var/www/legacy.example.com',
+            'document_root' => '/var/www/example.com/subdomains/legacy',
             'php_version' => '8.3',
             'type' => 'php',
             'web_server' => 'nginx',
@@ -279,7 +279,7 @@ class SubdomainManagementTest extends TestCase
         $commands = \Mockery::mock(ServerCommandRunner::class);
         $commands->shouldReceive('run')->once()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-root-migrate',
-            '/var/www/legacy.example.com', $canonicalRoot, $child->systemUser(),
+            '/var/www/example.com/subdomains/legacy', $canonicalRoot, $child->systemUser(),
         ])->andReturn('');
 
         $this->assertTrue((new SiteRootMigrator($commands, app(HostingAccountWorkspace::class)))->migrateLegacyRoot($child));

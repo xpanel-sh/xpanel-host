@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Site;
 use App\Services\HostingAccountWorkspace;
 use App\Services\OwnershipRepairer;
 use App\Support\ResolvesSandboxedPath;
@@ -28,6 +29,14 @@ class GlobalFileManagerController extends Controller
 
     public function ikode(): View
     {
+        Site::query()->each(function (Site $site): void {
+            try {
+                $this->ownership->prepareFileManager($site);
+            } catch (\RuntimeException $exception) {
+                report($exception);
+            }
+        });
+
         return view('sites.ikode', [
             'site' => null,
             'accountWorkspace' => $this->workspace,

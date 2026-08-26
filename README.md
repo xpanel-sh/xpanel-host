@@ -172,9 +172,8 @@ Cada instalación dispone de una cuenta Unix de alojamiento con raíz en `/home/
 ├── mail/
 ├── public_ftp/incoming/
 ├── public_html/
-│   └── example.com/
-│       └── subdomains/
-│           └── blog/
+│   ├── example.com/
+│   └── blog.example.com/
 ├── ssl/{certs,csrs}/
 └── tmp/
 ```
@@ -277,7 +276,7 @@ El instalador añade phpMyAdmin desde los paquetes mantenidos por Debian/Ubuntu 
 
 Desde **Sitio → Dominios → Subdominios** escribe sólo la etiqueta (`blog`, `tienda`, `api`). Host asigna sin intervención del cliente un document root seguro y crea el entorno con la configuración inicial del dominio principal. Después, **Configurar** abre la ruta contextual `/sites/<dominio>/domains/<etiqueta>`, donde ese subdominio puede cambiar independientemente a PHP, Node.js o estático, con su propia versión, proceso, puerto interno y publicación. SSL y el explorador familiar de archivos permanecen centralizados en el dominio principal.
 
-Su proyecto queda agrupado bajo `public_html/<dominio-principal>/subdomains/<etiqueta>`. WordPress, Git, migraciones, restauraciones, backups y reparaciones de permisos del dominio principal tratan `subdomains/` como una frontera: cada hijo conserva sus archivos y su identidad Unix. La sincronización reconoce tanto dominios como subdominios heredados en `/var/www` o `/srv/www` y los migra cuando se aplican cambios reales del sistema.
+Cada entorno utiliza una raíz hermana por FQDN: `public_html/<dominio-principal>` y `public_html/<etiqueta>.<dominio-principal>`. La relación familiar vive en la base de datos y en el explorador, no en una carpeta técnica. Por eso una carpeta llamada `subdomains` dentro de cualquier proyecto es contenido normal. WordPress, Git, migraciones, restauraciones, backups y permisos quedan aislados por sitio e identidad Unix. La sincronización reconoce raíces anteriores en `/var/www`, `/srv/www` y `public_html/<dominio>/subdomains/<etiqueta>`, y las migra automáticamente al aplicar cambios reales del sistema.
 
 Para publicarlo debes crear fuera de Host un registro DNS `A`/`AAAA` hacia la IP del servidor, o un wildcard como `*.example.com`. Cuando resuelva, abre **Seguridad → SSL** en el dominio principal: esa única pantalla lista el principal y todos sus subdominios, permite activar cada certificado por separado o procesar todos los pendientes. Cada certificado sigue siendo independiente internamente. Crear el subdominio en Host no registra automáticamente DNS en Cloudflare ni en otro proveedor; esa integración requerirá credenciales/API del proveedor en una fase posterior.
 

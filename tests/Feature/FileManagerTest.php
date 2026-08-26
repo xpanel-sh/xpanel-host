@@ -179,7 +179,7 @@ class FileManagerTest extends TestCase
         if (! is_dir($parent->localRoot().'/subdomains')) {
             mkdir($parent->localRoot().'/subdomains');
         }
-        file_put_contents($parent->localRoot().'/subdomains/hidden.txt', 'physical child boundary');
+        file_put_contents($parent->localRoot().'/subdomains/project.txt', 'ordinary project directory');
         $developer = $this->userWithRole('developer');
 
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/']))
@@ -193,10 +193,11 @@ class FileManagerTest extends TestCase
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$parent->domain]))
             ->assertOk()
             ->assertJsonFragment(['name' => 'index.php', 'path' => '/'.$parent->domain.'/index.php', 'is_dir' => false])
-            ->assertJsonMissing(['name' => 'subdomains']);
+            ->assertJsonFragment(['name' => 'subdomains', 'path' => '/'.$parent->domain.'/subdomains', 'is_dir' => true]);
 
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$parent->domain.'/subdomains']))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'project.txt', 'path' => '/'.$parent->domain.'/subdomains/project.txt']);
 
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$child->domain]))
             ->assertOk()

@@ -6,9 +6,10 @@ use App\Models\Domain;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
+use App\Services\OwnershipRepairer;
 use App\Services\ServerCommandRunner;
 use App\Services\SiteProvisioner;
-use App\Services\OwnershipRepairer;
+use App\Support\SiteModules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -113,7 +114,21 @@ class SiteDomainFeaturesTest extends TestCase
         });
 
         app(OwnershipRepairer::class)->synchronizePath($site, '/var/www/primary.example.com/index.php');
-        $this->assertArrayNotHasKey('fix-file-ownership', \App\Support\SiteModules::catalog()['advanced']['items']);
+        $this->assertArrayNotHasKey('fix-file-ownership', SiteModules::catalog()['advanced']['items']);
+    }
+
+    public function test_ikode_prepares_its_root_access_with_the_limited_helper(): void
+    {
+        $site = $this->site();
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
+            $mock->shouldReceive('run')->once()->with([
+                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ownership-sync-path',
+                $site->domain, $site->document_root, $site->systemUser(), $site->document_root,
+            ])->andReturn('');
+        });
+
+        app(OwnershipRepairer::class)->prepareFileManager($site);
     }
 
     public function test_ssl_reissue_passes_parked_domains_through_stdin_not_arguments(): void

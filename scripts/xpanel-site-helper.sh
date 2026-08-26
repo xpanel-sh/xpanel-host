@@ -274,14 +274,13 @@ grant_panel_file_access() {
   fi
 }
 
-# A primary site's subdomains are independent sites even though the account
-# manager presents them below public_html/<domain>/subdomains. Site-scoped
-# operations must never cross that boundary.
+# Every domain and subdomain has a flat, independent FQDN root below
+# public_html. A directory named "subdomains" inside a project is ordinary
+# user content and must not receive special treatment.
 chown_site_content() {
   local document_root="$1" site_user="$2"
   chown --no-dereference "$site_user:$site_user" "$document_root"
-  find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -mindepth 1 \
-    -exec chown --no-dereference "$site_user:$site_user" {} +
+  find -P "$document_root" -xdev -mindepth 1 -exec chown --no-dereference "$site_user:$site_user" {} +
 }
 
 site_root_migrate() {
@@ -294,7 +293,10 @@ site_root_migrate() {
   [[ ! -e "$canonical_root" && ! -L "$canonical_root" ]] || fail "Canonical site root already exists."
   install -d -o root -g root -m 0755 "$(dirname "$canonical_root")"
   mv -- "$legacy_root" "$canonical_root"
-  chown_site_content "$canonical_root" "$site_user"
+  # Ownership is applied after every root migration has finished. At this
+  # point a moved legacy parent may still contain child roots temporarily, so
+  # only claim the root itself and never traverse across those identities.
+  chown --no-dereference "$site_user:$site_user" "$canonical_root"
   grant_panel_file_access "$canonical_root"
   rmdir -- "$(dirname "$legacy_root")" 2>/dev/null || true
 }
@@ -447,7 +449,7 @@ node_project_prepare() {
     "$document_root/package.json"; then
     build_stamp="$state_dir/build.stamp"
     if [[ ! -f "$build_stamp" ]] || find -P "$document_root" -xdev \
-      \( -path "$document_root/node_modules" -o -path "$document_root/subdomains" -o -path "$document_root/.git" \) -prune -o \
+      \( -path "$document_root/node_modules" -o -path "$document_root/.git" \) -prune -o \
       -type f -newer "$build_stamp" -print -quit | grep -q .; then
       runuser -u "$site_user" -- env \
         HOME="$document_root" npm_config_cache="$cache_dir" NODE_ENV=production PORT="$node_port" \
@@ -714,11 +716,11 @@ ownership_fix() {
   valid_site_identity "$site_user" || fail "Invalid ownership site user."
   [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
   chown_site_content "$document_root" "$site_user"
-  find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type d -exec chmod u+rwx,go-w,go+rx {} +
-  find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type f -exec chmod u+rw,go-w {} +
+  find -P "$document_root" -xdev -type d -exec chmod u+rwx,go-w,go+rx {} +
+  find -P "$document_root" -xdev -type f -exec chmod u+rw,go-w {} +
   grant_panel_file_access "$document_root"
-  printf 'files=%s\n' "$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type f -printf . | wc -c)"
-  printf 'directories=%s\n' "$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -type d -printf . | wc -c)"
+  printf 'files=%s\n' "$(find -P "$document_root" -xdev -type f -printf . | wc -c)"
+  printf 'directories=%s\n' "$(find -P "$document_root" -xdev -type d -printf . | wc -c)"
 }
 
 ownership_sync_path() {
@@ -843,7 +845,7 @@ wordpress_install() {
     "${wp[@]}" language core install "$locale" --path="$staging" --activate --quiet
   fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
-  rsync -a --delete --exclude='subdomains/' --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$staging/" "$document_root/"
+  rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$staging/" "$document_root/"
   chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"
   printf 'version=%s\n' "$wordpress_version"
@@ -958,7 +960,7 @@ site_migrate() {
   rm -f -- "$defaults"
   defaults=""
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
-  rsync -a --delete --exclude='subdomains/' --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$content_root/" "$document_root/"
+  rsync -a --delete --exclude='.well-known/' --exclude='.xpanel-errors/' --exclude='storage/framework/sessions/' "$content_root/" "$document_root/"
   chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"
   printf 'files=%s\nbytes=%s\n' "$files" "$bytes"
@@ -1070,9 +1072,9 @@ resource_snapshot() {
   getent passwd "$site_user" >/dev/null || fail "Site Unix identity does not exist."
 
   local disk_bytes filesystem_bytes inode_count filesystem_inodes database_bytes=0 database value
-  disk_bytes="$(du -sbx --exclude='subdomains' -- "$document_root" | awk '{print $1}')"
+  disk_bytes="$(du -sbx -- "$document_root" | awk '{print $1}')"
   filesystem_bytes="$(df -PB1 -- "$document_root" | awk 'NR == 2 {print $2}')"
-  inode_count="$(find -P "$document_root" -xdev -path "$document_root/subdomains" -prune -o -printf . | wc -c)"
+  inode_count="$(find -P "$document_root" -xdev -printf . | wc -c)"
   filesystem_inodes="$(df -Pi -- "$document_root" | awk 'NR == 2 {print $2}')"
   shift 5
   for database in "$@"; do
@@ -1172,7 +1174,7 @@ git_deploy() {
   fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$document_root"
   rsync -a --delete \
-    --exclude='subdomains/' --exclude='.env' --exclude='.well-known/' --exclude='.xpanel-errors/' \
+    --exclude='.env' --exclude='.well-known/' --exclude='.xpanel-errors/' \
     --exclude='storage/logs/' --exclude='storage/framework/sessions/' \
     "$staging/" "$document_root/"
   chown_site_content "$document_root" "$site_user"
@@ -1991,7 +1993,7 @@ backup_create() {
   trap 'rm -rf -- "$temporary"' RETURN
   install -d -o root -g "$SITE_GROUP" -m 0750 "$temporary/databases"
 
-  tar --one-file-system --numeric-owner --exclude='./subdomains' -C "$document_root" -czf "$temporary/files.tar.gz" .
+  tar --one-file-system --numeric-owner -C "$document_root" -czf "$temporary/files.tar.gz" .
   local database
   for database in "${BACKUP_DATABASES[@]}"; do
     mariadb-dump --protocol=socket --single-transaction --quick --skip-lock-tables --databases "$database" \
@@ -2038,7 +2040,7 @@ backup_restore() {
 
   tar --no-same-owner -C "$staging" -xzf "$temporary/files.tar.gz"
   install -d -o "$site_user" -g "$site_user" -m 0755 "$document_root"
-  find "$document_root" -mindepth 1 -maxdepth 1 ! -name subdomains -exec rm -rf -- {} +
+  find "$document_root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
   cp -a "$staging/." "$document_root/"
   chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"

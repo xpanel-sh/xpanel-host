@@ -17,7 +17,7 @@ class HostingAccountWorkspaceTest extends TestCase
         $workspace = app(HostingAccountWorkspace::class);
 
         $this->assertSame('/home/xpa0123456789/public_html/example.com', $workspace->siteRoot('example.com'));
-        $this->assertSame('/home/xpa0123456789/public_html/example.com/subdomains/blog', $workspace->subdomainRoot('example.com', 'blog'));
+        $this->assertSame('/home/xpa0123456789/public_html/blog.example.com', $workspace->subdomainRoot('example.com', 'blog'));
         $this->assertTrue($workspace->acceptsDocumentRoot('/home/xpa0123456789/public_html/example.com/public'));
         $this->assertFalse($workspace->acceptsDocumentRoot('/home/other/public_html/example.com'));
         $this->assertFalse($workspace->acceptsDocumentRoot('/home/xpa0123456789/public_html/../private'));

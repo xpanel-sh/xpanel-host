@@ -54,7 +54,7 @@ class SiteModules
                 'label' => 'Dominios',
                 'icon' => 'ki-click',
                 'items' => [
-                    'subdomains' => ['label' => 'Subdominios', 'icon' => 'ki-abstract-26', 'description' => 'Crea subdominios que apunten a carpetas dentro de este sitio.'],
+                    'subdomains' => ['label' => 'Subdominios', 'icon' => 'ki-abstract-26', 'description' => 'Crea entornos independientes asociados a este dominio.'],
                     'parked-domains' => ['label' => 'Dominios aparcados', 'icon' => 'ki-parcel', 'description' => 'Sirve el mismo contenido bajo dominios adicionales.'],
                     'redirects' => ['label' => 'Redirecciones', 'icon' => 'ki-exit-right-corner', 'description' => 'Redirige rutas o dominios completos hacia otra URL.'],
                 ],

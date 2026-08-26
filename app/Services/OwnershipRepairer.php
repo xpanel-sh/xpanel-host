@@ -51,6 +51,16 @@ class OwnershipRepairer
         ]);
     }
 
+    /**
+     * Refresh only the root ACL used by iKode. This is intentionally not a
+     * recursive ownership repair; individual operations repair their exact
+     * target when an inherited ACL is missing.
+     */
+    public function prepareFileManager(Site $site): void
+    {
+        $this->synchronizePath($site, $site->document_root);
+    }
+
     public function synchronizeManagedPath(string $path, bool $recursive = false): void
     {
         if (! config('xpanel.apply_system_changes')) {

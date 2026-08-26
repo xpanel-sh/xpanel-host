@@ -77,7 +77,7 @@ class SiteManagementTest extends TestCase
         $response->assertRedirect('/sites');
         $this->assertDatabaseHas('sites', [
             'domain' => 'cliente.example.com',
-            'document_root' => app(\App\Services\HostingAccountWorkspace::class)->siteRoot('cliente.example.com'),
+            'document_root' => app(HostingAccountWorkspace::class)->siteRoot('cliente.example.com'),
         ]);
         $this->assertFileExists(storage_path('app/vhosts/cliente.example.com.conf'));
         $this->assertFileExists(storage_path('app/gateways/cliente.example.com.conf'));
@@ -286,7 +286,7 @@ class SiteManagementTest extends TestCase
             'type' => 'primary',
         ]);
         $this->assertSame(
-            app(\App\Services\HostingAccountWorkspace::class)->siteRoot('sync.example.com'),
+            app(HostingAccountWorkspace::class)->siteRoot('sync.example.com'),
             $site->fresh()->document_root
         );
     }
@@ -314,12 +314,18 @@ class SiteManagementTest extends TestCase
         $workspace = app(HostingAccountWorkspace::class);
         $canonicalRoot = $workspace->siteRoot($parent->domain);
         $commands = \Mockery::mock(ServerCommandRunner::class);
-        $commands->shouldReceive('run')->once()->with([
+        $commands->shouldReceive('run')->once()->ordered()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-root-migrate',
             '/var/www/legacy.example.com', $canonicalRoot, $parent->systemUser(),
         ])->andReturn('');
+        $commands->shouldReceive('run')->once()->ordered()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-root-migrate',
+            $canonicalRoot.'/subdomains/blog', $workspace->subdomainRoot($parent->domain, 'blog'), $child->systemUser(),
+        ])->andReturn('');
 
         $this->assertTrue((new SiteRootMigrator($commands, $workspace))->migrateLegacyRoot($parent));
+        $child->refresh();
+        $this->assertTrue((new SiteRootMigrator($commands, $workspace))->migrateLegacyRoot($child));
         $this->assertSame($canonicalRoot, $parent->fresh()->document_root);
         $this->assertSame(
             $workspace->subdomainRoot($parent->domain, 'blog'),

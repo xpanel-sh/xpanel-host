@@ -25,6 +25,18 @@ class FileManagerController extends Controller
 
     public function ikode(Site $site): View
     {
+        $family = $site->parent_site_id === null
+            ? collect([$site])->concat($site->subdomains()->get())
+            : collect([$site]);
+
+        foreach ($family as $familySite) {
+            try {
+                $this->ownership->prepareFileManager($familySite);
+            } catch (\RuntimeException $exception) {
+                report($exception);
+            }
+        }
+
         return view('sites.ikode', ['site' => $site]);
     }
 
@@ -56,9 +68,6 @@ class FileManagerController extends Controller
         $entries = [];
         foreach (scandir($dir) ?: [] as $name) {
             if ($name === '.' || $name === '..') {
-                continue;
-            }
-            if ($targetSite->parent_site_id === null && $name === 'subdomains') {
                 continue;
             }
             $full = $dir.DIRECTORY_SEPARATOR.$name;
@@ -100,7 +109,7 @@ class FileManagerController extends Controller
         [$targetSite, $path] = $this->resolveTarget($site, $data['path']);
         abort_if(is_dir($path), 422, 'No se puede escribir sobre una carpeta.');
         abort_unless(is_dir(dirname($path)), 404, 'La carpeta destino no existe.');
-        abort_unless(is_writable(file_exists($path) ? $path : dirname($path)), 422, 'El panel no tiene permiso de escritura en esta ruta. Ejecuta la sincronización de sitios.');
+        $this->ensureWritable($targetSite, file_exists($path) ? $path : dirname($path), 'escribir en esta ruta');
 
         abort_if(@file_put_contents($path, $data['content']) === false, 500, 'No se pudo guardar el archivo.');
         $this->ownership->synchronizePath($targetSite, $path);
@@ -122,7 +131,7 @@ class FileManagerController extends Controller
 
         $target = $dir.DIRECTORY_SEPARATOR.$data['name'];
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
-        abort_unless(is_writable($dir), 422, 'El panel no tiene permiso de escritura en esta carpeta. Ejecuta la sincronización de sitios.');
+        $this->ensureWritable($targetSite, $dir, 'crear elementos en esta carpeta');
 
         if ($data['type'] === 'dir') {
             abort_unless(@mkdir($target, 0755), 500, 'No se pudo crear la carpeta.');
@@ -142,7 +151,7 @@ class FileManagerController extends Controller
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
-        abort_unless(is_writable(dirname($target)), 422, 'El panel no tiene permiso de escritura en esta carpeta. Ejecuta la sincronización de sitios.');
+        $this->ensureWritable($targetSite, dirname($target), 'crear elementos en esta carpeta');
 
         abort_unless(@mkdir($target, 0755), 500, 'No se pudo crear la carpeta.');
         $this->ownership->synchronizePath($targetSite, $target);
@@ -165,7 +174,10 @@ class FileManagerController extends Controller
         $this->assertSafeName(basename($target));
         abort_if(file_exists($target), 422, 'Ya existe un archivo o carpeta con ese nombre.');
         abort_unless(is_dir(dirname($target)), 404, 'La carpeta destino no existe.');
-        abort_unless(is_writable(dirname($path)) && is_writable(dirname($target)), 422, 'El panel no tiene permiso para mover este elemento. Ejecuta la sincronización de sitios.');
+        $this->ensureWritable($sourceSite, dirname($path), 'mover este elemento');
+        if (dirname($path) !== dirname($target)) {
+            $this->ensureWritable($targetSite, dirname($target), 'mover este elemento');
+        }
 
         abort_unless(@rename($path, $target), 500, 'No se pudo mover o renombrar el elemento.');
         $this->ownership->synchronizePath($targetSite, $target);
@@ -177,7 +189,7 @@ class FileManagerController extends Controller
     {
         [$targetSite, $path] = $this->resolveTarget($site, $request->input('path', ''), mustExist: true);
         abort_if(rtrim($path, '/\\') === rtrim($targetSite->localRoot(), '/\\'), 422, 'No se puede eliminar la raiz del sitio.');
-        abort_unless(is_writable(dirname($path)), 422, 'El panel no tiene permiso para eliminar este elemento. Ejecuta la sincronización de sitios.');
+        $this->ensureWritable($targetSite, dirname($path), 'eliminar este elemento');
 
         if (is_dir($path)) {
             $this->deleteDirectory($path);
@@ -197,7 +209,7 @@ class FileManagerController extends Controller
 
         [$targetSite, $dir] = $this->resolveTarget($site, $request->input('path', '/'), mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta destino no es una carpeta.');
-        abort_unless(is_writable($dir), 422, 'El panel no tiene permiso para subir archivos aquí. Ejecuta la sincronización de sitios.');
+        $this->ensureWritable($targetSite, $dir, 'subir archivos aquí');
 
         $file = $request->file('file');
         $name = $file->getClientOriginalName();
@@ -235,9 +247,6 @@ class FileManagerController extends Controller
             $truncated = false;
             foreach (collect([$site])->concat($site->subdomains()->get()) as $familySite) {
                 [$siteResults, $siteTruncated] = $this->searchWithin($familySite->localRoot(), $familySite->localRoot(), $data);
-                if ($familySite->parent_site_id === null) {
-                    $siteResults = array_values(array_filter($siteResults, fn (array $result): bool => $result['path'] !== '/subdomains' && ! str_starts_with($result['path'], '/subdomains/')));
-                }
                 foreach ($siteResults as $result) {
                     $result['path'] = '/'.$familySite->domain.$result['path'];
                     $results[] = $result;
@@ -252,9 +261,6 @@ class FileManagerController extends Controller
             [$targetSite, $root] = $this->resolveTarget($site, $requestedPath, mustExist: true);
             abort_unless(is_dir($root), 422, 'La ruta no es una carpeta.');
             [$results, $truncated] = $this->searchWithin($root, $targetSite->localRoot(), $data);
-            if ($targetSite->parent_site_id === null) {
-                $results = array_values(array_filter($results, fn (array $result): bool => $result['path'] !== '/subdomains' && ! str_starts_with($result['path'], '/subdomains/')));
-            }
             if ($site->parent_site_id === null) {
                 foreach ($results as &$result) {
                     $result['path'] = '/'.$targetSite->domain.$result['path'];
@@ -294,13 +300,28 @@ class FileManagerController extends Controller
         $domain = array_shift($segments);
         $targetSite = collect([$site])->concat($site->subdomains()->get())->first(fn (Site $candidate): bool => $candidate->domain === $domain);
         if ($targetSite === null) {
-            abort_if($domain === 'subdomains', 403, 'La carpeta técnica de subdominios se administra desde sus dominios asociados.');
             return [$site, $this->resolveWithinRoot($site->localRoot(), $requestedPath, $mustExist)];
         }
 
-        abort_if($targetSite->parent_site_id === null && ($segments[0] ?? null) === 'subdomains', 403, 'La carpeta técnica de subdominios se administra desde sus dominios asociados.');
-
         return [$targetSite, $this->resolveWithinRoot($targetSite->localRoot(), '/'.implode('/', $segments), $mustExist)];
+    }
+
+    private function ensureWritable(Site $site, string $path, string $action): void
+    {
+        clearstatcache(true, $path);
+        if (is_writable($path)) {
+            return;
+        }
+
+        try {
+            $this->ownership->synchronizePath($site, $path);
+        } catch (\RuntimeException $exception) {
+            report($exception);
+            abort(422, "XPanel no pudo preparar automáticamente los permisos para {$action}.");
+        }
+
+        clearstatcache(true, $path);
+        abort_unless(is_writable($path), 422, "XPanel no pudo preparar automáticamente los permisos para {$action}.");
     }
 
     private function normalizedPath(string $path): string
