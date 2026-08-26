@@ -128,9 +128,9 @@ class GlobalFileManagerTest extends TestCase
 
         $this->actingAs($developer)->getJson(route('sites.ikode.api.list', ['path' => '/']))
             ->assertOk()
-            ->assertJsonFragment(['name' => 'public_html', 'is_dir' => true])
-            ->assertJsonFragment(['name' => '.xpanel', 'is_dir' => true])
-            ->assertJsonFragment(['name' => 'mail', 'is_dir' => true]);
+            ->assertJsonFragment(['name' => 'public_html', 'is_dir' => true, 'deletable' => false])
+            ->assertJsonFragment(['name' => '.xpanel', 'is_dir' => true, 'deletable' => false])
+            ->assertJsonFragment(['name' => 'mail', 'is_dir' => true, 'deletable' => false]);
     }
 
     public function test_global_editor_explains_reserved_account_directories(): void

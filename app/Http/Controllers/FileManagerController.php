@@ -54,6 +54,7 @@ class FileManagerController extends Controller
                     'path' => '/'.$familySite->domain,
                     'is_dir' => true,
                     'editable' => false,
+                    'deletable' => false,
                     'size' => null,
                     'modified' => is_int($modified) ? date('Y-m-d H:i', $modified) : null,
                 ];
@@ -77,6 +78,7 @@ class FileManagerController extends Controller
                 'path' => rtrim($normalizedPath, '/').'/'.$name,
                 'is_dir' => $isDir,
                 'editable' => ! $isDir && $this->isEditableTextFile($full),
+                'deletable' => true,
                 'size' => $isDir ? null : filesize($full),
                 'modified' => date('Y-m-d H:i', filemtime($full)),
             ];

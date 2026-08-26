@@ -46,8 +46,9 @@ class GlobalFileManagerController extends Controller
     public function list(Request $request): JsonResponse
     {
         $path = '/'.trim($request->query('path', '/'), '/');
+        $accountRoot = $this->workspace->localRoot();
 
-        $dir = $this->resolveWithinRoot($this->workspace->localRoot(), $path, mustExist: true);
+        $dir = $this->resolveWithinRoot($accountRoot, $path, mustExist: true);
         abort_unless(is_dir($dir), 422, 'La ruta no es una carpeta.');
 
         $names = @scandir($dir);
@@ -67,6 +68,7 @@ class GlobalFileManagerController extends Controller
                 'path' => rtrim($path, '/').'/'.$name,
                 'is_dir' => $isDir,
                 'editable' => ! $isDir && $this->isEditableTextFile($full),
+                'deletable' => ! $this->isProtectedRoot($accountRoot, $full),
                 'size' => is_int($size) ? $size : null,
                 'modified' => is_int($modified) ? date('Y-m-d H:i', $modified) : null,
             ];

@@ -108,6 +108,10 @@ class FileManagerTest extends TestCase
         $this->assertStringContainsString("$('#xpanel_editor_groups').classList.remove('ikode_hidden');", $template);
         $this->assertStringContainsString(".xpanel-editor-group-body').classList.add('ikode_hidden');", $template);
         $this->assertStringContainsString("uiState.ui.consoleTab === 'ssh' ? 'terminal'", $template);
+        $this->assertStringContainsString('selectedPaths: new Set()', $template);
+        $this->assertStringContainsString('const selectAllInCurrentFolder = () =>', $template);
+        $this->assertStringContainsString('const bindMarqueeSelection = () =>', $template);
+        $this->assertStringContainsString('¿Eliminar los ${entries.length} elementos seleccionados?', $template);
     }
 
     public function test_create_endpoint_places_a_new_file_inside_the_requested_subdirectory(): void
@@ -185,14 +189,14 @@ class FileManagerTest extends TestCase
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/']))
             ->assertOk()
             ->assertJsonFragment(['name' => $parent->domain, 'path' => '/'.$parent->domain, 'is_dir' => true])
-            ->assertJsonFragment(['name' => $child->domain, 'path' => '/'.$child->domain, 'is_dir' => true])
+            ->assertJsonFragment(['name' => $child->domain, 'path' => '/'.$child->domain, 'is_dir' => true, 'deletable' => false])
             ->assertJsonMissing(['name' => $unrelated->domain])
             ->assertJsonMissing(['name' => 'index.php'])
             ->assertJsonMissing(['name' => 'child.txt']);
 
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$parent->domain]))
             ->assertOk()
-            ->assertJsonFragment(['name' => 'index.php', 'path' => '/'.$parent->domain.'/index.php', 'is_dir' => false])
+            ->assertJsonFragment(['name' => 'index.php', 'path' => '/'.$parent->domain.'/index.php', 'is_dir' => false, 'deletable' => true])
             ->assertJsonFragment(['name' => 'subdomains', 'path' => '/'.$parent->domain.'/subdomains', 'is_dir' => true]);
 
         $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/'.$parent->domain.'/subdomains']))

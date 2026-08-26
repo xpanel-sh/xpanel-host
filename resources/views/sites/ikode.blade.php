@@ -171,6 +171,37 @@
             background: hsl(var(--muted));
             color: hsl(var(--foreground));
         }
+        .xpanel-file-row.active {
+            box-shadow: inset 2px 0 0 hsl(var(--primary));
+        }
+        .xpanel-file-check {
+            width: 15px;
+            height: 15px;
+            margin: 0;
+            flex: 0 0 auto;
+            accent-color: hsl(var(--primary));
+            cursor: pointer;
+        }
+        .xpanel-file-check:disabled {
+            cursor: not-allowed;
+            opacity: .35;
+        }
+        .xpanel-selection-count {
+            max-width: 90px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--muted-foreground);
+            font-size: 10px;
+        }
+        .xpanel-selection-box {
+            position: fixed;
+            z-index: 90;
+            pointer-events: none;
+            border: 1px solid hsl(var(--primary));
+            background: hsl(var(--primary) / .12);
+            border-radius: 3px;
+        }
         .xpanel-file-row.drop-target {
             outline: 1px dashed hsl(var(--primary));
             background: hsl(var(--primary) / 0.08);
@@ -939,6 +970,13 @@
                     <div class="ikode_editor_lefthead border-b border-border">
                         <span>EXPLORADOR</span>
                         <div class="ikode_left_actions">
+                            <span class="xpanel-selection-count" id="xpanel_selection_count" title="Elementos seleccionados">0 seleccionados</span>
+                            <button class="ikode_left_action_btn" type="button" data-fm-action="select-all" title="Seleccionar todo en esta carpeta">
+                                <i class="ki-filled ki-check"></i>
+                            </button>
+                            <button class="ikode_left_action_btn text-destructive" type="button" data-fm-action="delete-selected" title="Eliminar seleccionados" disabled>
+                                <i class="ki-filled ki-trash"></i>
+                            </button>
                             <button class="ikode_left_action_btn" type="button" data-fm-action="new-file" title="Nuevo archivo">
                                 <i class="ki-filled ki-file-up"></i>
                             </button>
@@ -1288,7 +1326,7 @@
     <button type="button" data-fm-action="rename" class="w-full text-left px-4 py-2 hover:bg-muted">Renombrar</button>
     <button type="button" data-fm-action="download" class="w-full text-left px-4 py-2 hover:bg-muted">Descargar</button>
     <div class="border-t border-border my-1"></div>
-    <button type="button" data-fm-action="delete" class="w-full text-left px-4 py-2 hover:bg-destructive/10 text-destructive">Eliminar</button>
+    <button type="button" data-fm-action="delete" class="w-full text-left px-4 py-2 hover:bg-destructive/10 text-destructive"><span data-delete-label>Eliminar</span></button>
 </div>
 
 <input type="file" id="xpanel_upload_input" class="hidden" multiple>
@@ -1340,6 +1378,8 @@
                 expanded: new Set(['/']),
                 loadingDirs: new Set(),
                 selected: null,
+                selectedPaths: new Set(),
+                selectionAnchor: null,
                 ctxEntry: null,
                 ctxDirectory: '/',
                 ctxFromBlank: false,
@@ -1840,14 +1880,48 @@
 
             const pathJoin = (base, name) => normalizePath(`${base.replace(/\/$/, '')}/${name}`);
 
+            const selectedEntries = () => Array.from(state.selectedPaths)
+                .map((path) => getEntry(path))
+                .filter(Boolean);
+            const deletableSelection = () => selectedEntries().filter((entry) => entry.deletable !== false);
+            const syncSelectionControls = () => {
+                const count = state.selectedPaths.size;
+                const label = $('#xpanel_selection_count');
+                if (label) label.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+                $$('[data-fm-action="delete-selected"]').forEach((button) => {
+                    button.disabled = deletableSelection().length === 0;
+                });
+                const deleteLabel = $('[data-delete-label]');
+                if (deleteLabel) deleteLabel.textContent = count > 1 ? `Eliminar ${count} seleccionados` : 'Eliminar';
+            };
+
             const renderInfo = (entry = state.selected) => {
                 const box = $('#xpanel_file_info');
                 const preview = $('#xpanel_info_preview');
                 const extBox = $('#xpanel_info_ext');
+                const selection = selectedEntries();
+                if (selection.length > 1) {
+                    const files = selection.filter((item) => !item.is_dir);
+                    const directories = selection.length - files.length;
+                    box.innerHTML = `
+                        <div class="grid gap-1">
+                            <div class="xpanel-file-meta"><span>Seleccionados</span><strong>${selection.length}</strong></div>
+                            <div class="xpanel-file-meta"><span>Carpetas</span><strong>${directories}</strong></div>
+                            <div class="xpanel-file-meta"><span>Archivos</span><strong>${files.length}</strong></div>
+                            <div class="xpanel-file-meta"><span>Tamaño conocido</span><strong>${size(files.reduce((total, item) => total + Number(item.size || 0), 0))}</strong></div>
+                        </div>
+                    `;
+                    if (preview) preview.textContent = 'Selección múltiple';
+                    if (extBox) extBox.textContent = '-';
+                    syncSelectionControls();
+                    updateSummary();
+                    return;
+                }
                 if (!entry) {
                     box.textContent = 'No hay seleccion.';
                     if (preview) preview.textContent = '-';
                     if (extBox) extBox.textContent = '-';
+                    syncSelectionControls();
                     updateSummary();
                     return;
                 }
@@ -1864,6 +1938,7 @@
                 box.innerHTML = html;
                 if (preview) preview.textContent = entry.is_dir ? 'Arbol' : previewKind(entry.name, entry);
                 if (extBox) extBox.textContent = entry.is_dir ? '-' : (ext(entry.name) || 'sin ext');
+                syncSelectionControls();
                 updateSummary();
             };
 
@@ -2164,7 +2239,7 @@
                 }
                 html += entries.map((entry) => {
                     const expanded = state.expanded.has(entry.path);
-                    const selected = state.selected?.path === entry.path;
+                    const selected = state.selectedPaths.has(entry.path);
                     const toggle = entry.is_dir ? (expanded ? 'ki-down' : 'ki-right') : '';
                     const childRows = entry.is_dir && expanded
                         ? (state.loadingDirs.has(entry.path) ? renderLoadingRow(depth + 1) : renderDirectoryRows(entry.path, depth + 1))
@@ -2177,8 +2252,9 @@
                              style="padding-left:${8 + depth * 14}px"
                              data-path="${escapeHtml(entry.path)}"
                              data-dir="${entry.is_dir ? '1' : '0'}"
-                             draggable="true">
+                            draggable="true">
                             <span class="xpanel-file-toggle">${entry.is_dir ? `<i class="ki-filled ${toggle}"></i>` : ''}</span>
+                            <input class="xpanel-file-check" type="checkbox" tabindex="-1" aria-label="Seleccionar ${escapeHtml(entry.name)}" ${selected ? 'checked' : ''} ${entry.deletable === false ? 'disabled' : ''}>
                             <i class="ki-filled ${icon(entry)}"></i>
                             <span class="xpanel-file-name ${entry.is_dir ? 'font-semibold text-mono' : ''}">${escapeHtml(entry.name)}</span>
                             ${entry.is_dir ? '' : `<span class="xpanel-file-size">${size(entry.size || 0)}</span>`}
@@ -2222,17 +2298,76 @@
                 if (!entry || !targetDir || targetDir === dirname(entry.path)) return false;
                 return !(entry.is_dir && (targetDir === entry.path || targetDir.startsWith(`${entry.path}/`)));
             };
+            const finishSelection = (entry = null) => {
+                state.selected = entry || selectedEntries().at(-1) || null;
+                renderInfo(state.selected);
+                renderTree();
+            };
+            const replaceSelection = (entry) => {
+                state.selectedPaths.clear();
+                if (entry) state.selectedPaths.add(entry.path);
+                state.selectionAnchor = entry?.path || null;
+                finishSelection(entry);
+            };
+            const toggleSelection = (entry) => {
+                if (!entry || entry.deletable === false) {
+                    replaceSelection(entry);
+                    return;
+                }
+                if (state.selectedPaths.has(entry.path)) state.selectedPaths.delete(entry.path);
+                else state.selectedPaths.add(entry.path);
+                state.selectionAnchor = entry.path;
+                finishSelection(state.selectedPaths.has(entry.path) ? entry : null);
+            };
+            const rangeSelection = (entry, additive = false) => {
+                const rows = $$('.xpanel-file-row[data-path]:not(.is-renaming)');
+                const paths = rows.map((row) => row.dataset.path);
+                const anchorIndex = paths.indexOf(state.selectionAnchor);
+                const targetIndex = paths.indexOf(entry.path);
+                if (anchorIndex < 0 || targetIndex < 0) {
+                    replaceSelection(entry);
+                    return;
+                }
+                if (!additive) state.selectedPaths.clear();
+                const [start, end] = [anchorIndex, targetIndex].sort((a, b) => a - b);
+                paths.slice(start, end + 1).forEach((path) => {
+                    const candidate = getEntry(path);
+                    if (candidate?.deletable !== false) state.selectedPaths.add(path);
+                });
+                finishSelection(entry);
+            };
+            const selectAllInCurrentFolder = () => {
+                const directory = state.selected?.is_dir && state.currentPath === state.selected.path
+                    ? state.currentPath
+                    : (state.selected ? dirname(state.selected.path) : (state.currentPath || '/'));
+                const entries = entriesFor(directory).filter((entry) => entry.deletable !== false);
+                state.selectedPaths = new Set(entries.map((entry) => entry.path));
+                state.selectionAnchor = entries[0]?.path || null;
+                finishSelection(entries.at(-1) || null);
+            };
             const attachTreeEvents = () => {
                 $$('.xpanel-file-row').forEach((row) => {
                     const entry = getEntry(row.dataset.path);
                     if (!entry) return;
                     row.addEventListener('click', async (event) => {
                         if (event.target.closest('[data-inline-rename]')) return;
-                        if (entry.is_dir) {
-                            select(entry);
+                        if (event.target.closest('.xpanel-file-toggle') && entry.is_dir) {
+                            replaceSelection(entry);
                             await toggleDirectory(entry.path);
                             return;
                         }
+                        if (event.shiftKey) {
+                            rangeSelection(entry, event.ctrlKey || event.metaKey);
+                            return;
+                        }
+                        if (event.ctrlKey || event.metaKey || event.target.closest('.xpanel-file-check')) {
+                            toggleSelection(entry);
+                            return;
+                        }
+                        replaceSelection(entry);
+                    });
+                    row.addEventListener('dblclick', async (event) => {
+                        if (event.target.closest('.xpanel-file-check, .xpanel-file-toggle, [data-inline-rename]')) return;
                         await open(entry);
                     });
                     row.addEventListener('contextmenu', (event) => {
@@ -2475,9 +2610,12 @@
                     throw error;
                 }
             };
-            const select = (entry) => {
+            const select = (entry, updateCurrentPath = true) => {
                 state.selected = entry;
-                if (entry) setCurrentPath(entry.is_dir ? entry.path : dirname(entry.path));
+                state.selectedPaths.clear();
+                if (entry) state.selectedPaths.add(entry.path);
+                state.selectionAnchor = entry?.path || null;
+                if (entry && updateCurrentPath) setCurrentPath(entry.is_dir ? entry.path : dirname(entry.path));
                 renderInfo(entry);
                 renderTree();
             };
@@ -2704,15 +2842,54 @@
             };
 
             const remove = async () => {
-                const entry = state.selected || state.ctxEntry;
-                if (!entry || !confirm(`Eliminar "${entry.name}"?`)) return;
-                await api('POST', '/delete', { domain: config.domain, path: entry.path });
-                state.selected = null;
-                closeTabsUnder(entry.path);
-                clearCachedBranch(entry.path);
-                await loadDirectory(dirname(entry.path));
-                renderInfo(null);
-                toast('Eliminado');
+                let entries = deletableSelection();
+                if (entries.length === 0 && state.ctxEntry?.deletable !== false) entries = [state.ctxEntry].filter(Boolean);
+                if (entries.length === 0) return;
+
+                entries.sort((a, b) => a.path.length - b.path.length);
+                entries = entries.filter((entry, index, all) => !all.slice(0, index)
+                    .some((parent) => parent.is_dir && entry.path.startsWith(`${parent.path}/`)));
+                const question = entries.length === 1
+                    ? `¿Eliminar "${entries[0].name}"?`
+                    : `¿Eliminar los ${entries.length} elementos seleccionados? Esta acción también borrará el contenido de las carpetas.`;
+                if (!confirm(question)) return;
+
+                const failures = [];
+                const parents = new Set();
+                showProgress(`Eliminando 0 de ${entries.length}...`, 0);
+                for (const [index, entry] of entries.entries()) {
+                    try {
+                        await api('POST', '/delete', { domain: config.domain, path: entry.path });
+                        parents.add(dirname(entry.path));
+                        closeTabsUnder(entry.path);
+                        clearCachedBranch(entry.path);
+                        state.expanded.delete(entry.path);
+                        state.selectedPaths.delete(entry.path);
+                    } catch (error) {
+                        failures.push({ entry, error });
+                    }
+                    setProgress(((index + 1) / entries.length) * 100, `Eliminando ${index + 1} de ${entries.length}...`);
+                }
+
+                for (const parent of parents) {
+                    try {
+                        await loadDirectory(parent, { render: false, setCurrent: false });
+                    } catch (error) {
+                        log(`No se pudo actualizar ${parent}: ${error.message}`);
+                    }
+                }
+                hideProgress();
+                state.selectedPaths = new Set(failures.map(({ entry }) => entry.path));
+                state.selected = failures[0]?.entry || null;
+                state.selectionAnchor = state.selected?.path || null;
+                renderInfo(state.selected);
+                renderTree();
+                if (failures.length) {
+                    toast(`${entries.length - failures.length} eliminados; ${failures.length} no pudieron eliminarse.`, 'error');
+                    failures.forEach(({ entry, error }) => log(`No se eliminó ${entry.path}: ${error.message}`));
+                } else {
+                    toast(entries.length === 1 ? 'Eliminado' : `${entries.length} elementos eliminados`);
+                }
             };
 
             const uploadOne = (file, targetPath, index, total) => new Promise((resolve, reject) => {
@@ -2796,6 +2973,14 @@
             };
 
             const updateOpenPaths = (oldPath, newPath) => {
+                state.selectedPaths = new Set(Array.from(state.selectedPaths).map((path) => (
+                    path === oldPath || path.startsWith(`${oldPath}/`)
+                        ? newPath + path.slice(oldPath.length)
+                        : path
+                )));
+                if (state.selectionAnchor === oldPath || state.selectionAnchor?.startsWith(`${oldPath}/`)) {
+                    state.selectionAnchor = newPath + state.selectionAnchor.slice(oldPath.length);
+                }
                 state.tabs.forEach((tab) => {
                     if (tab.path === oldPath || tab.path.startsWith(`${oldPath}/`)) {
                         tab.path = newPath + tab.path.slice(oldPath.length);
@@ -2920,7 +3105,11 @@
                 state.ctxEntry = entry;
                 state.ctxDirectory = entry?.is_dir ? entry.path : (entry ? dirname(entry.path) : (state.currentPath || '/'));
                 state.ctxFromBlank = !entry;
-                if (entry) select(entry);
+                if (entry && !state.selectedPaths.has(entry.path)) replaceSelection(entry);
+                else if (entry) {
+                    state.selected = entry;
+                    renderInfo(entry);
+                }
                 $$('[data-archive-only]').forEach((item) => {
                     item.classList.toggle('hidden', !entry || entry.is_dir || !isExtractable(entry.name));
                 });
@@ -2941,7 +3130,8 @@
                     if (name === 'extract') await extractArchive(state.selected || state.ctxEntry);
                     if (name === 'refresh') await loadDirectory(state.currentPath);
                     if (name === 'rename') startInlineRename();
-                    if (name === 'delete') await remove();
+                    if (name === 'select-all') selectAllInCurrentFolder();
+                    if (name === 'delete' || name === 'delete-selected') await remove();
                 } catch (error) {
                     toast(error.message, 'error');
                     log(`Error: ${error.message}`);
@@ -3466,6 +3656,68 @@
                 switchTerminalSession(state.activeTerminalId);
             };
 
+            const bindMarqueeSelection = () => {
+                const pane = $('#xpanel_left_files_pane');
+                if (!pane) return;
+                let drag = null;
+                const stop = (event) => {
+                    if (!drag) return;
+                    drag.box.remove();
+                    if (drag.moved) {
+                        event?.preventDefault();
+                        const last = selectedEntries().at(-1) || null;
+                        state.selected = last;
+                        state.selectionAnchor = last?.path || state.selectionAnchor;
+                        renderInfo(last);
+                        renderTree();
+                    } else if (!drag.preserve) {
+                        replaceSelection(null);
+                    }
+                    drag = null;
+                };
+                pane.addEventListener('pointerdown', (event) => {
+                    if (event.button !== 0 || event.target.closest('.xpanel-file-row, button, input, textarea, a')) return;
+                    const box = document.createElement('div');
+                    box.className = 'xpanel-selection-box';
+                    document.body.appendChild(box);
+                    drag = {
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startY: event.clientY,
+                        moved: false,
+                        box,
+                        preserve: event.ctrlKey || event.metaKey,
+                        base: (event.ctrlKey || event.metaKey) ? new Set(state.selectedPaths) : new Set(),
+                    };
+                    pane.setPointerCapture?.(event.pointerId);
+                });
+                pane.addEventListener('pointermove', (event) => {
+                    if (!drag || drag.pointerId !== event.pointerId) return;
+                    const left = Math.min(drag.startX, event.clientX);
+                    const top = Math.min(drag.startY, event.clientY);
+                    const width = Math.abs(event.clientX - drag.startX);
+                    const height = Math.abs(event.clientY - drag.startY);
+                    if (!drag.moved && width < 4 && height < 4) return;
+                    drag.moved = true;
+                    Object.assign(drag.box.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+                    const right = left + width;
+                    const bottom = top + height;
+                    state.selectedPaths = new Set(drag.base);
+                    $$('.xpanel-file-row[data-path]:not(.is-renaming)').forEach((row) => {
+                        const rect = row.getBoundingClientRect();
+                        const intersects = rect.right >= left && rect.left <= right && rect.bottom >= top && rect.top <= bottom;
+                        const entry = getEntry(row.dataset.path);
+                        if (intersects && entry?.deletable !== false) state.selectedPaths.add(entry.path);
+                        row.classList.toggle('active', state.selectedPaths.has(row.dataset.path));
+                        const checkbox = row.querySelector('.xpanel-file-check');
+                        if (checkbox) checkbox.checked = state.selectedPaths.has(row.dataset.path);
+                    });
+                    renderInfo(selectedEntries().at(-1) || null);
+                });
+                pane.addEventListener('pointerup', stop);
+                pane.addEventListener('pointercancel', stop);
+            };
+
             window.XPanelFM = {
                 dragOver(event) {
                     event.preventDefault();
@@ -3631,6 +3883,7 @@
             });
             $('#xpanel_upload_input').addEventListener('change', (event) => upload(Array.from(event.target.files || [])));
             $('#xpanel_left_files_pane').addEventListener('contextmenu', (event) => context(event));
+            bindMarqueeSelection();
             $('[data-input-cancel]').addEventListener('click', closeInput);
             $('[data-input-confirm]').addEventListener('click', async () => {
                 const value = $('#xpanel_input_value').value.trim();
@@ -3645,13 +3898,23 @@
                 if (!event.target.closest('.xpanel-search-wrap')) closeSearchLauncher();
             });
             document.addEventListener('keydown', (event) => {
+                const editing = event.target.closest?.('input, textarea, select, [contenteditable="true"], .monaco-editor, .xterm');
                 if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
                     event.preventDefault();
                     save();
                 }
+                if (!editing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+                    event.preventDefault();
+                    selectAllInCurrentFolder();
+                }
+                if (!editing && event.key === 'Delete' && deletableSelection().length) {
+                    event.preventDefault();
+                    remove().catch((error) => toast(error.message, 'error'));
+                }
                 if (event.key === 'Escape') {
                     closeSearchLauncher();
                     switchAgentScreen('chat');
+                    if (!editing && state.selectedPaths.size) replaceSelection(null);
                 }
             });
 
