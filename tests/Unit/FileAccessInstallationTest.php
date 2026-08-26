@@ -26,6 +26,9 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('AllowTcpForwarding no', $helper);
         $this->assertStringContainsString('X11Forwarding no', $helper);
         $this->assertStringContainsString('Match all', $helper);
+        $this->assertStringContainsString('shell_home="/family"', $helper);
+        $this->assertStringContainsString('/family/${terminal_domains[$family_index]}', $helper);
+        $this->assertStringContainsString('Terminal family contains an unrelated domain.', $helper);
     }
 
     public function test_panel_receives_scoped_write_acl_for_each_site_root(): void
@@ -48,6 +51,7 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('Canonical site root already exists and is not empty.', $helper);
         $this->assertStringContainsString('rmdir -- "$canonical_root"', $helper);
         $this->assertStringContainsString('mv -- "$legacy_root" "$canonical_root"', $helper);
+        $this->assertStringContainsString('valid_legacy_document_root "$legacy_root"', $helper);
         $this->assertStringNotContainsString("--exclude='subdomains/'", $helper);
         $this->assertStringNotContainsString('! -name subdomains -exec rm -rf', $helper);
     }

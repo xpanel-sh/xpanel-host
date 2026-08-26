@@ -1225,7 +1225,7 @@
                         <div class="grid gap-2 text-sm">
                             <div class="xpanel-file-meta"><span>Scope</span><strong>{{ $site ? 'Dominio' : 'Cuenta completa' }}</strong></div>
                             <div class="xpanel-file-meta"><span>Raiz</span><strong>{{ $scopeLabel }}</strong></div>
-                            <div class="xpanel-file-meta"><span>Acceso</span><strong>{{ $site ? 'Solo este dominio' : 'Todo el alojamiento' }}</strong></div>
+                            <div class="xpanel-file-meta"><span>Acceso</span><strong>{{ $site ? ($site->parent_site_id === null ? 'Dominio y subdominios' : 'Solo este subdominio') : 'Todo el alojamiento' }}</strong></div>
                         </div>
                     </div>
                     <div class="ikode_panel">
@@ -2248,7 +2248,7 @@
                         return `${renderRenameRow(entry, depth, expanded)}${childRows}`;
                     }
                     return `
-                        <div class="xpanel-file-row ${selected ? 'active' : ''}"
+                        <div class="xpanel-file-row ${selected ? 'active' : ''} ${entry.available === false ? 'xpanel-file-row-muted' : ''}"
                              style="padding-left:${8 + depth * 14}px"
                              data-path="${escapeHtml(entry.path)}"
                              data-dir="${entry.is_dir ? '1' : '0'}"
@@ -2256,7 +2256,8 @@
                             <span class="xpanel-file-toggle">${entry.is_dir ? `<i class="ki-filled ${toggle}"></i>` : ''}</span>
                             <input class="xpanel-file-check" type="checkbox" tabindex="-1" aria-label="Seleccionar ${escapeHtml(entry.name)}" ${selected ? 'checked' : ''} ${entry.deletable === false ? 'disabled' : ''}>
                             <i class="ki-filled ${icon(entry)}"></i>
-                            <span class="xpanel-file-name ${entry.is_dir ? 'font-semibold text-mono' : ''}">${escapeHtml(entry.name)}</span>
+                            <span class="xpanel-file-name ${entry.is_dir ? 'font-semibold text-mono' : ''}" title="${entry.available === false ? 'Raíz física pendiente de sincronización' : escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>
+                            ${entry.available === false ? '<span class="xpanel-file-size">Sin sincronizar</span>' : ''}
                             ${entry.is_dir ? '' : `<span class="xpanel-file-size">${size(entry.size || 0)}</span>`}
                         </div>
                         ${childRows}
@@ -2351,6 +2352,10 @@
                     if (!entry) return;
                     row.addEventListener('click', async (event) => {
                         if (event.target.closest('[data-inline-rename]')) return;
+                        if (entry.available === false) {
+                            toast('Esta raíz no existe físicamente. Ejecuta xpanel update para recuperarla y sincronizarla.', 'error');
+                            return;
+                        }
                         if (event.target.closest('.xpanel-file-toggle') && entry.is_dir) {
                             replaceSelection(entry);
                             await toggleDirectory(entry.path);

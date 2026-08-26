@@ -27,7 +27,7 @@ class SubdomainController extends Controller
         ]);
     }
 
-    public function store(Request $request, Site $site, SiteProvisioner $provisioner): RedirectResponse
+    public function store(Request $request, Site $site, SiteProvisioner $provisioner, SiteAccessProvisioner $access): RedirectResponse
     {
         abort_if($site->parent_site_id !== null, 404);
 
@@ -72,6 +72,10 @@ class SubdomainController extends Controller
             'dns_status' => 'pending',
             'ssl_status' => 'pending',
         ]);
+
+        if ($site->accessSettings()->exists()) {
+            $access->sync($site, $site->accessSettings()->firstOrFail());
+        }
 
         return back()->with('status', "Subdominio {$domain} creado. Configura su DNS y luego emite SSL.");
     }
@@ -192,6 +196,9 @@ class SubdomainController extends Controller
         Domain::where('site_id', $subdomain->id)->delete();
         $domain = $subdomain->domain;
         $subdomain->delete();
+        if ($site->accessSettings()->exists()) {
+            $access->sync($site, $site->accessSettings()->firstOrFail());
+        }
 
         return back()->with('status', "Subdominio {$domain} eliminado; sus archivos no se borraron.");
     }

@@ -184,9 +184,9 @@ Host ofrece dos accesos al mismo motor de archivos, sin selector ambiguo dentro 
 - **Administrador del dominio principal** muestra una raíz virtual con una carpeta para el dominio y otra para cada subdominio asociado (`example.com`, `blog.example.com`, etc.); no expone otros dominios de la cuenta. Cada carpeta conserva su raíz e identidad Unix independiente.
 - **Administrador de un subdominio** permanece limitado exclusivamente al proyecto de ese subdominio.
 
-Las instalaciones heredadas no dejan `public_html` como una carpeta decorativa: durante `xpanel update`, la sincronización mueve cada raíz conocida `/var/www/<dominio>` o `/srv/www/<dominio>` a este árbol, actualiza el registro del sitio y vuelve a generar su virtual host. Si el destino ya contiene datos, la migración se detiene sin sobrescribirlo para que el administrador resuelva el conflicto.
+Las instalaciones heredadas no dejan `public_html` como una carpeta decorativa: durante `xpanel update`, la sincronización mueve cada raíz conocida `/var/www/<dominio>`, `/srv/www/<dominio>`, el formato anidado anterior, una identidad de cuenta `xpa…` reemplazada o el antiguo sandbox `storage/app/sites/<dominio>` a este árbol, actualiza el registro del sitio y vuelve a generar su virtual host. Solo acepta rutas que coinciden exactamente con el FQDN registrado. Si el destino ya contiene datos, la migración se detiene sin sobrescribirlo para que el administrador resuelva el conflicto.
 
-La terminal general inicia en el hogar de la cuenta; la terminal de dominio utiliza la identidad Unix y la raíz de ese sitio. Directorios propios de productos no instalados —como `.cagefs`, `.softaculous` o `.spamassassin`— no se simulan.
+La terminal general inicia en el hogar completo de la cuenta. La terminal de un dominio principal inicia en `/family`, donde únicamente ese dominio y sus subdominios aparecen como carpetas hermanas; cada carpeta sigue siendo un bind mount de su raíz FQDN real y conserva su identidad Unix. La terminal directa de un subdominio permanece limitada a ese entorno. Directorios propios de productos no instalados —como `.cagefs`, `.softaculous` o `.spamassassin`— no se simulan.
 
 ### Aplicaciones SaaS y Node.js
 
@@ -218,7 +218,7 @@ Cada sitio recibe una identidad Unix estable y distinta. PHP-FPM, Cron, desplieg
 
 **Archivos → Cuentas FTP** habilita SFTP confinado en un jail cuya carpeta `/site` enlaza únicamente el document root. FTPS explícito es opcional, utiliza vsftpd, una allowlist de usuarios y los puertos 21/40000-40100; FTP anónimo o sin TLS permanece desactivado. La contraseña Linux se entrega al helper por entrada estándar y Host sólo registra cuándo se rotó.
 
-**Avanzado → Acceso SSH** habilita terminal exclusivamente después de registrar una llave Ed25519 o RSA. La terminal no acepta contraseña y bloquea forwarding TCP, X11, túneles y gateway ports. Al permitir terminal, SFTP utiliza el mismo usuario y el aislamiento entre sitios depende de los grupos Unix exclusivos y permisos `0750`; sin terminal, SFTP usa además `ChrootDirectory`.
+**Avanzado → Acceso SSH** habilita terminal exclusivamente después de registrar una llave Ed25519 o RSA. La terminal no acepta contraseña y bloquea forwarding TCP, X11, túneles y gateway ports. SSH, SFTP y la terminal web permanecen dentro de `ChrootDirectory`; el dominio principal recibe solamente los bind mounts declarados de su familia y ningún dominio ajeno. ACL heredables permiten trabajar en un subdominio desde esa terminal sin quitar acceso a su identidad Unix propia.
 
 El **chat del equipo** de la cabecera permite conversaciones directas entre dos usuarios y grupos internos con varios miembros. El grupo general «Equipo» incorpora automáticamente las cuentas locales, conserva los mensajes existentes y mantiene la lectura por usuario y conversación. Las **notificaciones** registran acciones administrativas importantes y alertas automáticas de backups o certificados; cada miembro sólo puede modificar el estado de sus propias notificaciones. La comunicación con usuarios de otro servidor requerirá en el futuro un servicio federado explícito y no está habilitada por defecto.
 

@@ -32,6 +32,13 @@ valid_document_root() {
       [[ "$1" =~ ^/home/[a-z_][a-z0-9_-]{2,31}/public_html/[A-Za-z0-9._/-]+$ ]]
   }
 }
+valid_legacy_document_root() {
+  valid_document_root "$1" && return 0
+  local prefix="$STATE_ROOT/storage/app/sites/" domain=""
+  [[ "$1" == "$prefix"* && "$1" != *".."* ]] || return 1
+  domain="${1#"$prefix"}"
+  [[ "$domain" != */* ]] && valid_domain "$domain"
+}
 valid_identifier() { [[ "$1" =~ ^[a-z0-9_]{1,64}$ ]]; }
 valid_site_identity() { [[ "$1" =~ ^xps[a-z0-9]{9,29}$ ]]; }
 valid_account_identity() { [[ "$1" =~ ^xpa[a-z0-9]{8,24}$ || "$1" =~ ^xhi[a-f0-9]{12}$ ]]; }
@@ -285,7 +292,7 @@ chown_site_content() {
 
 site_root_migrate() {
   local legacy_root="$2" canonical_root="$3" site_user="$4"
-  valid_document_root "$legacy_root" || fail "Invalid legacy site root."
+  valid_legacy_document_root "$legacy_root" || fail "Invalid legacy site root."
   valid_document_root "$canonical_root" || fail "Invalid canonical site root."
   valid_site_identity "$site_user" || fail "Invalid site identity."
   [[ "$legacy_root" != "$canonical_root" ]] || fail "Site roots are identical."
@@ -1557,18 +1564,63 @@ access_sync() {
     rm -f "$terminal_keys_file"
   fi
 
+  local terminal_scope="" terminal_domain="" terminal_root="" terminal_owner="" terminal_count=0
+  local -a terminal_domains=() terminal_roots=() terminal_owners=()
+  if valid_account_identity "$site_user"; then
+    terminal_scope="account"
+    terminal_domains+=("$site_user")
+    terminal_roots+=("$document_root")
+    terminal_owners+=("$site_user")
+    terminal_count=1
+  else
+    local terminal_roots_file="$STATE_ROOT/storage/app/access/$site_user/terminal-roots"
+    [[ -f "$terminal_roots_file" && ! -L "$terminal_roots_file" ]] || fail "Staged terminal roots not found."
+    IFS= read -r terminal_scope < "$terminal_roots_file"
+    [[ "$terminal_scope" == "family" || "$terminal_scope" == "site" ]] || fail "Invalid terminal scope."
+    while IFS=$'\t' read -r terminal_domain terminal_root terminal_owner; do
+      [[ -n "$terminal_domain" && -n "$terminal_root" && -n "$terminal_owner" ]] || continue
+      valid_domain "$terminal_domain" || fail "Invalid terminal family domain."
+      valid_document_root "$terminal_root" || fail "Invalid terminal family root."
+      valid_site_identity "$terminal_owner" || fail "Invalid terminal family identity."
+      id "$terminal_owner" >/dev/null 2>&1 || fail "Terminal family identity does not exist."
+      [[ "$(basename -- "$terminal_root")" == "$terminal_domain" ]] || fail "Terminal family root does not match its domain."
+      [[ -d "$terminal_root" && ! -L "$terminal_root" ]] || fail "Terminal family root is unavailable."
+      terminal_domains+=("$terminal_domain")
+      terminal_roots+=("$terminal_root")
+      terminal_owners+=("$terminal_owner")
+      terminal_count=$((terminal_count + 1))
+    done < <(tail -n +2 "$terminal_roots_file")
+    (( terminal_count >= 1 )) || fail "Terminal scope has no roots."
+    [[ "${terminal_roots[0]}" == "$document_root" ]] || fail "Terminal scope does not start with the current site."
+    if [[ "$terminal_scope" == "site" && "$terminal_count" != "1" ]]; then fail "A site terminal can expose only one root."; fi
+    if [[ "$terminal_scope" == "family" ]]; then
+      for terminal_domain in "${terminal_domains[@]:1}"; do
+        [[ "$terminal_domain" == *."${terminal_domains[0]}" ]] || fail "Terminal family contains an unrelated domain."
+      done
+    fi
+  fi
+
+  # A parent-domain terminal represents its complete family. Grant only this
+  # jailed Unix identity access to those explicitly staged roots; unrelated
+  # account domains are neither mounted nor reachable inside the chroot.
+  local family_index
+  if [[ "$terminal_scope" != "account" ]]; then
+    for ((family_index=0; family_index<terminal_count; family_index++)); do
+      setfacl -R -m "u:$site_user:rwX,u:${terminal_owners[$family_index]}:rwX" "${terminal_roots[$family_index]}"
+      find -P "${terminal_roots[$family_index]}" -xdev -type d -exec setfacl -m "d:u:$site_user:rwx,d:u:${terminal_owners[$family_index]}:rwx" {} +
+    done
+  fi
+
   # Jail construction (sshd ChrootDirectory). sshd performs the chroot()
   # itself, as root, before dropping to the target user's privileges — unlike
   # a userspace sandbox (bubblewrap was tried first; Ubuntu 24.04's AppArmor
   # blocks unprivileged user namespaces by default and this box has no
   # profile permitting it), this needs no special kernel policy at all. The
   # tradeoff is the jail needs its own bind-mounted copy of whatever a
-  # working shell needs. Every site and subdomain has its own distinct Unix
-  # identity and its own fully independent jail — reaching a subdomain's
-  # files means connecting to *that* subdomain's own terminal, not a shared
-  # one; group membership only updates at login, so merging them made an
-  # already-open session silently miss access until reconnecting, and
-  # confused which identity was "site" and which was "subdomain".
+  # working shell needs. Every site and subdomain keeps its own distinct Unix
+  # identity and independent jail. The parent jail additionally receives
+  # explicit bind mounts for its database-defined family under /family; this
+  # provides one coherent workspace without exposing unrelated domains.
   #
   # SAFETY: every path below is a *bind* mount of a real host directory or
   # file (identical inode, not a copy) — access_remove() MUST recursively
@@ -1584,6 +1636,12 @@ access_sync() {
     install -d -o root -g root -m 0755 "$jail/$shared_dir"
   done
   install -d -o root -g root -m 0755 "$jail/dev" "$jail/etc"
+  if [[ "$terminal_scope" == "family" ]]; then
+    install -d -o root -g root -m 0755 "$jail/family"
+    for ((family_index=0; family_index<terminal_count; family_index++)); do
+      install -d -o root -g root -m 0755 "$jail/family/${terminal_domains[$family_index]}"
+    done
+  fi
 
   # Shown as the login shell's prompt so it's obvious which site/subdomain a
   # terminal session belongs to instead of the generic "-bash-5.2$".
@@ -1656,6 +1714,11 @@ access_sync() {
     echo "ExecStart=/bin/mount --bind $document_root $mountpoint_path"
     echo "ExecStart=/usr/bin/install -d -o root -g root -m 0755 $jail$document_root"
     echo "ExecStart=/bin/mount --bind $document_root $jail$document_root"
+    if [[ "$terminal_scope" == "family" ]]; then
+      for ((family_index=0; family_index<terminal_count; family_index++)); do
+        echo "ExecStart=/bin/mount --bind ${terminal_roots[$family_index]} $jail/family/${terminal_domains[$family_index]}"
+      done
+    fi
     echo "ExecStop=$ROOT/scripts/xpanel-jail-unmount.sh $jail"
     echo
     echo "[Install]"
@@ -1691,7 +1754,9 @@ access_sync() {
     # plainly before letting an owner turn on the terminal on a
     # SFTP-only site. document_root is mirrored inside the jail at the same
     # absolute path, so HOME resolves correctly once chrooted.
-    usermod -s /bin/bash -d "$document_root" "$site_user"
+    local shell_home="$document_root"
+    [[ "$terminal_scope" != "family" ]] || shell_home="/family"
+    usermod -s /bin/bash -d "$shell_home" "$site_user"
     cat > "$ssh_config" <<EOF
 Match User $site_user
     ChrootDirectory $jail

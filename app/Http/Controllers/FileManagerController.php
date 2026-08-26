@@ -53,6 +53,7 @@ class FileManagerController extends Controller
                     'name' => $familySite->domain,
                     'path' => '/'.$familySite->domain,
                     'is_dir' => true,
+                    'available' => is_dir($familySite->document_root),
                     'editable' => false,
                     'deletable' => false,
                     'size' => null,

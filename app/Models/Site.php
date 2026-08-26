@@ -110,6 +110,13 @@ class Site extends Model
             return $this->document_root;
         }
 
+        // A native installation must never disguise a missing document root
+        // as a working site. The storage fallback exists only so local/test
+        // environments can exercise the file manager without Linux accounts.
+        if (config('xpanel.apply_system_changes')) {
+            return $this->document_root;
+        }
+
         $fallback = storage_path('app/sites/'.$this->domain);
         if (! is_dir($fallback)) {
             mkdir($fallback, 0755, true);

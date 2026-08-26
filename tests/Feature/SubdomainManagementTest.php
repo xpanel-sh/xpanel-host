@@ -325,6 +325,61 @@ class SubdomainManagementTest extends TestCase
         }
     }
 
+    public function test_sync_recovers_a_production_site_from_the_old_local_storage_fallback(): void
+    {
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $domain = 'fallback-'.strtolower(bin2hex(random_bytes(3))).'.example.com';
+        $legacyRoot = storage_path('app/sites/'.$domain);
+        $canonicalRoot = '/home/xpa0123456789/public_html/'.$domain;
+        mkdir($legacyRoot, 0755, true);
+        file_put_contents($legacyRoot.'/index.php', 'recovered');
+
+        try {
+            $site = Site::create([
+                'domain' => $domain,
+                'document_root' => $canonicalRoot,
+                'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active',
+            ]);
+            $workspace = \Mockery::mock(HostingAccountWorkspace::class);
+            $workspace->shouldReceive('siteRoot')->with($domain)->andReturn($canonicalRoot);
+            $commands = \Mockery::mock(ServerCommandRunner::class);
+            $commands->shouldReceive('run')->once()->with([
+                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'site-root-migrate',
+                $legacyRoot, $canonicalRoot, $site->systemUser(),
+            ])->andReturn('');
+
+            $this->assertTrue((new SiteRootMigrator($commands, $workspace))->migrateLegacyRoot($site));
+        } finally {
+            $this->removeDirectory($legacyRoot);
+        }
+    }
+
+    public function test_sync_recovers_a_flat_subdomain_from_a_previous_account_home(): void
+    {
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $parent = $this->parentSite();
+        $label = 'legacy'.strtolower(bin2hex(random_bytes(3)));
+        $domain = $label.'.example.com';
+        $legacyRoot = '/home/xpa02af4e2bdc/public_html/'.$domain;
+        $canonicalRoot = app(HostingAccountWorkspace::class)->subdomainRoot('example.com', $label);
+        $child = Site::create([
+            'parent_site_id' => $parent->id,
+            'domain' => $domain,
+            'document_root' => $legacyRoot,
+            'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active',
+        ]);
+        $workspace = \Mockery::mock(HostingAccountWorkspace::class);
+        $workspace->shouldReceive('subdomainRoot')->with('example.com', $label)->andReturn($canonicalRoot);
+        $workspace->shouldReceive('siteRoot')->with('example.com')->andReturn('/home/xpa1a79f18344/public_html/example.com');
+        $commands = \Mockery::mock(ServerCommandRunner::class);
+
+        // The source does not exist in the test process, matching a retired
+        // account home. Production normalizes the DB and provisions the new
+        // canonical root instead of recreating that obsolete account.
+        $this->assertTrue((new SiteRootMigrator($commands, $workspace))->migrateLegacyRoot($child));
+        $this->assertSame($canonicalRoot, $child->fresh()->document_root);
+    }
+
     private function removeDirectory(string $path): void
     {
         if (! is_dir($path)) {

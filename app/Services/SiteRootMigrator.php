@@ -20,10 +20,25 @@ class SiteRootMigrator
             return false;
         }
 
-        $knownLegacyRoots = $this->knownLegacyRoots($site);
-        $legacyRoot = $configuredRoot !== $canonicalRoot
+        $knownLegacyRoots = $this->knownLegacyRoots($site, $canonicalRoot);
+        $configuredIsRetiredAccountRoot = $this->isExactLegacyAccountRoot($site, $configuredRoot, $canonicalRoot);
+        $legacyRoot = $configuredRoot !== $canonicalRoot && (
+            ! config('xpanel.apply_system_changes')
+            || is_dir($configuredRoot)
+            || ! $configuredIsRetiredAccountRoot
+        )
             ? $configuredRoot
             : $this->recoverablePhysicalRoot($knownLegacyRoots, $canonicalRoot);
+
+        // The database can still reference an old account home that no longer
+        // exists. Once every exact known source has been checked, normalize the
+        // record so provisioning creates the missing FQDN root in the current
+        // account instead of recreating the retired home hierarchy.
+        if ($legacyRoot === null && $configuredRoot !== $canonicalRoot && $configuredIsRetiredAccountRoot && in_array($configuredRoot, $knownLegacyRoots, true)) {
+            $site->forceFill(['document_root' => $canonicalRoot])->save();
+
+            return true;
+        }
 
         if ($legacyRoot === null || $legacyRoot === $canonicalRoot || ! in_array($legacyRoot, $knownLegacyRoots, true)) {
             return false;
@@ -61,7 +76,7 @@ class SiteRootMigrator
     }
 
     /** @return list<string> */
-    private function knownLegacyRoots(Site $site): array
+    private function knownLegacyRoots(Site $site, string $canonicalRoot): array
     {
         $roots = [
             '/var/www/'.$site->domain,
@@ -79,7 +94,44 @@ class SiteRootMigrator
             }
         }
 
+        if ($this->isExactLegacyAccountRoot($site, rtrim($site->document_root, '/'), $canonicalRoot)) {
+            $roots[] = rtrim($site->document_root, '/');
+        }
+
+        // Older builds silently used this local-development sandbox when a
+        // configured production root was absent. Recover it as a last resort
+        // instead of continuing to show a virtual folder whose real FQDN root
+        // does not exist below public_html.
+        $roots[] = storage_path('app/sites/'.$site->domain);
+
         return array_values(array_unique($roots));
+    }
+
+    private function isExactLegacyAccountRoot(Site $site, string $path, string $canonicalRoot): bool
+    {
+        $identity = '(?:xpa[a-z0-9]{8,24}|xhi[a-f0-9]{12})';
+        preg_match('#^(/home/'.$identity.')/public_html/#', $path, $legacyAccount);
+        preg_match('#^(/home/'.$identity.')/public_html/#', $canonicalRoot, $currentAccount);
+        if (($legacyAccount[1] ?? null) === null || ($legacyAccount[1] ?? null) === ($currentAccount[1] ?? null)) {
+            return false;
+        }
+
+        $domain = preg_quote($site->domain, '#');
+        if (preg_match('#^/home/'.$identity.'/public_html/'.$domain.'$#', $path) === 1) {
+            return true;
+        }
+
+        if ($site->parent_site_id === null) {
+            return false;
+        }
+
+        $parent = $site->parent()->first();
+        $label = $parent ? $this->subdomainLabel($site, $parent) : null;
+
+        return $parent && $label && preg_match(
+            '#^/home/'.$identity.'/public_html/'.preg_quote($parent->domain, '#').'/subdomains/'.preg_quote($label, '#').'$#',
+            $path
+        ) === 1;
     }
 
     private function recoverablePhysicalRoot(array $knownLegacyRoots, string $canonicalRoot): ?string
@@ -93,13 +145,18 @@ class SiteRootMigrator
             return null;
         }
 
-        foreach ($knownLegacyRoots as $candidate) {
-            if ($candidate !== $canonicalRoot && is_dir($candidate)) {
+        $existing = array_values(array_filter(
+            $knownLegacyRoots,
+            fn (string $candidate): bool => $candidate !== $canonicalRoot && is_dir($candidate)
+        ));
+
+        foreach ($existing as $candidate) {
+            if (! $this->directoryIsEmpty($candidate)) {
                 return $candidate;
             }
         }
 
-        return null;
+        return $existing[0] ?? null;
     }
 
     private function directoryIsEmpty(string $path): bool

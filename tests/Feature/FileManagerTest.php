@@ -214,6 +214,24 @@ class FileManagerTest extends TestCase
             ->assertJsonMissing(['name' => 'index.php']);
     }
 
+    public function test_native_file_manager_marks_a_missing_physical_family_root_instead_of_using_storage(): void
+    {
+        config(['xpanel.apply_system_changes' => true]);
+        $parent = $this->site();
+        $parent->update(['document_root' => '/home/xpa0123456789/public_html/missing.example.com']);
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$parent, 'path' => '/']))
+            ->assertOk()
+            ->assertJsonFragment([
+                'name' => $parent->domain,
+                'path' => '/'.$parent->domain,
+                'available' => false,
+            ]);
+
+        $this->assertSame($parent->document_root, $parent->fresh()->localRoot());
+    }
+
     public function test_search_finds_matching_file_names(): void
     {
         $site = $this->site();
