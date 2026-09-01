@@ -115,4 +115,65 @@ class SiteTerminalTest extends TestCase
                 'home' => '/home/xpa0123456789',
             ]);
     }
+
+    public function test_npm_start_from_a_site_terminal_becomes_the_managed_runtime(): void
+    {
+        config([
+            'xpanel.terminal_enabled' => true,
+            'xpanel.apply_system_changes' => false,
+        ]);
+        $site = Site::create([
+            'domain' => 'node-terminal.example.com',
+            'document_root' => '/var/www/node-terminal.example.com',
+            'php_version' => '8.3',
+            'node_version' => '22',
+            'runtime_port' => 33001,
+            'node_start_command' => 'node server.js',
+            'type' => 'node',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+        $site->accessSettings()->create(['web_terminal_enabled' => true]);
+
+        $loginToken = $this->actingAs($this->owner())
+            ->postJson(route('sites.access.terminal.token', $site))
+            ->json('token');
+        $runtimeToken = $this->post('/internal/terminal/consume', ['token' => $loginToken])
+            ->assertOk()
+            ->assertJsonStructure(['runtime_token'])
+            ->json('runtime_token');
+
+        $this->postJson('/internal/terminal/runtime/start', [
+            'token' => $runtimeToken,
+            'cwd' => '/var/www/node-terminal.example.com',
+            'command' => 'npm start',
+        ])->assertOk()->assertJson([
+            'domain' => 'node-terminal.example.com',
+            'command' => 'npm start',
+        ]);
+
+        $this->assertSame('npm start', $site->fresh()->node_start_command);
+    }
+
+    public function test_runtime_token_cannot_start_a_site_outside_its_terminal_scope(): void
+    {
+        config(['xpanel.terminal_enabled' => true, 'xpanel.apply_system_changes' => false]);
+        $site = $this->site();
+        $site->update([
+            'type' => 'node', 'node_version' => '22', 'runtime_port' => 33002, 'node_start_command' => 'npm start',
+        ]);
+        $site->accessSettings()->create(['web_terminal_enabled' => true]);
+        $other = Site::create([
+            'domain' => 'other.example.com', 'document_root' => '/var/www/other.example.com',
+            'php_version' => '8.3', 'node_version' => '22', 'runtime_port' => 33003,
+            'node_start_command' => 'npm start', 'type' => 'node', 'web_server' => 'nginx', 'status' => 'active',
+        ]);
+
+        $loginToken = $this->actingAs($this->owner())->postJson(route('sites.access.terminal.token', $site))->json('token');
+        $runtimeToken = $this->post('/internal/terminal/consume', ['token' => $loginToken])->json('runtime_token');
+
+        $this->postJson('/internal/terminal/runtime/start', [
+            'token' => $runtimeToken, 'cwd' => $other->document_root, 'command' => 'npm start',
+        ])->assertUnprocessable();
+    }
 }

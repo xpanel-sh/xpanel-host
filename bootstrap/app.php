@@ -24,7 +24,7 @@ $application = Application::configure(basePath: dirname(__DIR__))
         );
         // sshd's forced-command gate has no browser session/CSRF token. This
         // route is instead gated by an opaque one-use token and loopback IP.
-        $middleware->validateCsrfTokens(except: ['internal/terminal/consume', 'xflow/hooks/*']);
+        $middleware->validateCsrfTokens(except: ['internal/terminal/consume', 'internal/terminal/runtime/start', 'xflow/hooks/*']);
         $middleware->alias([
             'permission' => EnsurePermission::class,
             'setup.complete' => EnsureSetupComplete::class,

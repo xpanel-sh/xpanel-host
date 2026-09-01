@@ -23,6 +23,8 @@ CUSTOM_FPM_SERVICE="${XPANEL_FPM_SERVICE:-}"
 PHP_PROFILE_ROOT="${XPANEL_PHP_PROFILE_ROOT:-$(grep '^XPANEL_PHP_PROFILE_ROOT=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 PHP_PROFILE_ROOT="${PHP_PROFILE_ROOT:-/etc/xpanel-host/php-profiles}"
 SYSTEMD_SLICE="${XPANEL_SYSTEMD_SLICE:-$(grep '^XPANEL_SYSTEMD_SLICE=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+TERMINAL_INTERNAL_PORT="${XPANEL_TERMINAL_INTERNAL_PORT:-$(grep '^XPANEL_TERMINAL_INTERNAL_PORT=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+TERMINAL_INTERNAL_PORT="${TERMINAL_INTERNAL_PORT:-7091}"
 
 fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
@@ -1440,6 +1442,36 @@ ssl_action() {
   printf 'issuer=%s\n' "$(openssl x509 -issuer -noout -in "$certificate" | sed 's/^issuer=//')"
 }
 
+ssl_inspect() {
+  local domain="$2" certificate not_after issuer expires_epoch
+  valid_domain "$domain" || fail "Invalid certificate domain."
+  certificate="/etc/letsencrypt/live/$domain/fullchain.pem"
+
+  if [[ ! -f "$certificate" ]]; then
+    printf 'status=missing\n'
+    return
+  fi
+  if ! openssl x509 -noout -in "$certificate" >/dev/null 2>&1; then
+    printf 'status=invalid\n'
+    return
+  fi
+  if ! openssl x509 -checkhost "$domain" -noout -in "$certificate" >/dev/null 2>&1; then
+    printf 'status=invalid\n'
+    return
+  fi
+
+  not_after="$(date -u -d "$(openssl x509 -enddate -noout -in "$certificate" | cut -d= -f2-)" +%Y-%m-%dT%H:%M:%SZ)"
+  expires_epoch="$(date -u -d "$not_after" +%s)"
+  issuer="$(openssl x509 -issuer -noout -in "$certificate" | sed 's/^issuer=//')"
+  if (( expires_epoch <= $(date -u +%s) )); then
+    printf 'status=expired\n'
+  else
+    printf 'status=active\n'
+  fi
+  printf 'not_after=%s\n' "$not_after"
+  printf 'issuer=%s\n' "$issuer"
+}
+
 database_action() {
   local database="$2" username="$3"
   valid_identifier "$database" || fail "Invalid database name."
@@ -1716,6 +1748,53 @@ access_sync() {
   local domain_label
   domain_label="$(basename -- "$document_root")"
   printf 'export HOME=%q\ncd -- "$HOME"\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$domain_label" > "$jail/etc/profile"
+  [[ "$TERMINAL_INTERNAL_PORT" =~ ^[0-9]{1,5}$ ]] && (( TERMINAL_INTERNAL_PORT >= 1 && TERMINAL_INTERNAL_PORT <= 65535 )) || fail "Invalid terminal internal port."
+  printf 'export XPANEL_RUNTIME_ENDPOINT=%q\n' "http://127.0.0.1:$TERMINAL_INTERNAL_PORT/internal/terminal/runtime/start" >> "$jail/etc/profile"
+  cat >> "$jail/etc/profile" <<'PROFILE'
+
+# Conventional application start commands are delegated to XPanel. It
+# prepares the project and starts the site's systemd service, which keeps the
+# application alive after this terminal closes. Other npm/node commands still
+# execute their real binaries unchanged.
+xpanel_managed_start() {
+  local managed_command="$1" response status
+  [[ -n "${XPANEL_RUNTIME_TOKEN:-}" ]] || return 125
+  response="$(/usr/bin/curl --silent --show-error --fail-with-body --max-time 1800 --noproxy '*' \
+    -H 'Accept: application/json' \
+    --data-urlencode "token=$XPANEL_RUNTIME_TOKEN" \
+    --data-urlencode "cwd=$PWD" \
+    --data-urlencode "command=$managed_command" \
+    "$XPANEL_RUNTIME_ENDPOINT")"
+  status=$?
+  /usr/bin/php -r '$raw=file_get_contents("php://stdin"); $data=json_decode($raw, true); echo is_array($data) ? ($data["message"] ?? $raw) : $raw;' <<< "$response"
+  printf '\n'
+  return "$status"
+}
+
+npm() {
+  local managed_status
+  if [[ "$#" -eq 1 && "$1" == "start" ]]; then
+    xpanel_managed_start 'npm start'
+    managed_status=$?
+    [[ "$managed_status" -eq 125 ]] || return "$managed_status"
+  elif [[ "$#" -eq 2 && "$1" == "run" && "$2" =~ ^(start|serve|production)$ ]]; then
+    xpanel_managed_start "npm run $2"
+    managed_status=$?
+    [[ "$managed_status" -eq 125 ]] || return "$managed_status"
+  fi
+  command /usr/local/bin/npm "$@"
+}
+
+node() {
+  local managed_status
+  if [[ "$#" -eq 1 && "$1" =~ ^(server|app|index|main)\.m?js$ ]]; then
+    xpanel_managed_start "node $1"
+    managed_status=$?
+    [[ "$managed_status" -eq 125 ]] || return "$managed_status"
+  fi
+  command /usr/local/bin/node "$@"
+}
+PROFILE
   chown root:root "$jail/etc/profile"
   chmod 0644 "$jail/etc/profile"
 
@@ -2223,6 +2302,7 @@ case "$ACTION" in
   git-remove) git_remove "$@" ;;
   auth-sync) auth_sync "$@" ;;
   ssl-issue|ssl-wildcard-issue|ssl-delete) ssl_action "$@" ;;
+  ssl-inspect) ssl_inspect "$@" ;;
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;
   database-create|database-password|database-remove) database_action "$@" ;;

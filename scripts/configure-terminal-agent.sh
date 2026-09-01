@@ -93,6 +93,9 @@ response="\$(curl --silent --show-error --fail --max-time 5 --noproxy '*' \\
 actual_user="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decode(file_get_contents("php://stdin"), true); if (is_array(\$data) && isset(\$data["system_user"]) && is_string(\$data["system_user"])) echo \$data["system_user"];')"
 [[ "\$actual_user" == "\$expected_user" ]] || exit 1
 workspace_home="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decode(file_get_contents("php://stdin"), true); if (is_array(\$data) && isset(\$data["home"]) && is_string(\$data["home"])) echo \$data["home"];')"
+XPANEL_RUNTIME_TOKEN="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decode(file_get_contents("php://stdin"), true); if (is_array(\$data) && isset(\$data["runtime_token"]) && is_string(\$data["runtime_token"])) echo \$data["runtime_token"];')"
+[[ "\$XPANEL_RUNTIME_TOKEN" =~ ^[A-Za-z0-9]{64}$ ]] || exit 1
+export XPANEL_RUNTIME_TOKEN
 if [[ -n "\$workspace_home" ]]; then
   [[ "\$workspace_home" == "/home/\$expected_user" ]] || exit 1
   cd "\$workspace_home"
@@ -119,6 +122,14 @@ server {
         fastcgi_param SCRIPT_FILENAME $ROOT/public/index.php;
         fastcgi_param SCRIPT_NAME /index.php;
         fastcgi_pass unix:/run/php/php$php_version-fpm.sock;
+    }
+
+    location = /internal/terminal/runtime/start {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $ROOT/public/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_pass unix:/run/php/php$php_version-fpm.sock;
+        fastcgi_read_timeout 1800s;
     }
 
     location / { return 404; }

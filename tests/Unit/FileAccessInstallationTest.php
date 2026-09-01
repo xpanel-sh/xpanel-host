@@ -31,8 +31,20 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('Terminal family contains an unrelated domain.', $helper);
         $this->assertStringContainsString('compatibility_home="$passwd_home"', $helper);
         $this->assertStringContainsString('mount --bind $document_root $jail$compatibility_home', $helper);
-        $this->assertStringContainsString("export HOME=%q", $helper);
+        $this->assertStringContainsString('export HOME=%q', $helper);
         $this->assertStringNotContainsString('usermod -s /bin/bash -d "$shell_home"', $helper);
+    }
+
+    public function test_terminal_profile_delegates_application_start_commands_to_xpanel(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+        $agent = file_get_contents(base_path('scripts/configure-terminal-agent.sh'));
+
+        $this->assertStringContainsString('xpanel_managed_start', $helper);
+        $this->assertStringContainsString("xpanel_managed_start 'npm start'", $helper);
+        $this->assertStringContainsString('command /usr/local/bin/npm "$@"', $helper);
+        $this->assertStringContainsString('runtime_token', $agent);
+        $this->assertStringContainsString('/internal/terminal/runtime/start', $agent);
     }
 
     public function test_panel_receives_scoped_write_acl_for_each_site_root(): void

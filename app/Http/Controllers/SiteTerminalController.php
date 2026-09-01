@@ -39,6 +39,7 @@ class SiteTerminalController extends Controller
             'site_id' => $payload['site_id'],
             'system_user' => $payload['system_user'],
             'home' => $payload['home'] ?? null,
+            'runtime_token' => $issuer->issueRuntime($payload),
         ], fn ($value) => $value !== null));
     }
 }

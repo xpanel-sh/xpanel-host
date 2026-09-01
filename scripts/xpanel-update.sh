@@ -260,6 +260,7 @@ sudo -u "$site_user" php "$ROOT/artisan" migrate --force
 configure_backup_runtime
 bash "$ROOT/scripts/configure-nginx-catchall.sh"
 sudo -u "$site_user" php "$ROOT/artisan" optimize:clear
+sudo -u "$site_user" php "$ROOT/artisan" xpanel:ssl-sync
 sudo -u "$site_user" php "$ROOT/artisan" xpanel:sites-sync
 if [[ "$terminal_enabled" == "true" ]]; then
   bash "$ROOT/scripts/configure-terminal-agent.sh"

@@ -49,6 +49,7 @@ use App\Http\Controllers\SiteWebSettingsController;
 use App\Http\Controllers\SubdomainController;
 use App\Http\Controllers\TeamChatController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TerminalRuntimeController;
 use App\Http\Controllers\WebServerEngineController;
 use App\Http\Controllers\WordPressController;
 use App\Http\Controllers\XflowController;
@@ -378,3 +379,4 @@ Route::get('/version', fn () => response()->json([
 // Called only by the loopback sshd forced-command gate, never by a browser
 // session — see SiteTerminalController::consume() and TerminalTokenIssuer.
 Route::post('/internal/terminal/consume', [SiteTerminalController::class, 'consume']);
+Route::post('/internal/terminal/runtime/start', [TerminalRuntimeController::class, 'start']);

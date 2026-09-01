@@ -17,10 +17,13 @@ class TerminalTokenIssuer
 {
     private const TTL_SECONDS = 20;
 
+    private const RUNTIME_TTL_SECONDS = 28800;
+
     public function issue(Site $site): array
     {
         $token = Str::random(64);
         $payload = [
+            'scope' => 'site',
             'site_id' => $site->id,
             'system_user' => $site->systemUser(),
         ];
@@ -68,8 +71,47 @@ class TerminalTokenIssuer
         return $payload;
     }
 
+    /** @param array<string, mixed> $terminalPayload */
+    public function issueRuntime(array $terminalPayload): string
+    {
+        $token = Str::random(64);
+        Cache::put($this->runtimeKey($token), [
+            'scope' => $terminalPayload['scope'] ?? 'site',
+            'site_id' => $terminalPayload['site_id'] ?? null,
+            'system_user' => $terminalPayload['system_user'],
+            'home' => $terminalPayload['home'] ?? null,
+        ], self::RUNTIME_TTL_SECONDS);
+
+        return $token;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function verifyRuntime(string $token): ?array
+    {
+        if (! preg_match('/^[A-Za-z0-9]{64}$/', $token)) {
+            return null;
+        }
+
+        $payload = Cache::get($this->runtimeKey($token));
+        if (! is_array($payload)
+            || ! in_array($payload['scope'] ?? null, ['site', 'account'], true)
+            || ! array_key_exists('site_id', $payload)
+            || (! is_int($payload['site_id']) && $payload['site_id'] !== null)
+            || ! isset($payload['system_user']) || ! is_string($payload['system_user'])
+        ) {
+            return null;
+        }
+
+        return $payload;
+    }
+
     private function payloadKey(string $token): string
     {
         return 'terminal-token-payload:'.hash('sha256', $token);
+    }
+
+    private function runtimeKey(string $token): string
+    {
+        return 'terminal-runtime-payload:'.hash('sha256', $token);
     }
 }

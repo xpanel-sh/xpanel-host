@@ -847,6 +847,7 @@ php "$ROOT/artisan" storage:link >/dev/null 2>&1 || true
 chown -R "${XPANEL_SITE_USER:-www-data}:${XPANEL_SITE_GROUP:-www-data}" "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
 configure_site_helper
 configure_backup_runtime
+sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:ssl-sync
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:sites-sync
 configure_database_server
 configure_file_access
