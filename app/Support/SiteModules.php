@@ -121,7 +121,7 @@ class SiteModules
     {
         return match (true) {
             $section === 'domains' && $key === 'subdomains' => route('sites.subdomains.index', $site->parent ?? $site),
-            $section === 'domains' && $key === 'parked-domains' => route('sites.parked-domains.index', $site),
+            $section === 'domains' && $key === 'parked-domains' => route('sites.parked-domains.index', $site->parent ?? $site),
             $section === 'domains' && $key === 'redirects' => route('sites.redirects.index', $site),
             $section === 'website' && $key === 'error-pages' => route('sites.error-pages.index', $site),
             $section === 'website' && $key === 'wordpress' => route('sites.wordpress.index', $site),

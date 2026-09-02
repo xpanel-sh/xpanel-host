@@ -47,6 +47,80 @@ class SiteDomainFeaturesTest extends TestCase
         $this->assertStringContainsString('ServerAlias alias.example.net', file_get_contents(storage_path('app/vhosts/'.$site->domain.'.conf')));
     }
 
+    public function test_parked_domain_can_target_an_independent_subdomain_environment(): void
+    {
+        $site = $this->site();
+        $subdomain = Site::create([
+            'parent_site_id' => $site->id,
+            'domain' => 'app.primary.example.com',
+            'document_root' => '/var/www/app.primary.example.com',
+            'node_version' => '22',
+            'runtime_port' => 23300,
+            'node_start_command' => 'npm start',
+            'type' => 'node',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->owner())->post(route('sites.parked-domains.store', $site), [
+            'domain' => 'application.example.net',
+            'target_site_id' => $subdomain->id,
+        ])->assertSessionHas('status');
+
+        $this->assertDatabaseHas('domains', [
+            'domain' => 'application.example.net',
+            'site_id' => $subdomain->id,
+            'type' => 'alias',
+        ]);
+        $this->assertStringContainsString(
+            'server_name app.primary.example.com application.example.net;',
+            file_get_contents(storage_path('app/gateways/'.$subdomain->domain.'.conf')),
+        );
+        $this->actingAs($this->owner())
+            ->get(route('sites.parked-domains.index', $site))
+            ->assertOk()
+            ->assertSee('application.example.net')
+            ->assertSee('app.primary.example.com');
+    }
+
+    public function test_parked_domain_target_is_limited_to_the_current_site_family(): void
+    {
+        $site = $this->site();
+        $unrelated = Site::create([
+            'domain' => 'unrelated.example.com',
+            'document_root' => '/var/www/unrelated.example.com',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->owner())->post(route('sites.parked-domains.store', $site), [
+            'domain' => 'wrong.example.net',
+            'target_site_id' => $unrelated->id,
+        ])->assertSessionHasErrors('target_site_id');
+
+        $this->assertDatabaseMissing('domains', ['domain' => 'wrong.example.net']);
+    }
+
+    public function test_subdomain_parked_domain_page_is_canonicalized_to_its_parent(): void
+    {
+        $site = $this->site();
+        $subdomain = Site::create([
+            'parent_site_id' => $site->id,
+            'domain' => 'app.primary.example.com',
+            'document_root' => '/var/www/app.primary.example.com',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->owner())
+            ->get(route('sites.parked-domains.index', $subdomain))
+            ->assertRedirect(route('sites.parked-domains.index', $site));
+    }
+
     public function test_redirect_is_validated_and_rendered_in_public_gateway(): void
     {
         $site = $this->site();

@@ -202,7 +202,7 @@ Para HTTPS wildcard conecta primero Cloudflare desde **Avanzado → Editor DNS**
 
 ### Alias, redirecciones y errores
 
-- **Dominios → Dominios aparcados** añade alias que comparten archivos y configuración con el dominio principal. Cada alias necesita su propio registro `A`/`AAAA`; al reemitir SSL, Certbot lo incorpora al certificado SAN del sitio.
+- **Dominios → Dominios aparcados** añade alias y permite enlazarlos con el entorno del dominio principal o con cualquiera de sus subdominios. El destino seleccionado aporta sus archivos, runtime y configuración. Cada alias necesita su propio registro `A`/`AAAA`; al reemitir el SSL del destino, Certbot lo incorpora a su certificado SAN.
 - **Dominios → Redirecciones** crea reglas exactas o por prefijo con códigos 301, 302, 307 o 308. Se aplican en el Nginx público y por ello funcionan con cualquiera de los motores internos.
 - **Sitio web → Páginas de error** administra HTML estático para 403, 404, 500, 502 y 503. Los archivos quedan dentro de `.xpanel-errors` y no ejecutan PHP.
 - **Avanzado → Corregir propietarios** restaura el usuario/grupo de servicio sin seguir enlaces simbólicos, cruzar montajes ni convertir archivos privados en públicos.

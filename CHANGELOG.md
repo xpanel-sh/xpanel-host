@@ -6,6 +6,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ### Cambiado
 
+- Dominios aparcados se administra desde el dominio principal para toda su familia y permite elegir como destino el entorno independiente de cualquier subdominio; la tabla identifica qué sitio, runtime y archivos atienden cada alias.
 - La sincronización diaria de SSL inspecciona los certificados mediante el helper privilegiado, diferencia ausencia, formato inválido y expiración de un fallo transitorio del broker/sudo, conserva el último estado conocido ante errores de lectura y recupera automáticamente registros que habían quedado en `error`.
 - La terminal web reconoce `npm start`, `npm run start/serve/production` y entradas Node convencionales como solicitudes de arranque: prepara el proyecto y levanta la unidad systemd administrada del sitio en vez de dejar un proceso atado a la sesión. Los demás comandos npm/node conservan su comportamiento nativo.
 - Los subdominios se administran ahora dentro del dominio principal: el alta sólo solicita la etiqueta y XPanel asigna la raíz; cada hijo dispone de una ruta contextual para configurar PHP, Node.js o publicación estática sin aparecer como sitio independiente en la cabecera. SSL y archivos continúan centralizados por familia, y la vista compacta recupera desplazamiento vertical.
