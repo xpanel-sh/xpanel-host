@@ -32,9 +32,10 @@ validate_install_inputs() {
 }
 
 install_base_dependencies() {
-  if ! command -v apt-get >/dev/null 2>&1; then
-    return
-  fi
+  command -v apt-get >/dev/null 2>&1 || {
+    echo "XPanel Host currently requires an apt-based Ubuntu/Debian server." >&2
+    exit 1
+  }
 
   apt-get update -y
   echo "postfix postfix/mailname string ${XPANEL_MAIL_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}" | debconf-set-selections
@@ -45,6 +46,25 @@ install_base_dependencies() {
     certbot python3-certbot-nginx python3-certbot-dns-cloudflare \
     mariadb-server nftables postfix dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools ssl-cert openssl swaks \
     clamav clamav-freshclam
+}
+
+validate_php_runtime() {
+  command -v php >/dev/null 2>&1 || { echo "PHP is required for xpanel-host." >&2; exit 1; }
+  command -v composer >/dev/null 2>&1 || { echo "Composer is required for xpanel-host." >&2; exit 1; }
+
+  php -r 'exit(version_compare(PHP_VERSION, "8.3.0", ">=") ? 0 : 1);' || {
+    echo "XPanel Host requires PHP 8.3 or newer; the system default is $(php -r 'echo PHP_VERSION;')." >&2
+    echo "Use Ubuntu 24.04+ or Debian 13+, or install a supported PHP runtime before retrying." >&2
+    exit 1
+  }
+
+  local extension
+  for extension in curl dom fileinfo gd imap intl mbstring openssl pdo_sqlite sqlite3 zip; do
+    php -r 'exit(extension_loaded($argv[1]) ? 0 : 1);' "$extension" || {
+      echo "Required PHP extension is missing: $extension" >&2
+      exit 1
+    }
+  done
 }
 
 configure_malware_scanner() {
@@ -379,6 +399,41 @@ configure_account_workspace() {
   export XPANEL_ACCOUNT_USER XPANEL_ACCOUNT_HOME
   set_env_var XPANEL_ACCOUNT_USER "$account_user"
   set_env_var XPANEL_ACCOUNT_HOME "$account_home"
+}
+
+prepare_laravel_runtime() {
+  local panel_user="${XPANEL_SITE_USER:-www-data}"
+  local panel_group="${XPANEL_SITE_GROUP:-www-data}"
+  local database_connection database_file
+
+  install -d -o "$panel_user" -g "$panel_group" -m 0750 \
+    "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
+  chown -R "$panel_user:$panel_group" "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
+
+  database_connection="$(grep '^DB_CONNECTION=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
+  database_connection="${database_connection:-sqlite}"
+  if [[ "$database_connection" == "sqlite" ]]; then
+    database_file="$(grep '^DB_DATABASE=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '\"' || true)"
+    database_file="${database_file:-$ROOT/database/database.sqlite}"
+    [[ "$database_file" == /* && ! -L "$database_file" ]] || {
+      echo "DB_DATABASE must be an absolute, non-symlink path for SQLite." >&2
+      exit 1
+    }
+    if [[ ! -d "$(dirname "$database_file")" ]]; then
+      install -d -o "$panel_user" -g "$panel_group" -m 0750 "$(dirname "$database_file")"
+    fi
+    if [[ ! -e "$database_file" ]]; then
+      install -o "$panel_user" -g "$panel_group" -m 0600 /dev/null "$database_file"
+    else
+      chown "$panel_user:$panel_group" "$database_file"
+      chmod 0600 "$database_file"
+    fi
+  fi
+}
+
+secure_environment_file() {
+  chown root:"${XPANEL_SITE_GROUP:-www-data}" "$ROOT/.env"
+  chmod 0640 "$ROOT/.env"
 }
 
 configure_site_helper() {
@@ -799,16 +854,7 @@ write_marker
 
 install_base_dependencies
 ensure_node_runtime
-
-if ! command -v php >/dev/null 2>&1; then
-  echo "PHP is required for xpanel-host." >&2
-  exit 1
-fi
-
-if ! command -v composer >/dev/null 2>&1; then
-  echo "Composer is required for xpanel-host." >&2
-  exit 1
-fi
+validate_php_runtime
 
 composer --working-dir="$ROOT" install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 npm --prefix "$ROOT" ci --no-audit --no-fund
@@ -839,12 +885,12 @@ set_env_var XPANEL_PHP_VERSIONS "$php_version"
 if ! grep -Eq '^APP_KEY=.+$' "$ROOT/.env"; then
   php "$ROOT/artisan" key:generate --force
 fi
+secure_environment_file
 configure_account_workspace
-php "$ROOT/artisan" migrate --force
-php "$ROOT/artisan" optimize:clear
+prepare_laravel_runtime
+sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" migrate --force --no-interaction
+sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" optimize:clear
 php "$ROOT/artisan" storage:link >/dev/null 2>&1 || true
-
-chown -R "${XPANEL_SITE_USER:-www-data}:${XPANEL_SITE_GROUP:-www-data}" "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
 configure_site_helper
 configure_backup_runtime
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:ssl-sync
@@ -869,6 +915,14 @@ if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-roundcube.sh"
 fi
 
+if ! install_cli || ! "/usr/local/bin/xpanel" status --root="$ROOT" >/dev/null; then
+  echo "The required global xpanel CLI could not be installed or validated." >&2
+  exit 1
+fi
+
+secure_environment_file
+bash "$ROOT/scripts/verify-host-installation.sh"
+
 initial_admin_created=false
 initial_admin_email=""
 initial_admin_password=""
@@ -878,13 +932,6 @@ if [[ "$(sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:admi
   printf '%s\n' "$initial_admin_password" | sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" \
     xpanel:admin-bootstrap --name="Administrador" --email="$initial_admin_email" --password-stdin >/dev/null
   initial_admin_created=true
-fi
-
-cli_ready=true
-if ! install_cli; then
-  cli_ready=false
-elif ! "/usr/local/bin/xpanel" status --root="$ROOT" >/dev/null; then
-  cli_ready=false
 fi
 
 panel_url="$(grep '^APP_URL=' "$ROOT/.env" | tail -n1 | cut -d= -f2-)"
@@ -899,11 +946,7 @@ if [[ "$initial_admin_created" == "true" ]]; then
 else
   echo "Administrador: se conservó la cuenta existente."
 fi
-if [[ "$cli_ready" == "true" ]]; then
-  echo "CLI global: xpanel"
-else
-  echo "CLI: instalación pendiente; el acceso web sí está listo."
-fi
+echo "CLI global: xpanel"
 if [[ "${XPANEL_PANEL_ACCESS_MODE:-ip}" == "domain" ]]; then
   echo "SSL: actívalo después desde Ajustes cuando el dominio esté verificado."
 fi

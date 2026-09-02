@@ -295,4 +295,8 @@ if [[ "$maintenance_enabled" == "true" ]]; then
 fi
 trap - EXIT
 
+chown root:"$site_group" "$ROOT/.env"
+chmod 0640 "$ROOT/.env"
+bash "$ROOT/scripts/verify-host-installation.sh"
+
 echo "XPanel Host actualizado. Respaldo previo: $backup_root"

@@ -83,7 +83,7 @@ Este modo no se instala ejecutando `install.sh` dentro de cada cuenta. Lo aprovi
 
 Para la primera instalación se recomienda un VDS limpio con:
 
-- Debian 12/13 o Ubuntu Server 22.04/24.04.
+- Ubuntu Server 24.04 o posterior, o Debian 13 o posterior. Versiones anteriores sólo son válidas si ya proporcionan PHP 8.3+ con FPM y las extensiones requeridas.
 - Acceso `root` o `sudo`.
 - Una IP pública.
 - Al menos 2 GB de RAM; utiliza más memoria si activas Apache, OpenLiteSpeed o varias cuentas PHP.
@@ -105,6 +105,8 @@ bash install.sh
 ```
 
 El instalador no hace preguntas: configura el acceso inicial por `IP:80`, instala dependencias, servicios, migraciones y la CLI global, crea el primer administrador y muestra la URL, correo y contraseña al finalizar. No solicita dominio, Gmail, correo ACME, SSL ni variables `XPANEL_*`.
+
+Antes de mostrar esas credenciales ejecuta una verificación física del servidor. Si SQLite, sudoers, Laravel, Nginx, PHP-FPM, MariaDB, correo, protección SMTP, cron, renovación SSL, CLI o la página de acceso no están operativos, el proceso se detiene con el componente exacto que debe corregirse y puede ejecutarse nuevamente sin destruir datos. La terminal web permanece desactivada en una instalación predeterminada; para incluirla desde el primer arranque usa `XPANEL_TERMINAL_ENABLED=true bash install.sh`.
 
 ### Acceso inicial y dominio del panel
 
@@ -398,6 +400,15 @@ Cuando Roundcube está habilitado, una actualización ejecutada con `sudo` tambi
 `xpanel serve` utiliza el servidor de desarrollo de Laravel y no debe utilizarse para producción. La desinstalación automática permanece deshabilitada para evitar eliminar datos accidentalmente.
 
 ## Comprobación del servidor
+
+Justo después de instalar —incluso antes de crear el primer sitio— puedes repetir la validación base:
+
+```bash
+cd /opt/xpanel-host
+sudo bash scripts/verify-host-installation.sh
+```
+
+Esta comprobación no crea ni modifica sitios. Valida que el panel standalone y todos sus servicios obligatorios sigan listos.
 
 Después de crear un sitio, SSL y una cuenta de correo puedes ejecutar:
 
