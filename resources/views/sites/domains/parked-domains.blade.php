@@ -54,5 +54,15 @@
       </tbody>
     </table></div>
   </section>
+
+  @if($domains->isNotEmpty())
+  <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 px-5 py-4">
+    <div class="min-w-0">
+      <div class="font-medium text-mono">Completa la activación desde Seguridad → SSL</div>
+      <p class="mt-1 text-sm text-secondary-foreground">Después de apuntar cada alias a <strong>{{ $serverIp ?: 'la IP del servidor' }}</strong>, pulsa <strong>Reemitir</strong> en el certificado del «Sitio destino». XPanel incluirá ese dominio y todos los alias que apuntan a él en el mismo certificado.</p>
+    </div>
+    <a class="kt-btn kt-btn-primary shrink-0" href="{{ route('sites.module', [$site, 'security', 'ssl']) }}">Ir a Seguridad → SSL</a>
+  </div>
+  @endif
 </div></main>@include('layouts.partials.client.footer')</div></div>
 @endsection

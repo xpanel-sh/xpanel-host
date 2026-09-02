@@ -80,7 +80,9 @@ class SiteDomainFeaturesTest extends TestCase
             ->get(route('sites.parked-domains.index', $site))
             ->assertOk()
             ->assertSee('application.example.net')
-            ->assertSee('app.primary.example.com');
+            ->assertSee('app.primary.example.com')
+            ->assertSee('Completa la activación desde Seguridad')
+            ->assertSee(route('sites.module', [$site, 'security', 'ssl']));
     }
 
     public function test_parked_domain_target_is_limited_to_the_current_site_family(): void

@@ -40,7 +40,7 @@
           @if($site->wildcard_domain)
             <p class="mb-5 text-sm text-secondary-foreground">Se emitirá un certificado para {{ $site->domain }} y *.{{ $site->domain }} mediante DNS-01. Conecta primero una zona Cloudflare verificada en Avanzado → Editor DNS; el token se transmite cifrado y sólo por stdin al helper.</p>
           @else
-            <p class="mb-5 text-sm text-secondary-foreground">El dominio principal y todos sus dominios aparcados deben resolver a la IP pública de este VDS; el puerto 80 debe ser accesible. Certbot los incluirá en el mismo certificado mediante webroot, sin detener el servidor web.</p>
+            <p class="mb-5 text-sm text-secondary-foreground">Al activar o reemitir una fila, Certbot generará un certificado para ese dominio y todos los dominios aparcados que apuntan a su entorno. Todos deben resolver a la IP pública de este VDS y el puerto 80 debe ser accesible.</p>
           @endif
           @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
             <form id="ssl-control-form" method="post" action="{{ route('sites.ssl.issue-all', $site) }}" class="grid max-w-4xl gap-4 lg:grid-cols-[minmax(280px,480px)_auto]">
@@ -58,12 +58,20 @@
         <section class="kt-card">
           <div class="kt-card-header"><div><h2 class="kt-card-title">Dominios y subdominios</h2><p class="mt-1 text-xs text-secondary-foreground">Cada certificado se mantiene independiente, pero todos se controlan desde esta página.</p></div></div>
           <div class="overflow-x-auto">
-            <table class="w-full min-w-[760px] text-left">
-              <thead class="border-b border-border text-xs uppercase text-secondary-foreground"><tr><th class="px-5 py-3">Dominio</th><th class="px-5 py-3">Tipo</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3">Vencimiento</th><th class="px-5 py-3">HTTPS</th><th class="px-5 py-3"></th></tr></thead>
+            <table class="w-full min-w-[900px] text-left">
+              <thead class="border-b border-border text-xs uppercase text-secondary-foreground"><tr><th class="px-5 py-3">Certificado para</th><th class="px-5 py-3">Dominios aparcados incluidos</th><th class="px-5 py-3">Tipo</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3">Vencimiento</th><th class="px-5 py-3">HTTPS</th><th class="px-5 py-3"></th></tr></thead>
               <tbody class="divide-y divide-border">
                 @foreach($sslSites as $sslSite)
                   <tr>
                     <td class="px-5 py-4 font-medium text-mono">{{ $sslSite->domain }}</td>
+                    <td class="px-5 py-4">
+                      @if($sslSite->parkedDomains->isEmpty())
+                        <span class="text-sm text-secondary-foreground">Ninguno</span>
+                      @else
+                        <div class="flex max-w-md flex-wrap gap-1.5">@foreach($sslSite->parkedDomains as $alias)<span class="kt-badge kt-badge-outline font-mono">{{ $alias->domain }}</span>@endforeach</div>
+                        <div class="mt-1 text-xs text-secondary-foreground">Se incluirán al activar o reemitir este certificado.</div>
+                      @endif
+                    </td>
                     <td class="px-5 py-4"><span class="kt-badge kt-badge-outline">{{ $sslSite->id === $site->id ? 'Principal' : 'Subdominio' }}</span></td>
                     <td class="px-5 py-4"><span class="kt-badge {{ $sslSite->ssl_status === 'active' ? 'kt-badge-success' : 'kt-badge-outline' }}">{{ $sslSite->ssl_status }}</span></td>
                     <td class="px-5 py-4 text-sm text-secondary-foreground">{{ $sslSite->ssl_expires_at?->format('Y-m-d') ?? '—' }}</td>

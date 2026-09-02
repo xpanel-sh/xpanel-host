@@ -67,7 +67,8 @@ class SiteController extends Controller
                 $data['serverUsage'] = $serverResourceUsage->overview((string) request('period', '24h'), request()->boolean('refresh'));
             }
             if ($section === 'security' && $module === 'ssl') {
-                $data['sslSites'] = collect([$site])->concat($site->subdomains()->get());
+                $site->load('parkedDomains');
+                $data['sslSites'] = collect([$site])->concat($site->subdomains()->with('parkedDomains')->get());
             }
 
             return view($dedicated, $data);

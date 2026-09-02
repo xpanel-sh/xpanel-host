@@ -39,12 +39,23 @@ class CertificateManagementTest extends TestCase
         config()->set('xpanel.management_mode', 'standalone');
         config()->set('xpanel.apply_system_changes', false);
         $site = $this->site();
+        Domain::create([
+            'site_id' => $site->id,
+            'domain' => 'alias.example.net',
+            'type' => 'alias',
+            'dns_status' => 'pending',
+            'ssl_status' => 'pending',
+        ]);
 
         $this->actingAs($this->owner())->post(route('sites.ssl.issue', $site), [
             'email' => 'admin@example.com', 'https_redirect' => '1',
-        ])->assertRedirect();
+        ])->assertRedirect()->assertSessionHas(
+            'status',
+            'La configuración SSL quedó preparada para: secure.example.com, alias.example.net. Se emitirá en el servidor Linux.',
+        );
 
         $this->assertSame('staged', $site->fresh()->ssl_status);
+        $this->assertDatabaseHas('domains', ['domain' => 'alias.example.net', 'ssl_status' => 'staged']);
     }
 
     public function test_core_mode_refuses_local_certbot(): void
@@ -177,12 +188,29 @@ class CertificateManagementTest extends TestCase
             'web_server' => 'nginx',
             'status' => 'active',
         ]);
+        Domain::create([
+            'site_id' => $site->id,
+            'domain' => 'alias-secure.example.net',
+            'type' => 'alias',
+            'dns_status' => 'pending',
+            'ssl_status' => 'pending',
+        ]);
+        Domain::create([
+            'site_id' => $subdomain->id,
+            'domain' => 'alias-rental.example.net',
+            'type' => 'alias',
+            'dns_status' => 'pending',
+            'ssl_status' => 'pending',
+        ]);
 
         $this->actingAs($this->owner())
             ->get(route('sites.module', [$site, 'security', 'ssl']))
             ->assertOk()
             ->assertSee('secure.example.com')
-            ->assertSee('rental.secure.example.com');
+            ->assertSee('rental.secure.example.com')
+            ->assertSee('alias-secure.example.net')
+            ->assertSee('alias-rental.example.net')
+            ->assertSee('Se incluirán al activar o reemitir este certificado.');
 
         $this->actingAs($this->owner())
             ->get(route('sites.module', [$subdomain, 'security', 'ssl']))

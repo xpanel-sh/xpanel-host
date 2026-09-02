@@ -24,9 +24,10 @@ class CertificateController extends Controller
             return back()->withInput()->withErrors(['server' => $exception->getMessage()]);
         }
 
+        $names = $this->certificateNames($site);
         $message = $site->fresh()->ssl_status === 'staged'
-            ? "La configuración SSL para {$site->domain} quedó preparada. Se emitirá en el servidor Linux."
-            : "Certificado SSL emitido para {$site->domain}.";
+            ? 'La configuración SSL quedó preparada para: '.implode(', ', $names).'. Se emitirá en el servidor Linux.'
+            : 'Certificado SSL emitido para: '.implode(', ', $names).'.';
 
         return back()->with('status', $message);
     }
@@ -67,7 +68,7 @@ class CertificateController extends Controller
             $previousStatus = $target->ssl_status;
             try {
                 $provisioner->issue($target, $data['email'], $request->boolean('https_redirect'));
-                $issued[] = $target->domain;
+                $issued[] = implode(', ', $this->certificateNames($target));
             } catch (\Throwable $exception) {
                 $target->update(['ssl_status' => $previousStatus === 'active' ? 'active' : 'error']);
                 $failed[] = $target->domain.': '.$exception->getMessage();
@@ -83,5 +84,11 @@ class CertificateController extends Controller
         }
 
         return $response;
+    }
+
+    /** @return list<string> */
+    private function certificateNames(Site $site): array
+    {
+        return [$site->domain, ...$site->parkedDomains()->pluck('domain')->all()];
     }
 }
