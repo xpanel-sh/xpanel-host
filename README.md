@@ -79,6 +79,8 @@ XPanel VPS reutiliza releases inmutables de este repositorio en vez de mantener 
 
 Este modo no se instala ejecutando `install.sh` dentro de cada cuenta. Lo aprovisiona XPanel VPS. Aunque Host mantiene activado su flujo de cambios, `ServerCommandRunner` intercepta las llamadas al helper y las envía firmadas al broker central: el proceso del cliente nunca recibe sudo. El broker autoriza sitios, runtimes Node, puertos internos, certificados y bases de datos con validación de pertenencia. Los puertos y dominios —incluidos wildcard— se reservan globalmente para impedir cruces entre instancias. VPS inyecta además la slice systemd y el destino PHP-FPM administrado: los pools PHP usan el master independiente de la instancia y las unidades Node.js reciben `Slice=`. Las operaciones globales, como correo, permanecen bloqueadas hasta contar con agregación multi-instancia.
 
+El propietario entra desde la cuenta central de XPanel VPS mediante un token SSO HMAC de un solo uso y duración corta. Host valida firma, instancia, vencimiento y repetición antes de abrir la sesión de un usuario local ya existente; no comparte cookies, sesiones ni bases de datos con Cloud. Por eso distintas cuentas pueden continuar fijadas a releases diferentes de Host.
+
 ## Servidor recomendado
 
 Para la primera instalación se recomienda un VDS limpio con:

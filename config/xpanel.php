@@ -18,6 +18,7 @@ return [
     'control_plane_url' => env('XPANEL_CONTROL_PLANE_URL'),
     'broker_url' => env('XPANEL_BROKER_URL'),
     'broker_secret' => env('XPANEL_BROKER_SECRET'),
+    'sso_enabled' => filter_var(env('XPANEL_SSO_ENABLED', false), FILTER_VALIDATE_BOOL),
     'web_root' => rtrim(env('XPANEL_WEB_ROOT', '/var/www'), '/'),
     'account_user' => env('XPANEL_ACCOUNT_USER', 'xpa'.substr(hash('sha256', (string) env('APP_KEY', 'xpanel-host')), 0, 10)),
     'account_home' => env('XPANEL_ACCOUNT_HOME', '/home/'.env('XPANEL_ACCOUNT_USER', 'xpa'.substr(hash('sha256', (string) env('APP_KEY', 'xpanel-host')), 0, 10))),

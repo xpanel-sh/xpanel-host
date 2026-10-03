@@ -70,6 +70,8 @@ Route::get('/setup', [SetupController::class, 'create'])->name('setup');
 Route::post('/setup', [SetupController::class, 'store']);
 
 Route::middleware('setup.complete')->group(function () {
+    Route::get('/auth/control-plane', \App\Http\Controllers\ControlPlaneSsoController::class)
+        ->middleware('throttle:20,1')->name('control-plane.sso');
     Route::post('/xflow/hooks/{workflow}/{token}', XflowWebhookController::class)
         ->middleware('throttle:30,1')->where('token', '[a-f0-9]{64}')->name('xflow.webhook');
     Route::get('/xmail/login', [XMailController::class, 'login'])->name('xmail.login');
