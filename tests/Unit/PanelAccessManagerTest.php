@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\PanelAccessManager;
+use App\Services\HostBrokerClient;
 use App\Services\ServerCommandRunner;
 use App\Services\SystemDnsResolver;
 use Mockery;
@@ -38,6 +39,25 @@ class PanelAccessManagerTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('todavía no apunta');
         (new PanelAccessManager(Mockery::mock(ServerCommandRunner::class), $dns))->useDomain('panel.example.com');
+    }
+
+    public function test_managed_instance_requests_its_domain_through_the_vps_broker(): void
+    {
+        config([
+            'xpanel.management_mode' => 'vps-instance',
+            'xpanel.server_ipv4' => '203.0.113.10',
+        ]);
+        $dns = Mockery::mock(SystemDnsResolver::class);
+        $dns->shouldReceive('records')->once()->with('panel.example.com', DNS_A)->andReturn([
+            ['type' => 'A', 'ip' => '203.0.113.10'],
+        ]);
+        $broker = Mockery::mock(HostBrokerClient::class);
+        $broker->shouldReceive('execute')->once()
+            ->with('panel-domain-set', ['panel.example.com'], null)
+            ->andReturn('url=https://panel.example.com');
+
+        $manager = new PanelAccessManager(Mockery::mock(ServerCommandRunner::class), $dns, $broker);
+        $this->assertSame('https://panel.example.com', $manager->useDomain('panel.example.com'));
     }
 
     public function test_ip_access_uses_the_detected_server_address_and_configured_port(): void

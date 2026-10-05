@@ -19,16 +19,11 @@ class PanelAccessController extends Controller
             'appUrl' => config('app.url'),
             'sslActive' => str_starts_with((string) config('app.url'), 'https://'),
             'managedByVps' => config('xpanel.management_mode') === 'vps-instance',
-            'controlPlaneUrl' => config('xpanel.control_plane_url'),
         ]);
     }
 
     public function domain(Request $request, PanelAccessManager $access): RedirectResponse
     {
-        if (config('xpanel.management_mode') === 'vps-instance') {
-            return back()->withErrors(['domain' => 'Esta instancia administra su dominio desde XPanel Cloud.']);
-        }
-
         $data = $request->validate([
             'domain' => ['required', 'string', 'max:253', 'regex:/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i'],
         ]);
@@ -39,13 +34,18 @@ class PanelAccessController extends Controller
             return back()->withInput()->withErrors(['domain' => $exception->getMessage()]);
         }
 
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            return back()->with('success', 'Dominio verificado. XPanel está configurando el acceso y el certificado SSL.')
+                ->with('panel_url', $url.'/login');
+        }
+
         return redirect()->away($url.'/login');
     }
 
     public function ip(PanelAccessManager $access): RedirectResponse
     {
         if (config('xpanel.management_mode') === 'vps-instance') {
-            return back()->withErrors(['server' => 'Esta instancia administra su dirección desde XPanel Cloud.']);
+            return back()->withErrors(['server' => 'El acceso por IP y puerto queda reservado como recuperación técnica.']);
         }
 
         try {
@@ -60,7 +60,7 @@ class PanelAccessController extends Controller
     public function ssl(PanelAccessManager $access): RedirectResponse
     {
         if (config('xpanel.management_mode') === 'vps-instance') {
-            return back()->withErrors(['ssl' => 'Esta instancia administra su certificado desde XPanel Cloud.']);
+            return back()->withErrors(['ssl' => 'El certificado se emite automáticamente al verificar el dominio.']);
         }
 
         try {

@@ -9,12 +9,21 @@ class PanelAccessManager
     public function __construct(
         private readonly ServerCommandRunner $commands,
         private readonly SystemDnsResolver $dns,
+        private readonly ?HostBrokerClient $broker = null,
     ) {}
 
     public function useDomain(string $domain): string
     {
         $domain = strtolower(rtrim($domain, '.'));
         $this->verifyDomain($domain);
+
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            return $this->urlFrom(($this->broker ?? app(HostBrokerClient::class))->execute(
+                'panel-domain-set',
+                [$domain],
+                null,
+            ));
+        }
 
         return $this->urlFrom($this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'panel-access-apply', 'domain', $domain,

@@ -21,21 +21,18 @@ class PanelAccessSettingsTest extends TestCase
         $this->actingAs($developer)->get(route('settings.panel-access.index'))->assertForbidden();
     }
 
-    public function test_vps_instance_delegates_panel_address_management_to_cloud(): void
+    public function test_vps_instance_keeps_domain_management_inside_host(): void
     {
         config()->set('xpanel.management_mode', 'vps-instance');
-        config()->set('xpanel.control_plane_url', 'https://cloud.example.test');
+        config()->set('xpanel.server_ipv4', '203.0.113.10');
         $owner = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
 
         $this->actingAs($owner)
             ->get(route('settings.panel-access.index'))
             ->assertOk()
-            ->assertSee('Administrado por XPanel Cloud')
-            ->assertSee('https://cloud.example.test');
-
-        $this->actingAs($owner)
-            ->put(route('settings.panel-access.domain'), ['domain' => 'panel.example.test'])
-            ->assertSessionHasErrors('domain');
+            ->assertSee('Verificar y usar dominio')
+            ->assertSee('203.0.113.10')
+            ->assertDontSee('Administrado por XPanel Cloud');
     }
 
     public function test_bootstrap_status_reports_when_the_initial_owner_is_missing(): void
