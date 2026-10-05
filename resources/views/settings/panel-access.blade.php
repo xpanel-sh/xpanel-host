@@ -32,16 +32,30 @@
             <section class="kt-card">
                 <div class="kt-card-header"><h2 class="kt-card-title">Dominio del panel</h2></div>
                 <div class="kt-card-content p-5">
-                    <p class="mb-4 text-sm text-secondary-foreground">Primero crea un registro A hacia <code>{{ $serverIp }}</code>. Host comprobará el DNS antes de cambiar la dirección.</p>
-                    <form method="post" action="{{ route('settings.panel-access.domain') }}" class="grid gap-4">
-                        @csrf @method('PUT')
-                        <input class="kt-input" name="domain" value="{{ old('domain', $domain) }}" placeholder="panel.example.com" required>
-                        <button class="kt-btn kt-btn-primary" type="submit">Verificar y usar dominio</button>
-                    </form>
+                    @if($managedByVps)
+                        <div class="flex gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                            <i class="ki-filled ki-cloud text-xl text-primary"></i>
+                            <div>
+                                <div class="font-medium text-mono">Administrado por XPanel Cloud</div>
+                                <p class="mt-1 text-sm text-secondary-foreground">La dirección, Nginx y el certificado de esta instancia se administran desde la cuenta de hosting en VPS para conservar el acceso técnico y evitar configuraciones en conflicto.</p>
+                                @if($controlPlaneUrl)
+                                    <a class="kt-btn kt-btn-outline kt-btn-sm mt-3" href="{{ rtrim($controlPlaneUrl, '/') }}" target="_blank" rel="noopener"><i class="ki-filled ki-exit-right-corner"></i>Abrir XPanel Cloud</a>
+                                @endif
+                            </div>
+                        </div>
+                    @else
+                        <p class="mb-4 text-sm text-secondary-foreground">Primero crea un registro A hacia <code>{{ $serverIp }}</code>. Host comprobará el DNS antes de cambiar la dirección.</p>
+                        <form method="post" action="{{ route('settings.panel-access.domain') }}" class="grid gap-4">
+                            @csrf @method('PUT')
+                            <input class="kt-input" name="domain" value="{{ old('domain', $domain) }}" placeholder="panel.example.com" required>
+                            <button class="kt-btn kt-btn-primary" type="submit">Verificar y usar dominio</button>
+                        </form>
+                    @endif
                 </div>
             </section>
         </div>
 
+        @unless($managedByVps)
         <div class="flex flex-wrap gap-3">
             @if ($mode === 'domain' && !$sslActive)
                 <form method="post" action="{{ route('settings.panel-access.ssl') }}">@csrf<button class="kt-btn kt-btn-primary">Instalar SSL verificado</button></form>
@@ -50,6 +64,7 @@
                 <form method="post" action="{{ route('settings.panel-access.ip') }}">@csrf @method('PUT')<button class="kt-btn kt-btn-outline">Volver a http://{{ $serverIp }}:{{ $port }}</button></form>
             @endif
         </div>
+        @endunless
 
         <div class="rounded-xl border border-warning/20 bg-warning/10 p-5 text-sm">
             Al cambiar la dirección se abrirá la nueva URL y tendrás que iniciar sesión nuevamente. No cierres esta página hasta comprobar que la nueva dirección responde.

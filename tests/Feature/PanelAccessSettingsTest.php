@@ -21,6 +21,23 @@ class PanelAccessSettingsTest extends TestCase
         $this->actingAs($developer)->get(route('settings.panel-access.index'))->assertForbidden();
     }
 
+    public function test_vps_instance_delegates_panel_address_management_to_cloud(): void
+    {
+        config()->set('xpanel.management_mode', 'vps-instance');
+        config()->set('xpanel.control_plane_url', 'https://cloud.example.test');
+        $owner = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
+
+        $this->actingAs($owner)
+            ->get(route('settings.panel-access.index'))
+            ->assertOk()
+            ->assertSee('Administrado por XPanel Cloud')
+            ->assertSee('https://cloud.example.test');
+
+        $this->actingAs($owner)
+            ->put(route('settings.panel-access.domain'), ['domain' => 'panel.example.test'])
+            ->assertSessionHasErrors('domain');
+    }
+
     public function test_bootstrap_status_reports_when_the_initial_owner_is_missing(): void
     {
         $this->artisan('xpanel:admin-bootstrap', ['--status-only' => true])
