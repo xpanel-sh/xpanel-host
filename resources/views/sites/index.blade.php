@@ -32,6 +32,14 @@
                         </div>
                     @endif
 
+                    @if ($errors->any())
+                        <div role="alert" class="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+                            @foreach ($errors->all() as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    @endif
+
                     <div class="kt-card">
                         <div class="kt-card-content p-0">
                             <table class="kt-table w-full">
@@ -69,7 +77,7 @@
                                                         <i class="ki-filled ki-notepad-edit"></i>
                                                         Editar
                                                     </a>
-                                                    <form action="{{ route('sites.destroy', $site) }}" method="POST" class="inline" onsubmit="return confirm('Eliminar {{ $site->domain }}?');">
+                                                    <form action="{{ route('sites.destroy', $site) }}" method="POST" class="inline" onsubmit="return confirm('¿Eliminar {{ $site->domain }}? Sus archivos se conservarán en el servidor.');">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button class="kt-btn kt-btn-sm kt-btn-outline kt-btn-destructive" type="submit">Eliminar</button>

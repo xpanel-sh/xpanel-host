@@ -260,6 +260,57 @@ class SiteManagementTest extends TestCase
         $this->assertFileDoesNotExist($vhost->phpPoolPath($site));
     }
 
+    public function test_a_managed_site_removes_its_access_identity_before_disappearing_from_the_list(): void
+    {
+        config(['xpanel.management_mode' => 'vps-instance', 'xpanel.apply_system_changes' => true]);
+        $site = Site::create([
+            'domain' => 'managed.example.com',
+            'document_root' => '/home/xhi0123456789ab/public_html/managed.example.com',
+            'system_user' => 'xps0123451abcdef12',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $commands = \Mockery::mock(ServerCommandRunner::class);
+        $commands->shouldReceive('run')->once()->withArgs(fn (array $command): bool => $command[3] === 'remove')->andReturn('');
+        $commands->shouldReceive('run')->once()->withArgs(fn (array $command): bool => $command[3] === 'access-remove')->andReturn('');
+        $this->app->instance(ServerCommandRunner::class, $commands);
+
+        $this->actingAs($this->userWithRole('developer'))
+            ->delete('/sites/'.$site->domain)
+            ->assertRedirect('/sites')
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('sites', ['id' => $site->id]);
+    }
+
+    public function test_site_deletion_reports_a_broker_failure_on_the_sites_page(): void
+    {
+        config(['xpanel.management_mode' => 'vps-instance', 'xpanel.apply_system_changes' => true]);
+        $site = Site::create([
+            'domain' => 'blocked.example.com',
+            'document_root' => '/home/xhi0123456789ab/public_html/blocked.example.com',
+            'system_user' => 'xps0123451abcdef12',
+            'php_version' => '8.3',
+            'type' => 'php',
+            'web_server' => 'nginx',
+            'status' => 'active',
+        ]);
+
+        $commands = \Mockery::mock(ServerCommandRunner::class);
+        $commands->shouldReceive('run')->once()->andThrow(new \RuntimeException('La acción no está permitida por el broker.'));
+        $this->app->instance(ServerCommandRunner::class, $commands);
+
+        $this->actingAs($this->userWithRole('developer'))
+            ->withHeader('Referer', 'http://localhost/sites')
+            ->followingRedirects()
+            ->delete('/sites/'.$site->domain)
+            ->assertOk()
+            ->assertSee('La acción no está permitida por el broker.');
+        $this->assertDatabaseHas('sites', ['id' => $site->id]);
+    }
+
     public function test_sites_sync_command_rebuilds_backend_and_gateway_files(): void
     {
         $site = Site::create([
