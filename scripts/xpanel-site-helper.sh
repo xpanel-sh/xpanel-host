@@ -504,6 +504,22 @@ ensure_site_identity() {
   done
 }
 
+ensure_account_workspace() {
+  [[ -n "$ACCOUNT_USER" && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]] || return 0
+  valid_account_identity "$ACCOUNT_USER" || fail "Invalid account identity."
+  id "$ACCOUNT_USER" >/dev/null 2>&1 || fail "Account user is unavailable."
+  local account_path owner
+  for account_path in "$ACCOUNT_HOME" "$ACCOUNT_HOME/public_html"; do
+    [[ ! -L "$account_path" ]] || fail "Account workspace is a symlink."
+    if [[ -e "$account_path" ]]; then
+      [[ -d "$account_path" ]] || fail "Account workspace is not a directory."
+      owner="$(stat -c %U -- "$account_path")"
+      [[ "$owner" == root || "$owner" == "$ACCOUNT_USER" ]] || fail "Account workspace has an unexpected owner."
+    fi
+    install -d -o "$ACCOUNT_USER" -g "$ACCOUNT_USER" -m 0750 "$account_path"
+  done
+}
+
 node_project_prepare() {
   local domain="$1" document_root="$2" site_user="$3" node_port="$4"
   local state_dir="/var/lib/xpanel-host/node-state/$domain"
@@ -618,6 +634,7 @@ site_action() {
 
   [[ -f "$vhost_source" ]] || fail "Staged virtual host not found."
   [[ -f "$gateway_source" ]] || fail "Staged gateway route not found."
+  ensure_account_workspace
   ensure_site_identity "$site_user" "$document_root"
   if [[ -n "$ACCOUNT_USER" && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER"; then
     local account_log_dir="$ACCOUNT_HOME/logs/$domain"

@@ -58,6 +58,16 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('ownership-sync-path) ownership_sync_path "$@"', $helper);
     }
 
+    public function test_site_apply_repairs_only_the_account_workspace_before_creating_the_site(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('ensure_account_workspace()', $helper);
+        $this->assertStringContainsString('owner="$(stat -c %U -- "$account_path")"', $helper);
+        $this->assertStringContainsString('install -d -o "$ACCOUNT_USER" -g "$ACCOUNT_USER" -m 0750 "$account_path"', $helper);
+        $this->assertStringContainsString("ensure_account_workspace\n  ensure_site_identity", $helper);
+    }
+
     public function test_legacy_site_roots_are_moved_without_overwriting_a_target(): void
     {
         $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));

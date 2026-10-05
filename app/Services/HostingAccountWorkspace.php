@@ -38,6 +38,9 @@ class HostingAccountWorkspace
     {
         $root = $this->systemRoot();
         if (! is_dir($root)) {
+            if (config('xpanel.apply_system_changes')) {
+                throw new \RuntimeException('La carpeta de la cuenta no existe. Actualiza y reaplica esta instancia de Host desde VPS.');
+            }
             $root = storage_path('app/account-home');
         }
 
@@ -78,14 +81,14 @@ class HostingAccountWorkspace
 
     private function ensureLayout(string $root): void
     {
-        if (! is_dir($root) && ! mkdir($root, 0750, true) && ! is_dir($root)) {
+        if (! is_dir($root) && ! @mkdir($root, 0750, true) && ! is_dir($root)) {
             throw new \RuntimeException('No se pudo crear la raíz local de la cuenta.');
         }
 
         foreach ($this->directories() as $directory) {
             $path = $root.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $directory);
             $mode = str_starts_with($directory, '.xpanel') ? 0700 : 0750;
-            if (! is_dir($path) && ! mkdir($path, $mode, true) && ! is_dir($path)) {
+            if (! is_dir($path) && ! @mkdir($path, $mode, true) && ! is_dir($path)) {
                 throw new \RuntimeException("No se pudo preparar {$directory}.");
             }
         }

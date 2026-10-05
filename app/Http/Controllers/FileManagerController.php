@@ -74,7 +74,9 @@ class FileManagerController extends Controller
         abort_unless(is_dir($dir), 422, 'La ruta no es una carpeta.');
 
         $entries = [];
-        foreach (scandir($dir) ?: [] as $name) {
+        $names = @scandir($dir);
+        abort_if($names === false, 403, 'XPanel no puede leer esta carpeta. Verifica los permisos de la cuenta y sincroniza el sitio.');
+        foreach ($names as $name) {
             if ($name === '.' || $name === '..') {
                 continue;
             }

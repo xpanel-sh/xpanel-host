@@ -36,4 +36,25 @@ class HostingAccountWorkspaceTest extends TestCase
         $this->assertMatchesRegularExpression('/^xpa[a-f0-9]{10}$/', $workspace->user());
         $this->assertSame('/home/'.$workspace->user(), $workspace->systemRoot());
     }
+
+    public function test_a_native_installation_never_uses_the_test_workspace_when_account_home_is_missing(): void
+    {
+        config([
+            'xpanel.account_user' => 'xpa0123456789',
+            'xpanel.account_home' => '/home/xpa0123456789',
+            'xpanel.apply_system_changes' => true,
+        ]);
+
+        $workspace = new class extends HostingAccountWorkspace
+        {
+            public function systemRoot(): string
+            {
+                return storage_path('missing-account-home');
+            }
+        };
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('La carpeta de la cuenta no existe');
+        $workspace->localRoot();
+    }
 }

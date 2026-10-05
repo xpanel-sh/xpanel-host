@@ -4,6 +4,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ## [Sin publicar]
 
+- En Host administrado, el alta de sitios prepara primero el hogar Unix de la cuenta y `public_html` con el usuario correcto, sin cambiar recursivamente archivos del cliente. iKode ya no usa un sandbox local cuando falta el hogar real y comunica el problema de permisos al listar carpetas.
 - iKode incorpora acciones visibles para selección múltiple, menú contextual según archivo/carpeta/espacio vacío, copiar o mover con pegar, ZIP de hasta 100 elementos de entrada y papelera recuperable por ámbito. La sincronización de permisos recursiva se limita a los árboles copiados o restaurados; la consola de Host administrado permanece desactivada hasta disponer de un agente aislado.
 - Host administrado consulta motores habilitados mediante el broker y no ofrece instalar paquetes globales; Apache usa el puerto interno asignado a su propia instancia. Host independiente conserva la instalación local de motores.
 ### Cambiado
