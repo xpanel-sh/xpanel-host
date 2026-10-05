@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
+use App\Services\FileManagerOperations;
+use App\Services\HostingAccountWorkspace;
 use App\Services\OwnershipRepairer;
 use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +18,11 @@ class FileManagerController extends Controller
 {
     use ResolvesSandboxedPath;
 
-    public function __construct(private readonly OwnershipRepairer $ownership) {}
+    public function __construct(
+        private readonly OwnershipRepairer $ownership,
+        private readonly FileManagerOperations $operations,
+        private readonly HostingAccountWorkspace $workspace,
+    ) {}
 
     public function index(Site $site): View
     {
@@ -202,6 +208,96 @@ class FileManagerController extends Controller
 
         return response()->json(['status' => 'deleted']);
     }
+
+    public function copy(Request $request, Site $site): JsonResponse
+    {
+        $data = $request->validate(['paths' => 'required|array|min:1|max:100', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        [$targetSite, $destination] = $this->resolveTarget($site, $data['destination'], mustExist: true);
+        $this->ensureWritable($targetSite, $destination, 'copiar elementos aquí');
+        $sources = [];
+        foreach ($data['paths'] as $virtualPath) {
+            [$sourceSite, $source] = $this->resolveTarget($site, $virtualPath, mustExist: true);
+            abort_unless($sourceSite->is($targetSite), 422, 'No se pueden copiar archivos entre identidades distintas.');
+            abort_if($this->isSiteRoot($sourceSite, $source), 422, 'No se puede copiar la raíz de un sitio.');
+            $sources[] = $source;
+        }
+        $count = $this->operations->copy($sources, $destination);
+        foreach ($sources as $source) {
+            $this->ownership->synchronizeTree($targetSite, $destination.DIRECTORY_SEPARATOR.basename($source));
+        }
+
+        return response()->json(['status' => 'copied', 'count' => $count]);
+    }
+
+    public function compress(Request $request, Site $site): JsonResponse
+    {
+        $data = $request->validate(['paths' => 'required|array|min:1|max:100', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        [$targetSite, $target] = $this->resolveTarget($site, $data['destination']);
+        $this->assertSafeName(basename($target));
+        $this->ensureWritable($targetSite, dirname($target), 'crear el ZIP');
+        $sources = [];
+        foreach ($data['paths'] as $virtualPath) {
+            [$sourceSite, $source] = $this->resolveTarget($site, $virtualPath, mustExist: true);
+            abort_unless($sourceSite->is($targetSite), 422, 'No se pueden comprimir archivos de identidades distintas.');
+            abort_if($this->isSiteRoot($sourceSite, $source), 422, 'No se puede comprimir la raíz de un sitio.');
+            $sources[] = $source;
+        }
+        $count = $this->operations->compress($sources, $target);
+        $this->ownership->synchronizePath($targetSite, $target);
+
+        return response()->json(['status' => 'compressed', 'count' => $count]);
+    }
+
+    public function trash(Request $request, Site $site): JsonResponse
+    {
+        $data = $request->validate(['path' => 'required|string']);
+        [$targetSite, $source] = $this->resolveTarget($site, $data['path'], mustExist: true);
+        abort_if($this->isSiteRoot($targetSite, $source), 422, 'No se puede enviar la raíz del sitio a la papelera.');
+        $this->ensureWritable($targetSite, dirname($source), 'enviar este elemento a la papelera');
+
+        return response()->json($this->operations->trash($source, $data['path'], 'site:'.$site->id, $this->trashRoot()));
+    }
+
+    public function trashList(Site $site): JsonResponse
+    {
+        return response()->json(['entries' => $this->operations->listTrash($this->trashRoot(), 'site:'.$site->id)]);
+    }
+
+    public function restore(Request $request, Site $site): JsonResponse
+    {
+        $data = $request->validate(['id' => 'required|uuid']);
+        $restoredSite = null;
+        $target = $this->operations->restore($data['id'], $this->trashRoot(), 'site:'.$site->id, function (string $virtualPath) use ($site, &$restoredSite): string {
+            [$targetSite, $target] = $this->resolveTarget($site, $virtualPath);
+            abort_if($this->isSiteRoot($targetSite, $target), 422, 'Ruta protegida.');
+            $this->ensureWritable($targetSite, dirname($target), 'restaurar este elemento');
+            $restoredSite = $targetSite;
+
+            return $target;
+        });
+        $this->ownership->synchronizeTree($restoredSite, $target);
+
+        return response()->json(['status' => 'restored']);
+    }
+
+    public function purge(Request $request, Site $site): JsonResponse
+    {
+        $data = $request->validate(['id' => 'required|uuid']);
+        $this->operations->purge($data['id'], $this->trashRoot(), 'site:'.$site->id);
+
+        return response()->json(['status' => 'purged']);
+    }
+
+    private function trashRoot(): string
+    {
+        return $this->workspace->localRoot().'/.trash/ikode';
+    }
+
+    private function isSiteRoot(Site $site, string $path): bool
+    {
+        return rtrim(str_replace('\\', '/', $path), '/') === rtrim(str_replace('\\', '/', $site->localRoot()), '/');
+    }
+
 
     public function upload(Request $request, Site $site): JsonResponse
     {

@@ -222,4 +222,43 @@ class GlobalFileManagerTest extends TestCase
             'path' => "/public_html/{$site->domain}/evil.php", 'content' => 'evil',
         ])->assertForbidden();
     }
+
+    public function test_account_files_can_be_copied_trashed_restored_and_purged(): void
+    {
+        $site = $this->site('operations-'.uniqid().'.example.com');
+        $directory = $this->siteDirectory($site->domain);
+        file_put_contents($directory.'/note.txt', 'content');
+        mkdir($directory.'/copies');
+        $user = $this->userWithRole('developer');
+        $source = "/public_html/{$site->domain}/note.txt";
+
+        $this->actingAs($user)->postJson(route('sites.ikode.api.copy'), [
+            'paths' => [$source], 'destination' => "/public_html/{$site->domain}/copies",
+        ])->assertOk();
+        $this->assertSame('content', file_get_contents($directory.'/copies/note.txt'));
+
+        $id = $this->actingAs($user)->postJson(route('sites.ikode.api.trash'), ['path' => $source])
+            ->assertOk()->json('id');
+        $this->actingAs($user)->getJson(route('sites.ikode.api.list', ['path' => '/.trash/ikode']))
+            ->assertForbidden();
+        $this->assertFileDoesNotExist($directory.'/note.txt');
+        $this->actingAs($user)->postJson(route('sites.ikode.api.trash.restore'), ['id' => $id])->assertOk();
+        $this->assertSame('content', file_get_contents($directory.'/note.txt'));
+
+        $id = $this->actingAs($user)->postJson(route('sites.ikode.api.trash'), ['path' => $source])
+            ->assertOk()->json('id');
+        $this->actingAs($user)->postJson(route('sites.ikode.api.trash.purge'), ['id' => $id])->assertOk();
+        $this->actingAs($user)->getJson(route('sites.ikode.api.trash.list'))->assertJsonMissing(['id' => $id]);
+    }
+
+    public function test_account_copy_and_trash_do_not_mutate_protected_roots(): void
+    {
+        $user = $this->userWithRole('developer');
+        $this->actingAs($user)->postJson(route('sites.ikode.api.copy'), [
+            'paths' => ['/public_html'], 'destination' => '/tmp',
+        ])->assertUnprocessable();
+        $this->actingAs($user)->postJson(route('sites.ikode.api.trash'), [
+            'path' => '/public_html',
+        ])->assertUnprocessable();
+    }
 }

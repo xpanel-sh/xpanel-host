@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Site;
 use App\Services\HostingAccountWorkspace;
+use App\Services\FileManagerOperations;
 use App\Services\OwnershipRepairer;
 use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
@@ -20,11 +21,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class GlobalFileManagerController extends Controller
 {
-    use ResolvesSandboxedPath;
+    use ResolvesSandboxedPath {
+        resolveWithinRoot as private resolveSandboxedPath;
+    }
 
     public function __construct(
         private readonly HostingAccountWorkspace $workspace,
         private readonly OwnershipRepairer $ownership,
+        private readonly FileManagerOperations $operations,
     ) {}
 
     public function ikode(): View
@@ -58,6 +62,9 @@ class GlobalFileManagerController extends Controller
         foreach ($names as $name) {
             if ($name === '.' || $name === '..') {
                 continue;
+            }
+            if ($path === '/.trash' && $name === 'ikode') {
+                continue; // Internal recycle-bin payloads are managed by the dedicated UI.
             }
             $full = $dir.DIRECTORY_SEPARATOR.$name;
             $isDir = is_dir($full);
@@ -185,6 +192,96 @@ class GlobalFileManagerController extends Controller
         }
 
         return response()->json(['status' => 'deleted']);
+    }
+
+    public function copy(Request $request): JsonResponse
+    {
+        $data = $request->validate(['paths' => 'required|array|min:1|max:100', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        $root = $this->workspace->localRoot();
+        $destination = $this->resolveWithinRoot($root, $data['destination'], mustExist: true);
+        $sources = [];
+        foreach ($data['paths'] as $path) {
+            $source = $this->resolveWithinRoot($root, $path, mustExist: true);
+            abort_if($source === $root || $this->isProtectedRoot($root, $source), 422, 'Esta carpeta forma parte de la estructura de la cuenta.');
+            $sources[] = $source;
+        }
+        $count = $this->operations->copy($sources, $destination);
+        foreach ($sources as $source) {
+            $this->ownership->synchronizeManagedTree($destination.DIRECTORY_SEPARATOR.basename($source));
+        }
+
+        return response()->json(['status' => 'copied', 'count' => $count]);
+    }
+
+    public function compress(Request $request): JsonResponse
+    {
+        $data = $request->validate(['paths' => 'required|array|min:1|max:100', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        $root = $this->workspace->localRoot();
+        $target = $this->resolveWithinRoot($root, $data['destination']);
+        $this->assertSafeName(basename($target));
+        $sources = [];
+        foreach ($data['paths'] as $path) {
+            $source = $this->resolveWithinRoot($root, $path, mustExist: true);
+            abort_if($source === $root || $this->isProtectedRoot($root, $source), 422, 'Esta carpeta forma parte de la estructura de la cuenta.');
+            $sources[] = $source;
+        }
+        $count = $this->operations->compress($sources, $target);
+        $this->ownership->synchronizeManagedPath($target);
+
+        return response()->json(['status' => 'compressed', 'count' => $count]);
+    }
+
+    public function trash(Request $request): JsonResponse
+    {
+        $data = $request->validate(['path' => 'required|string']);
+        $root = $this->workspace->localRoot();
+        $source = $this->resolveWithinRoot($root, $data['path'], mustExist: true);
+        abort_if($source === $root || $this->isProtectedRoot($root, $source), 422, 'Esta carpeta forma parte de la estructura de la cuenta.');
+
+        return response()->json($this->operations->trash($source, $data['path'], 'account', $this->trashRoot()));
+    }
+
+    public function trashList(): JsonResponse
+    {
+        return response()->json(['entries' => $this->operations->listTrash($this->trashRoot(), 'account')]);
+    }
+
+    public function restore(Request $request): JsonResponse
+    {
+        $data = $request->validate(['id' => 'required|uuid']);
+        $root = $this->workspace->localRoot();
+        $target = $this->operations->restore($data['id'], $this->trashRoot(), 'account', function (string $path) use ($root): string {
+            $target = $this->resolveWithinRoot($root, $path);
+            abort_if($target === $root || $this->isProtectedRoot($root, $target), 422, 'Ruta protegida.');
+
+            return $target;
+        });
+        $this->ownership->synchronizeManagedTree($target);
+
+        return response()->json(['status' => 'restored']);
+    }
+
+    public function purge(Request $request): JsonResponse
+    {
+        $data = $request->validate(['id' => 'required|uuid']);
+        $this->operations->purge($data['id'], $this->trashRoot(), 'account');
+
+        return response()->json(['status' => 'purged']);
+    }
+
+    private function trashRoot(): string
+    {
+        return $this->workspace->localRoot().'/.trash/ikode';
+    }
+
+    private function resolveWithinRoot(string $root, string $requestedPath, bool $mustExist = false): string
+    {
+        $target = $this->resolveSandboxedPath($root, $requestedPath, $mustExist);
+        $internalTrash = rtrim(str_replace('\\', '/', realpath($root) ?: $root), '/').'/.trash/ikode';
+        $normalized = str_replace('\\', '/', $target);
+        abort_if($normalized === $internalTrash || str_starts_with($normalized, $internalTrash.'/'), 403, 'Usa la papelera de iKode para gestionar este elemento.');
+
+        return $target;
     }
 
     public function upload(Request $request): JsonResponse

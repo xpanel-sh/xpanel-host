@@ -51,6 +51,39 @@ class OwnershipRepairer
         ]);
     }
 
+    public function synchronizeTree(Site $site, string $path): void
+    {
+        if (! config('xpanel.apply_system_changes')) {
+            return;
+        }
+        $root = str_replace('\\', '/', realpath($site->document_root) ?: $site->document_root);
+        $target = str_replace('\\', '/', realpath($path) ?: $path);
+        if ($target !== $root && ! str_starts_with($target, $root.'/')) {
+            throw new \RuntimeException('La ruta modificada no pertenece al sitio.');
+        }
+        $this->commands->run([
+            'sudo', '-n', (string) config('xpanel.site_helper'), 'ownership-sync-tree',
+            $site->domain, $site->document_root, $site->systemUser(), $target,
+        ], timeout: 300);
+    }
+
+    public function synchronizeManagedTree(string $path): void
+    {
+        if (! config('xpanel.apply_system_changes')) {
+            return;
+        }
+        $target = str_replace('\\', '/', realpath($path) ?: $path);
+        $site = Site::query()->get()->sortByDesc(fn (Site $candidate): int => strlen($candidate->document_root))
+            ->first(function (Site $candidate) use ($target): bool {
+                $root = str_replace('\\', '/', realpath($candidate->document_root) ?: $candidate->document_root);
+
+                return $target === $root || str_starts_with($target, $root.'/');
+            });
+        if ($site) {
+            $this->synchronizeTree($site, $target);
+        }
+    }
+
     /**
      * Refresh only the root ACL used by iKode. This is intentionally not a
      * recursive ownership repair; individual operations repair their exact

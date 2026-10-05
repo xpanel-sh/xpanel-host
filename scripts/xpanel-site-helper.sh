@@ -856,6 +856,32 @@ ownership_sync_path() {
   fi
 }
 
+ownership_sync_tree() {
+  local domain="$2" document_root="$3" site_user="$4" target="$5" resolved_root resolved_target
+  valid_domain "$domain" || fail "Invalid ownership domain."
+  valid_document_root "$document_root" || fail "Invalid ownership document root."
+  valid_site_identity "$site_user" || fail "Invalid ownership site user."
+  [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root is unavailable."
+  [[ "$target" == "$document_root" || "$target" == "$document_root/"* ]] || fail "Ownership target is outside the site."
+  [[ -e "$target" && ! -L "$target" ]] || fail "Ownership target is unavailable."
+  resolved_root="$(realpath -e -- "$document_root")"
+  resolved_target="$(realpath -e -- "$target")"
+  [[ "$resolved_target" == "$resolved_root" || "$resolved_target" == "$resolved_root/"* ]] || fail "Ownership target follows a link outside the site."
+  if [[ -d "$target" ]]; then
+    chown_site_content "$target" "$site_user"
+    find -P "$target" -xdev -type d -exec chmod u+rwx,go-w,go+rx {} +
+    find -P "$target" -xdev -type f -exec chmod u+rw,go-w {} +
+    setfacl -R -m "u:$SITE_USER:rwX" "$target"
+    find -P "$target" -xdev -type d -exec setfacl -m "d:u:$SITE_USER:rwx" {} +
+    if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
+      setfacl -R -m "u:$ACCOUNT_USER:rwX" "$target"
+      find -P "$target" -xdev -type d -exec setfacl -m "d:u:$ACCOUNT_USER:rwx" {} +
+    fi
+  else
+    ownership_sync_path ownership-sync-path "$domain" "$document_root" "$site_user" "$target"
+  fi
+}
+
 malware_scan() {
   local domain="$2" document_root="$3"
   valid_domain "$domain" || fail "Invalid malware scan domain."
@@ -2339,6 +2365,7 @@ case "$ACTION" in
   error-pages-sync) error_pages_sync "$@" ;;
   ownership-fix) ownership_fix "$@" ;;
   ownership-sync-path) ownership_sync_path "$@" ;;
+  ownership-sync-tree) ownership_sync_tree "$@" ;;
   malware-scan) MALWARE_FINDINGS=(); malware_scan "$@" ;;
   malware-quarantine) malware_quarantine "$@" ;;
   wordpress-install) wordpress_install "$@" ;;

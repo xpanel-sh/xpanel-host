@@ -195,6 +195,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::get('/list', [GlobalFileManagerController::class, 'list'])->name('list');
                 Route::get('/read', [GlobalFileManagerController::class, 'read'])->name('read');
                 Route::get('/download', [GlobalFileManagerController::class, 'download'])->name('download');
+                Route::get('/trash', [GlobalFileManagerController::class, 'trashList'])->name('trash.list');
                 Route::post('/search', [GlobalFileManagerController::class, 'search'])->name('search');
                 Route::get('/agents', [IkodeAgentController::class, 'state'])->name('agents.state');
             });
@@ -250,6 +251,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::get('/list', [FileManagerController::class, 'list'])->name('list');
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
                 Route::get('/download', [FileManagerController::class, 'download'])->name('download');
+                Route::get('/trash', [FileManagerController::class, 'trashList'])->name('trash.list');
                 Route::post('/search', [FileManagerController::class, 'search'])->name('search');
                 Route::get('/agents', [IkodeAgentController::class, 'state'])->name('agents.state');
             });
@@ -328,6 +330,11 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/delete', [GlobalFileManagerController::class, 'destroy'])->name('delete');
                 Route::post('/upload', [GlobalFileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [GlobalFileManagerController::class, 'extract'])->name('extract');
+                Route::post('/copy', [GlobalFileManagerController::class, 'copy'])->name('copy');
+                Route::post('/compress', [GlobalFileManagerController::class, 'compress'])->name('compress');
+                Route::post('/trash', [GlobalFileManagerController::class, 'trash'])->name('trash');
+                Route::post('/trash/restore', [GlobalFileManagerController::class, 'restore'])->name('trash.restore');
+                Route::post('/trash/purge', [GlobalFileManagerController::class, 'purge'])->name('trash.purge');
                 Route::post('/agents/connections', [IkodeAgentController::class, 'storeConnection'])->name('agents.connections.store');
                 Route::put('/agents/connections/{connection}', [IkodeAgentController::class, 'updateConnection'])->name('agents.connections.update');
                 Route::delete('/agents/connections/{connection}', [IkodeAgentController::class, 'destroyConnection'])->name('agents.connections.destroy');
@@ -343,6 +350,11 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/delete', [FileManagerController::class, 'destroy'])->name('delete');
                 Route::post('/upload', [FileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [FileManagerController::class, 'extract'])->name('extract');
+                Route::post('/copy', [FileManagerController::class, 'copy'])->name('copy');
+                Route::post('/compress', [FileManagerController::class, 'compress'])->name('compress');
+                Route::post('/trash', [FileManagerController::class, 'trash'])->name('trash');
+                Route::post('/trash/restore', [FileManagerController::class, 'restore'])->name('trash.restore');
+                Route::post('/trash/purge', [FileManagerController::class, 'purge'])->name('trash.purge');
                 Route::post('/agents/connections', [IkodeAgentController::class, 'storeConnection'])->name('agents.connections.store');
                 Route::put('/agents/connections/{connection}', [IkodeAgentController::class, 'updateConnection'])->name('agents.connections.update');
                 Route::delete('/agents/connections/{connection}', [IkodeAgentController::class, 'destroyConnection'])->name('agents.connections.destroy');

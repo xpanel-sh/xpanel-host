@@ -48,6 +48,10 @@ class FileManagerTest extends TestCase
                 $this->removeDir($dir);
             }
         }
+        $testTrash = storage_path('app/account-home/.trash/ikode');
+        if (is_dir($testTrash)) {
+            $this->removeDir($testTrash);
+        }
         parent::tearDown();
     }
 
@@ -111,7 +115,7 @@ class FileManagerTest extends TestCase
         $this->assertStringContainsString('selectedPaths: new Set()', $template);
         $this->assertStringContainsString('const selectAllInCurrentFolder = () =>', $template);
         $this->assertStringContainsString('const bindMarqueeSelection = () =>', $template);
-        $this->assertStringContainsString('¿Eliminar los ${entries.length} elementos seleccionados?', $template);
+        $this->assertStringContainsString('¿Enviar ${entries.length} elementos y el contenido de sus carpetas a la papelera?', $template);
     }
 
     public function test_create_endpoint_places_a_new_file_inside_the_requested_subdirectory(): void
@@ -397,5 +401,82 @@ class FileManagerTest extends TestCase
             @unlink($link);
             @rmdir($outside);
         }
+    }
+
+    public function test_site_copy_zip_and_recoverable_trash_work_within_its_root(): void
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is not installed.');
+        }
+        $site = $this->site();
+        $user = $this->userWithRole('developer');
+        $root = $site->localRoot();
+        mkdir($root.'/assets');
+        file_put_contents($root.'/assets/readme.txt', 'hello');
+        mkdir($root.'/copies');
+
+        $this->actingAs($user)->postJson(route('sites.files.api.copy', $site), [
+            'paths' => ['/assets'], 'destination' => '/copies',
+        ])->assertOk()->assertJson(['status' => 'copied']);
+        $this->assertSame('hello', file_get_contents($root.'/copies/assets/readme.txt'));
+
+        $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
+            'paths' => ['/assets', '/copies'], 'destination' => '/bundle.zip',
+        ])->assertOk()->assertJson(['status' => 'compressed']);
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($root.'/bundle.zip') === true);
+        $this->assertSame('hello', $zip->getFromName('assets/readme.txt'));
+        $zip->close();
+
+        $trash = $this->actingAs($user)->postJson(route('sites.files.api.trash', $site), ['path' => '/assets'])
+            ->assertOk()->json();
+        $this->assertDirectoryDoesNotExist($root.'/assets');
+        $this->actingAs($user)->getJson(route('sites.files.api.trash.list', $site))->assertOk()
+            ->assertJsonFragment(['id' => $trash['id'], 'path' => '/assets']);
+        $this->actingAs($user)->postJson(route('sites.files.api.trash.restore', $site), ['id' => $trash['id']])
+            ->assertOk();
+        $this->assertSame('hello', file_get_contents($root.'/assets/readme.txt'));
+    }
+
+    public function test_site_file_operations_reject_other_site_paths_and_root_deletion(): void
+    {
+        $site = $this->site();
+        $other = $this->subdomain($site, 'other-'.uniqid().'.example.com');
+        file_put_contents($site->localRoot().'/file.txt', 'safe');
+        $user = $this->userWithRole('developer');
+
+        $this->actingAs($user)->postJson(route('sites.files.api.copy', $site), [
+            'paths' => ['/'.$site->domain.'/file.txt'], 'destination' => '/'.$other->domain,
+        ])->assertUnprocessable();
+        $this->actingAs($user)->postJson(route('sites.files.api.trash', $site), [
+            'path' => '/'.$site->domain,
+        ])->assertUnprocessable();
+        $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
+            'paths' => ['/../escape'], 'destination' => '/archive.zip',
+        ])->assertForbidden();
+        mkdir($site->localRoot().'/nested');
+        $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
+            'paths' => ['/nested'], 'destination' => '/nested/archive.zip',
+        ])->assertUnprocessable();
+    }
+
+    public function test_trash_cannot_be_restored_from_another_site_or_overwrite_a_replacement(): void
+    {
+        $first = $this->site();
+        $second = $this->site();
+        file_put_contents($first->localRoot().'/important.txt', 'original');
+        $user = $this->userWithRole('developer');
+        $id = $this->actingAs($user)->postJson(route('sites.files.api.trash', $first), ['path' => '/important.txt'])
+            ->assertOk()->json('id');
+
+        $this->actingAs($user)->getJson(route('sites.files.api.trash.list', $second))
+            ->assertOk()->assertJsonCount(0, 'entries');
+        $this->actingAs($user)->postJson(route('sites.files.api.trash.restore', $second), ['id' => $id])
+            ->assertNotFound();
+
+        file_put_contents($first->localRoot().'/important.txt', 'replacement');
+        $this->actingAs($user)->postJson(route('sites.files.api.trash.restore', $first), ['id' => $id])
+            ->assertUnprocessable();
+        $this->assertSame('replacement', file_get_contents($first->localRoot().'/important.txt'));
     }
 }

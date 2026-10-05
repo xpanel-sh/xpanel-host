@@ -194,6 +194,20 @@
             color: var(--muted-foreground);
             font-size: 10px;
         }
+        .xpanel-selection-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            padding: 6px 8px;
+            border-bottom: 1px solid hsl(var(--border));
+            background: hsl(var(--primary) / .06);
+        }
+        .xpanel-selection-toolbar[hidden] { display: none; }
+        .xpanel-selection-toolbar .kt-btn { min-height: 27px; padding: 2px 7px; font-size: 11px; }
+        .xpanel-trash-list { max-height: min(55vh, 420px); overflow-y: auto; }
+        .xpanel-trash-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid hsl(var(--border)); }
+        .xpanel-trash-row:last-child { border-bottom: 0; }
         .xpanel-selection-box {
             position: fixed;
             z-index: 90;
@@ -986,7 +1000,20 @@
                             <button class="ikode_left_action_btn" type="button" data-fm-action="refresh" title="Refrescar">
                                 <i class="ki-filled ki-arrows-circle"></i>
                             </button>
+                            <button class="ikode_left_action_btn" type="button" data-fm-action="paste" title="Pegar en la carpeta actual" disabled>
+                                <i class="ki-filled ki-file-added"></i>
+                            </button>
+                            <button class="ikode_left_action_btn" type="button" data-fm-action="trash-list" title="Papelera">
+                                <i class="ki-filled ki-trash"></i>
+                            </button>
                         </div>
+                    </div>
+                    <div class="xpanel-selection-toolbar" id="xpanel_selection_toolbar" hidden>
+                        <strong class="text-xs text-mono" id="xpanel_selection_toolbar_count">0 seleccionados</strong>
+                        <button class="kt-btn kt-btn-outline" type="button" data-fm-action="copy"><i class="ki-filled ki-copy"></i> Copiar</button>
+                        <button class="kt-btn kt-btn-outline" type="button" data-fm-action="cut"><i class="ki-filled ki-arrow-right"></i> Mover</button>
+                        <button class="kt-btn kt-btn-outline" type="button" data-fm-action="compress"><i class="ki-filled ki-archive"></i> ZIP</button>
+                        <button class="kt-btn kt-btn-outline text-destructive" type="button" data-fm-action="delete-selected"><i class="ki-filled ki-trash"></i> Papelera</button>
                     </div>
                     <div class="xpanel-file-progress-wrap" id="xpanel_file_progress_wrap" hidden>
                         <progress id="xpanel_file_progress" max="100" value="0">0%</progress>
@@ -1181,7 +1208,7 @@
                                     @if($webTerminalEnabled)
                                         <div id="xpanel_terminal_mounts" class="xpanel-terminal-mounts"></div>
                                     @else
-                                        <div class="xpanel-terminal-disabled">{{ $site ? 'Terminal desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.' }}</div>
+                                        <div class="xpanel-terminal-disabled">{{ config('xpanel.management_mode') === 'vps-instance' ? 'La terminal de esta instancia aún no está habilitada por XPanel VPS. Los archivos sí permanecen limitados a este hosting.' : ($site ? 'Terminal desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.') }}</div>
                                     @endif
                                 </section>
                             </div>
@@ -1317,21 +1344,26 @@
     </div>
 
 
-<div id="xpanel_ctx_menu" class="fixed hidden z-50 w-48 rounded-md border border-border bg-background shadow-2xl py-1 text-sm overflow-hidden">
-    <button type="button" data-fm-action="new-file" class="w-full text-left px-4 py-2 hover:bg-muted">Nuevo archivo</button>
-    <button type="button" data-fm-action="new-folder" class="w-full text-left px-4 py-2 hover:bg-muted">Nueva carpeta</button>
+<div id="xpanel_ctx_menu" class="fixed hidden z-[105] w-48 max-h-[calc(100vh-16px)] overflow-y-auto rounded-md border border-border bg-background shadow-2xl py-1 text-sm">
+    <button type="button" data-fm-action="new-file" data-context="blank" class="w-full text-left px-4 py-2 hover:bg-muted">Nuevo archivo</button>
+    <button type="button" data-fm-action="new-folder" data-context="blank" class="w-full text-left px-4 py-2 hover:bg-muted">Nueva carpeta</button>
     <div class="border-t border-border my-1"></div>
-    <button type="button" data-fm-action="open" class="w-full text-left px-4 py-2 hover:bg-muted">Abrir / editar</button>
-    <button type="button" data-fm-action="extract" data-archive-only class="w-full text-left px-4 py-2 hover:bg-muted">Descomprimir aqui</button>
-    <button type="button" data-fm-action="rename" class="w-full text-left px-4 py-2 hover:bg-muted">Renombrar</button>
-    <button type="button" data-fm-action="download" class="w-full text-left px-4 py-2 hover:bg-muted">Descargar</button>
+    <button type="button" data-fm-action="open" data-context="single" class="w-full text-left px-4 py-2 hover:bg-muted">Abrir / editar</button>
+    <button type="button" data-fm-action="extract" data-context="single" data-archive-only class="w-full text-left px-4 py-2 hover:bg-muted">Descomprimir aquí</button>
+    <button type="button" data-fm-action="rename" data-context="single" class="w-full text-left px-4 py-2 hover:bg-muted">Renombrar</button>
+    <button type="button" data-fm-action="download" data-context="file" class="w-full text-left px-4 py-2 hover:bg-muted">Descargar</button>
+    <button type="button" data-fm-action="copy" data-context="selection" class="w-full text-left px-4 py-2 hover:bg-muted">Copiar</button>
+    <button type="button" data-fm-action="cut" data-context="selection" class="w-full text-left px-4 py-2 hover:bg-muted">Mover...</button>
+    <button type="button" data-fm-action="paste" data-context="paste" class="w-full text-left px-4 py-2 hover:bg-muted">Pegar aquí</button>
+    <button type="button" data-fm-action="compress" data-context="selection" class="w-full text-left px-4 py-2 hover:bg-muted">Comprimir ZIP</button>
     <div class="border-t border-border my-1"></div>
-    <button type="button" data-fm-action="delete" class="w-full text-left px-4 py-2 hover:bg-destructive/10 text-destructive"><span data-delete-label>Eliminar</span></button>
+    <button type="button" data-fm-action="delete" data-context="selection" class="w-full text-left px-4 py-2 hover:bg-destructive/10 text-destructive"><span data-delete-label>Enviar a papelera</span></button>
+    <button type="button" data-fm-action="trash-list" data-context="blank" class="w-full text-left px-4 py-2 hover:bg-muted">Abrir papelera</button>
 </div>
 
 <input type="file" id="xpanel_upload_input" class="hidden" multiple>
 
-<div id="xpanel_input_modal" class="fixed inset-0 hidden z-50 items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="xpanel_input_modal" class="fixed inset-0 hidden z-[110] items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="w-full max-w-sm bg-background border border-border rounded-md p-6 shadow-2xl">
         <h3 id="xpanel_input_title" class="text-base font-semibold text-mono mb-4"></h3>
         <input id="xpanel_input_value" type="text" class="kt-input w-full mb-4">
@@ -1339,6 +1371,16 @@
             <button type="button" class="kt-btn kt-btn-outline" data-input-cancel>Cancelar</button>
             <button type="button" class="kt-btn kt-btn-primary" data-input-confirm>Confirmar</button>
         </div>
+    </div>
+</div>
+
+<div id="xpanel_trash_modal" class="fixed inset-0 hidden z-[110] items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="xpanel_trash_title">
+    <div class="w-full max-w-xl max-h-[80vh] overflow-hidden bg-background border border-border rounded-lg p-5 shadow-2xl m-4">
+        <div class="flex items-center justify-between gap-3 mb-3">
+            <div><h3 id="xpanel_trash_title" class="text-base font-semibold text-mono">Papelera</h3><p class="text-xs text-secondary-foreground">Restaura un elemento o elimínalo definitivamente.</p></div>
+            <button type="button" class="kt-btn kt-btn-outline" id="xpanel_trash_close" aria-label="Cerrar papelera">Cerrar</button>
+        </div>
+        <div id="xpanel_trash_list" class="xpanel-trash-list text-sm"></div>
     </div>
 </div>
 
@@ -1379,6 +1421,8 @@
                 loadingDirs: new Set(),
                 selected: null,
                 selectedPaths: new Set(),
+                clipboard: null,
+                trashReturnFocus: null,
                 selectionAnchor: null,
                 ctxEntry: null,
                 ctxDirectory: '/',
@@ -1607,7 +1651,7 @@
 
             const toast = (message, type = 'success') => {
                 const el = document.createElement('div');
-                el.className = `fixed bottom-6 right-6 z-[100] px-5 py-3 rounded-md text-sm font-semibold shadow-2xl ${type === 'error' ? 'bg-destructive/15 border border-destructive/30 text-destructive' : 'bg-green-500/15 border border-green-500/30 text-green-500'}`;
+                el.className = `fixed bottom-6 right-6 z-[120] px-5 py-3 rounded-md text-sm font-semibold shadow-2xl ${type === 'error' ? 'bg-destructive/15 border border-destructive/30 text-destructive' : 'bg-green-500/15 border border-green-500/30 text-green-500'}`;
                 el.textContent = message;
                 document.body.appendChild(el);
                 setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 250); }, 2600);
@@ -1888,11 +1932,16 @@
                 const count = state.selectedPaths.size;
                 const label = $('#xpanel_selection_count');
                 if (label) label.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+                const toolbar = $('#xpanel_selection_toolbar');
+                if (toolbar) toolbar.hidden = count < 2;
+                const toolbarCount = $('#xpanel_selection_toolbar_count');
+                if (toolbarCount) toolbarCount.textContent = `${count} seleccionados`;
                 $$('[data-fm-action="delete-selected"]').forEach((button) => {
                     button.disabled = deletableSelection().length === 0;
                 });
+                $$('[data-fm-action="paste"]').forEach((button) => { button.disabled = !state.clipboard?.paths?.length; });
                 const deleteLabel = $('[data-delete-label]');
-                if (deleteLabel) deleteLabel.textContent = count > 1 ? `Eliminar ${count} seleccionados` : 'Eliminar';
+                if (deleteLabel) deleteLabel.textContent = count > 1 ? `Enviar ${count} a papelera` : 'Enviar a papelera';
             };
 
             const renderInfo = (entry = state.selected) => {
@@ -2855,16 +2904,16 @@
                 entries = entries.filter((entry, index, all) => !all.slice(0, index)
                     .some((parent) => parent.is_dir && entry.path.startsWith(`${parent.path}/`)));
                 const question = entries.length === 1
-                    ? `¿Eliminar "${entries[0].name}"?`
-                    : `¿Eliminar los ${entries.length} elementos seleccionados? Esta acción también borrará el contenido de las carpetas.`;
+                    ? `¿Enviar "${entries[0].name}" a la papelera?`
+                    : `¿Enviar ${entries.length} elementos y el contenido de sus carpetas a la papelera?`;
                 if (!confirm(question)) return;
 
                 const failures = [];
                 const parents = new Set();
-                showProgress(`Eliminando 0 de ${entries.length}...`, 0);
+                showProgress(`Moviendo 0 de ${entries.length} a la papelera...`, 0);
                 for (const [index, entry] of entries.entries()) {
                     try {
-                        await api('POST', '/delete', { domain: config.domain, path: entry.path });
+                        await api('POST', '/trash', { domain: config.domain, path: entry.path });
                         parents.add(dirname(entry.path));
                         closeTabsUnder(entry.path);
                         clearCachedBranch(entry.path);
@@ -2873,7 +2922,7 @@
                     } catch (error) {
                         failures.push({ entry, error });
                     }
-                    setProgress(((index + 1) / entries.length) * 100, `Eliminando ${index + 1} de ${entries.length}...`);
+                    setProgress(((index + 1) / entries.length) * 100, `Moviendo ${index + 1} de ${entries.length}...`);
                 }
 
                 for (const parent of parents) {
@@ -2890,11 +2939,117 @@
                 renderInfo(state.selected);
                 renderTree();
                 if (failures.length) {
-                    toast(`${entries.length - failures.length} eliminados; ${failures.length} no pudieron eliminarse.`, 'error');
-                    failures.forEach(({ entry, error }) => log(`No se eliminó ${entry.path}: ${error.message}`));
+                    toast(`${entries.length - failures.length} enviados; ${failures.length} no pudieron moverse.`, 'error');
+                    failures.forEach(({ entry, error }) => log(`No se movió ${entry.path}: ${error.message}`));
                 } else {
-                    toast(entries.length === 1 ? 'Eliminado' : `${entries.length} elementos eliminados`);
+                    toast(entries.length === 1 ? 'Enviado a la papelera' : `${entries.length} elementos en la papelera`);
                 }
+            };
+
+            const actionableEntries = () => {
+                const entries = deletableSelection();
+                if (!entries.length && state.ctxEntry?.deletable !== false) entries.push(state.ctxEntry);
+                return entries.filter((entry, index, all) => !all.some((parent, other) => other !== index && parent.is_dir && entry.path.startsWith(`${parent.path}/`)));
+            };
+            const clipboardSelection = (mode) => {
+                const entries = actionableEntries();
+                if (!entries.length) return toast('Selecciona archivos o carpetas primero.', 'error');
+                state.clipboard = { mode, paths: entries.map((entry) => entry.path) };
+                syncSelectionControls();
+                toast(`${entries.length} elemento(s) ${mode === 'copy' ? 'listos para copiar' : 'listos para mover'}. Abre la carpeta de destino y pulsa Pegar.`);
+            };
+            const pasteSelection = async (fromContextMenu = false) => {
+                const clipboard = state.clipboard;
+                if (!clipboard?.paths?.length) return;
+                const destination = targetDirectory(fromContextMenu);
+                if (clipboard.mode === 'copy') {
+                    await api('POST', '/copy', { domain: config.domain, paths: clipboard.paths, destination });
+                } else {
+                    const remaining = [...clipboard.paths];
+                    for (const oldPath of clipboard.paths) {
+                        const entry = getEntry(oldPath);
+                        if (!entry) throw new Error('Un elemento movido ya no existe. Vuelve a seleccionarlo.');
+                        const newPath = pathJoin(destination, entry.name);
+                        try {
+                            if (newPath !== oldPath) {
+                                await api('POST', '/rename', { domain: config.domain, old_path: oldPath, new_path: newPath });
+                                updateOpenPaths(oldPath, newPath);
+                                clearCachedBranch(oldPath);
+                                await loadDirectory(dirname(oldPath), { render: false, setCurrent: false });
+                            }
+                            remaining.shift();
+                        } catch (error) {
+                            state.clipboard = { mode: 'cut', paths: remaining };
+                            clearCachedBranch(destination);
+                            await loadDirectory(destination);
+                            syncSelectionControls();
+                            throw new Error(`${clipboard.paths.length - remaining.length} movidos; ${remaining.length} pendientes. ${error.message}`);
+                        }
+                    }
+                    state.clipboard = null;
+                }
+                clearCachedBranch(destination);
+                state.expanded.add(destination);
+                await loadDirectory(destination);
+                syncSelectionControls();
+                toast(clipboard.mode === 'copy' ? 'Copia completada' : 'Elementos movidos');
+            };
+            const compressSelection = () => {
+                const entries = actionableEntries();
+                if (!entries.length) return toast('Selecciona archivos o carpetas primero.', 'error');
+                const parent = dirname(entries[0].path);
+                if (entries.some((entry) => dirname(entry.path) !== parent)) return toast('Selecciona elementos de una misma carpeta.', 'error');
+                promptInput('Nombre del archivo ZIP', uniqueName(parent, 'file', entries.length === 1 ? `${entries[0].name}.zip` : 'archivos.zip'), async (name) => {
+                    if (!/^[^\\/]+\.zip$/i.test(name)) throw new Error('Escribe un nombre terminado en .zip');
+                    showProgress('Comprimiendo archivos...', 15);
+                    try {
+                        await api('POST', '/compress', { domain: config.domain, paths: entries.map((entry) => entry.path), destination: pathJoin(parent, name) });
+                        await loadDirectory(parent);
+                        toast('ZIP creado');
+                    } finally {
+                        hideProgress();
+                    }
+                });
+            };
+            const closeTrash = () => {
+                $('#xpanel_trash_modal').classList.add('hidden');
+                $('#xpanel_trash_modal').classList.remove('flex');
+                if (state.trashReturnFocus?.isConnected && !state.trashReturnFocus.closest('.hidden')) state.trashReturnFocus.focus();
+            };
+            const loadTrash = async () => {
+                const list = $('#xpanel_trash_list');
+                list.innerHTML = '<p class="py-4 text-secondary-foreground">Cargando...</p>';
+                if ($('#xpanel_trash_modal').classList.contains('hidden')) state.trashReturnFocus = document.activeElement;
+                $('#xpanel_trash_modal').classList.remove('hidden');
+                $('#xpanel_trash_modal').classList.add('flex');
+                $('#xpanel_trash_close').focus();
+                let payload;
+                try { payload = await api('GET', '/trash'); }
+                catch (error) { list.textContent = error.message; throw error; }
+                list.innerHTML = payload.entries.length ? payload.entries.map((item) => `
+                    <div class="xpanel-trash-row" data-trash-id="${escapeHtml(item.id)}">
+                        <i class="ki-filled ${item.is_dir ? 'ki-folder' : 'ki-document'} text-primary"></i>
+                        <div class="min-w-0 flex-1"><div class="truncate font-medium" title="${escapeHtml(item.path)}">${escapeHtml(item.name)}</div><div class="truncate text-xs text-secondary-foreground">${escapeHtml(item.path)} · ${escapeHtml(item.trashed_at || '')}</div></div>
+                        <button class="kt-btn kt-btn-outline shrink-0" type="button" data-trash-action="restore">Restaurar</button>
+                        <button class="kt-btn kt-btn-outline text-destructive shrink-0" type="button" data-trash-action="purge" aria-label="Eliminar definitivamente ${escapeHtml(item.name)}"><i class="ki-filled ki-trash"></i></button>
+                    </div>
+                `).join('') : '<p class="py-6 text-center text-secondary-foreground">La papelera está vacía.</p>';
+            };
+            const trashAction = async (event) => {
+                const button = event.target.closest('[data-trash-action]');
+                const id = button?.closest('[data-trash-id]')?.dataset.trashId;
+                if (!id) return;
+                const actionName = button.dataset.trashAction;
+                if (actionName === 'purge' && !confirm('¿Eliminar definitivamente este elemento? No se podrá recuperar.')) return;
+                button.disabled = true;
+                try {
+                    await api('POST', actionName === 'restore' ? '/trash/restore' : '/trash/purge', { id });
+                    clearCachedBranch('/');
+                    await loadDirectory('/', { render: false, setCurrent: false });
+                    await loadDirectory(state.currentPath);
+                    await loadTrash();
+                    toast(actionName === 'restore' ? 'Elemento restaurado' : 'Elemento eliminado definitivamente');
+                } catch (error) { button.disabled = false; toast(error.message, 'error'); }
             };
 
             const uploadOne = (file, targetPath, index, total) => new Promise((resolve, reject) => {
@@ -3115,24 +3270,35 @@
                     state.selected = entry;
                     renderInfo(entry);
                 }
-                $$('[data-archive-only]').forEach((item) => {
-                    item.classList.toggle('hidden', !entry || entry.is_dir || !isExtractable(entry.name));
+                const multiple = entry && state.selectedPaths.size > 1;
+                $$('#xpanel_ctx_menu [data-context]').forEach((item) => {
+                    const kind = item.dataset.context;
+                    let visible = kind === 'blank' ? !entry : kind === 'selection' ? Boolean(entry?.deletable !== false && entry) :
+                        kind === 'paste' ? Boolean(state.clipboard?.paths?.length) : kind === 'file' ? Boolean(entry && !entry.is_dir && !multiple) :
+                        Boolean(entry && !multiple);
+                    if (item.hasAttribute('data-archive-only')) visible = visible && !entry.is_dir && isExtractable(entry.name);
+                    if (kind === 'single' && entry?.deletable === false && item.dataset.fmAction === 'rename') visible = false;
+                    item.classList.toggle('hidden', !visible);
                 });
                 const menu = $('#xpanel_ctx_menu');
-                menu.style.left = `${event.clientX}px`;
-                menu.style.top = `${event.clientY}px`;
                 menu.classList.remove('hidden');
+                menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 8))}px`;
+                menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8))}px`;
             };
 
             const action = async (name, fromContextMenu = false) => {
                 try {
                     if (name === 'open') await open(state.selected || state.ctxEntry);
                     if (name === 'save') await save();
-                    if (name === 'download') download();
+                    if (name === 'download') download(fromContextMenu ? state.ctxEntry : activeTab());
                     if (name === 'duplicate-tab') duplicateTab();
                     if (name === 'new-file') await newFile(fromContextMenu);
                     if (name === 'new-folder') await newFolder(fromContextMenu);
                     if (name === 'extract') await extractArchive(state.selected || state.ctxEntry);
+                    if (name === 'copy' || name === 'cut') clipboardSelection(name);
+                    if (name === 'paste') await pasteSelection(fromContextMenu);
+                    if (name === 'compress') compressSelection();
+                    if (name === 'trash-list') await loadTrash();
                     if (name === 'refresh') await loadDirectory(state.currentPath);
                     if (name === 'rename') startInlineRename();
                     if (name === 'select-all') selectAllInCurrentFolder();
@@ -3748,6 +3914,9 @@
             $$('[data-fm-action]').forEach((button) => button.addEventListener('click', () => {
                 action(button.dataset.fmAction, Boolean(button.closest('#xpanel_ctx_menu')));
             }));
+            $('#xpanel_trash_close')?.addEventListener('click', closeTrash);
+            $('#xpanel_trash_list')?.addEventListener('click', trashAction);
+            $('#xpanel_trash_modal')?.addEventListener('click', (event) => { if (event.target.id === 'xpanel_trash_modal') closeTrash(); });
             $$('[data-left-mode]').forEach((button) => button.addEventListener('click', () => switchLeftMode(button.dataset.leftMode)));
             $$('[data-layout-toggle]').forEach((button) => button.addEventListener('click', () => toggleLayoutPane(button.dataset.layoutToggle)));
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
@@ -3917,6 +4086,7 @@
                     remove().catch((error) => toast(error.message, 'error'));
                 }
                 if (event.key === 'Escape') {
+                    closeTrash();
                     closeSearchLauncher();
                     switchAgentScreen('chat');
                     if (!editing && state.selectedPaths.size) replaceSelection(null);

@@ -207,6 +207,22 @@ class SiteDomainFeaturesTest extends TestCase
         app(OwnershipRepairer::class)->prepareFileManager($site);
     }
 
+    public function test_copied_tree_ownership_is_synchronized_only_below_the_site_root(): void
+    {
+        $site = $this->site();
+        config(['xpanel.apply_system_changes' => true, 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $this->mock(ServerCommandRunner::class, function ($mock) use ($site): void {
+            $mock->shouldReceive('run')->once()->with([
+                'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'ownership-sync-tree',
+                $site->domain, $site->document_root, $site->systemUser(), '/var/www/primary.example.com/assets',
+            ], null, 300)->andReturn('');
+        });
+
+        app(OwnershipRepairer::class)->synchronizeTree($site, '/var/www/primary.example.com/assets');
+        $this->expectException(\RuntimeException::class);
+        app(OwnershipRepairer::class)->synchronizeTree($site, '/var/www/other.example.com/assets');
+    }
+
     public function test_ssl_reissue_passes_parked_domains_through_stdin_not_arguments(): void
     {
         $site = $this->site();
