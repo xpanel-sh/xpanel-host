@@ -10,7 +10,7 @@
         <div>
             <div class="text-sm text-secondary-foreground">Ajustes / Software del servidor</div>
             <h1 class="text-2xl font-semibold text-mono">Motores web</h1>
-            <p class="mt-1 text-sm text-secondary-foreground">Host comienza ligero con Nginx. Instala motores adicionales únicamente cuando un sitio los necesite.</p>
+            <p class="mt-1 text-sm text-secondary-foreground">{{ config('xpanel.management_mode') === 'vps-instance' ? 'Motores habilitados para este hosting. Nginx recibe el tráfico público; PHP-FPM y las aplicaciones tienen procesos propios.' : 'Host comienza ligero con Nginx. Instala motores adicionales únicamente cuando un sitio los necesite.' }}</p>
         </div>
 
         @include('settings._navigation')
@@ -49,6 +49,8 @@
                         @endif
                         @if ($installed)
                             <button class="kt-btn kt-btn-outline w-full" type="button" disabled>Disponible para sitios</button>
+                        @elseif (config('xpanel.management_mode') === 'vps-instance')
+                            <span class="text-xs text-secondary-foreground">{{ $engine->slug === 'openlitespeed' ? 'No disponible en hostings administrados' : 'No habilitado para este hosting' }}</span>
                         @elseif (config('xpanel.apply_system_changes'))
                             <form method="post" action="{{ route('settings.web-servers.install', $engine) }}" onsubmit="return confirm('¿Instalar {{ $engine->label }} en este servidor?');">
                                 @csrf
@@ -63,7 +65,11 @@
         </div>
 
         <div class="rounded-xl border border-border bg-muted/30 p-5 text-sm text-secondary-foreground">
-            Nginx conserva los puertos públicos 80/443. Apache y OpenLiteSpeed escuchan únicamente en loopback y aparecen en el formulario de sitios después de una instalación exitosa. No se permite desinstalar un motor mientras existan sitios que lo utilicen.
+            @if (config('xpanel.management_mode') === 'vps-instance')
+                Nginx es el frontal compartido del servidor. Cada hosting ejecuta PHP-FPM en su propio servicio y límite de recursos. Apache, cuando esté habilitado, utiliza un servicio interno propio de este hosting. OpenLiteSpeed aún no admite aislamiento por hosting.
+            @else
+                Nginx conserva los puertos públicos 80/443. Apache y OpenLiteSpeed escuchan únicamente en loopback y aparecen en el formulario de sitios después de una instalación exitosa. No se permite desinstalar un motor mientras existan sitios que lo utilicen.
+            @endif
         </div>
        </div>
       </main>

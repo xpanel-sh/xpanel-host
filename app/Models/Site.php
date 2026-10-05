@@ -85,6 +85,17 @@ class Site extends Model
             return ['nginx'];
         }
 
+        if (config('xpanel.management_mode') === 'vps-instance' && config('xpanel.apply_system_changes')) {
+            $manager = app(\App\Services\WebServerEngineManager::class);
+            foreach (WebServerEngine::query()->orderBy('id')->get() as $engine) {
+                try {
+                    $manager->refresh($engine);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            }
+        }
+
         return WebServerEngine::query()
             ->where('status', 'installed')
             ->orderBy('id')

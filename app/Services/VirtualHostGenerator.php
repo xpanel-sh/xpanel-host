@@ -137,12 +137,13 @@ CONF);
 
     private function renderApachePhp(Site $site): string
     {
+        $port = $this->apachePort();
         $socket = '/run/php/php'.$site->php_version.'-fpm-'.$site->domain.'.sock';
         $aliases = $this->apacheAliases($site);
         $indexes = $this->directoryListing($site) ? '+Indexes' : '-Indexes';
 
         return <<<CONF
-<VirtualHost 127.0.0.1:8082>
+<VirtualHost 127.0.0.1:{$port}>
     ServerName {$site->domain}
 {$aliases}
     DocumentRoot {$site->webRoot()}
@@ -165,11 +166,12 @@ CONF;
 
     private function renderApacheStatic(Site $site): string
     {
+        $port = $this->apachePort();
         $aliases = $this->apacheAliases($site);
         $indexes = $this->directoryListing($site) ? '+Indexes' : '-Indexes';
 
         return <<<CONF
-<VirtualHost 127.0.0.1:8082>
+<VirtualHost 127.0.0.1:{$port}>
     ServerName {$site->domain}
 {$aliases}
     DocumentRoot {$site->webRoot()}
@@ -188,9 +190,10 @@ CONF;
 
     private function renderApacheNode(Site $site): string
     {
+        $port = $this->apachePort();
         $aliases = $this->apacheAliases($site);
         return <<<CONF
-<VirtualHost 127.0.0.1:8082>
+<VirtualHost 127.0.0.1:{$port}>
     ServerName {$site->domain}
 {$aliases}
     ProxyPreserveHost On
@@ -321,8 +324,9 @@ CONF;
 
     private function renderApacheSuspended(Site $site): string
     {
+        $port = $this->apachePort();
         return <<<CONF
-<VirtualHost 127.0.0.1:8082>
+<VirtualHost 127.0.0.1:{$port}>
     ServerName {$site->domain}
     DocumentRoot {$site->webRoot()}
     ErrorDocument 503 "Sitio suspendido por el propietario de este servidor."
@@ -482,7 +486,7 @@ CONF;
             return $this->renderNginxGatewayServer($site, $listen, $certificate, $domainNames);
         }
 
-        $port = $site->web_server === 'apache' ? 8082 : 8083;
+        $port = $site->web_server === 'apache' ? $this->apachePort() : 8083;
         $redirects = $this->renderGatewayRedirects($site);
         $errorPages = $this->renderGatewayErrorPages($site);
         $hotlink = $this->renderHotlinkLocation($site);
@@ -666,7 +670,7 @@ CONF;
                 .'        proxy_set_header X-Real-IP $remote_addr;'."\n"
                 .'        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;'."\n"
                 .'        proxy_set_header X-Forwarded-Proto $scheme;'."\n"
-                .'        proxy_pass http://127.0.0.1:'.($site->web_server === 'apache' ? '8082' : '8083').';';
+                .'        proxy_pass http://127.0.0.1:'.($site->web_server === 'apache' ? $this->apachePort() : '8083').';';
 
         return <<<CONF
     location ~* \.({$extensions})$ {
@@ -703,7 +707,7 @@ CONF;
         }
         $port = match ($site->web_server) {
             'nginx' => 8081,
-            'apache' => 8082,
+            'apache' => $this->apachePort(),
             default => 8083,
         };
 
@@ -829,5 +833,15 @@ CONF;
                 unlink($temporary);
             }
         }
+    }
+
+    private function apachePort(): int
+    {
+        $port = (int) config('xpanel.apache_backend_port', 8082);
+        if ($port < 1024 || $port > 65535) {
+            throw new \RuntimeException('Puerto interno de Apache no válido.');
+        }
+
+        return $port;
     }
 }

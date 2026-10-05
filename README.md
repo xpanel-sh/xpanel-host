@@ -289,8 +289,8 @@ Para publicarlo debes crear fuera de Host un registro DNS `A`/`AAAA` hacia la IP
 
 Nginx es la única opción inicial. Para agregar otro motor abre **Ajustes → Motores web**:
 
-- Apache se instala como backend en `127.0.0.1:8082`.
-- OpenLiteSpeed instala LSPHP/LSAPI y utiliza `127.0.0.1:8083`.
+- En Host independiente, Apache se instala como backend en `127.0.0.1:8082` y OpenLiteSpeed con LSPHP/LSAPI en `127.0.0.1:8083`.
+- En Host administrado por XPanel VPS, la pantalla consulta los motores autorizados por el broker. VPS instala los paquetes; cada hosting habilitado ejecuta su Apache en un servicio y puerto interno propios. OpenLiteSpeed permanece deshabilitado hasta disponer de aislamiento equivalente.
 - El motor aparece en el formulario del sitio solamente después de superar la instalación y validación.
 
 Los archivos del sitio no se eliminan al cambiar de motor. Las reglas `.htaccess` funcionan con Apache/OpenLiteSpeed; Nginx necesita reglas equivalentes.

@@ -23,6 +23,9 @@ CUSTOM_FPM_SERVICE="${XPANEL_FPM_SERVICE:-}"
 PHP_PROFILE_ROOT="${XPANEL_PHP_PROFILE_ROOT:-$(grep '^XPANEL_PHP_PROFILE_ROOT=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 PHP_PROFILE_ROOT="${PHP_PROFILE_ROOT:-/etc/xpanel-host/php-profiles}"
 SYSTEMD_SLICE="${XPANEL_SYSTEMD_SLICE:-$(grep '^XPANEL_SYSTEMD_SLICE=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
+APACHE_CONFIG="${XPANEL_APACHE_CONFIG:-}"
+APACHE_SERVICE="${XPANEL_APACHE_SERVICE:-}"
+APACHE_BACKEND_PORT="${XPANEL_APACHE_BACKEND_PORT:-8082}"
 TERMINAL_INTERNAL_PORT="${XPANEL_TERMINAL_INTERNAL_PORT:-$(grep '^XPANEL_TERMINAL_INTERNAL_PORT=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 TERMINAL_INTERNAL_PORT="${TERMINAL_INTERNAL_PORT:-7091}"
 
@@ -102,14 +105,41 @@ getent group "$SITE_GROUP" >/dev/null || fail "Configured site group does not ex
 reload_web_server() {
   local engine="$1"
   if [[ "$engine" == "apache" ]]; then
-    apache2ctl configtest
-    systemctl reload apache2
+    if [[ -n "$APACHE_CONFIG" ]]; then
+      [[ "$APACHE_CONFIG" =~ ^/etc/xpanel-vps/instances/[a-f0-9-]{36}/apache\.conf$ ]] || fail "Invalid managed Apache configuration."
+      [[ "$APACHE_SERVICE" =~ ^xpanel-instance-[a-f0-9-]{36}-apache\.service$ ]] || fail "Invalid managed Apache service."
+      [[ "$APACHE_BACKEND_PORT" =~ ^5[0-9]{4}$ ]] || fail "Invalid managed Apache port."
+      local apache_sites="${APACHE_CONFIG%/*}/apache/sites"
+      if compgen -G "$apache_sites/*.conf" >/dev/null; then
+        APACHE_RUN_DIR=/run/apache2 APACHE_LOCK_DIR=/var/lock/apache2 APACHE_LOG_DIR=/var/log/apache2 APACHE_RUN_USER="$SITE_USER" APACHE_RUN_GROUP="$SITE_GROUP" apache2 -t -f "$APACHE_CONFIG"
+        systemctl enable "$APACHE_SERVICE" >/dev/null
+        if systemctl is-active --quiet "$APACHE_SERVICE"; then systemctl reload "$APACHE_SERVICE"; else systemctl start "$APACHE_SERVICE"; fi
+      else
+        systemctl disable --now "$APACHE_SERVICE" >/dev/null 2>&1 || true
+      fi
+    else
+      apache2ctl configtest
+      systemctl reload apache2
+    fi
   elif [[ "$engine" == "openlitespeed" ]]; then
     /usr/local/lsws/bin/openlitespeed -t
     systemctl restart lsws
   fi
   nginx -t
   systemctl reload nginx
+}
+
+remove_legacy_managed_apache_vhost() {
+  local domain="$1" legacy="/etc/apache2/sites-available/xpanel-$1.conf"
+  [[ -n "$APACHE_CONFIG" ]] || return 0
+  valid_domain "$domain" || fail "Invalid legacy Apache domain."
+  [[ -f "$legacy" && ! -L "$legacy" ]] || return 0
+  a2dissite "xpanel-$domain.conf" >/dev/null 2>&1 || true
+  rm -f -- "$legacy"
+  if systemctl is-active --quiet apache2; then
+    apache2ctl configtest
+    systemctl reload apache2
+  fi
 }
 
 # Reloading the same PHP-FPM service that is currently serving the panel can
@@ -564,8 +594,14 @@ site_action() {
     rm -f "/etc/nginx/sites-enabled/xpanel-$domain.conf" "/etc/nginx/sites-available/xpanel-$domain.conf"
     rm -f "/etc/nginx/conf.d/xpanel-backend-$domain.conf"
     if [[ "$engine" == "apache" ]]; then
-      a2dissite "xpanel-$domain.conf" >/dev/null 2>&1 || true
-      rm -f "/etc/apache2/sites-available/xpanel-$domain.conf"
+      if [[ -n "$APACHE_CONFIG" ]]; then
+        [[ "$APACHE_CONFIG" =~ ^/etc/xpanel-vps/instances/[a-f0-9-]{36}/apache\.conf$ ]] || fail "Invalid managed Apache configuration."
+        rm -f "${APACHE_CONFIG%/*}/apache/sites/xpanel-$domain.conf"
+        remove_legacy_managed_apache_vhost "$domain"
+      else
+        a2dissite "xpanel-$domain.conf" >/dev/null 2>&1 || true
+        rm -f "/etc/apache2/sites-available/xpanel-$domain.conf"
+      fi
     elif [[ "$engine" == "openlitespeed" ]]; then
       rm -f "/usr/local/lsws/conf/vhosts/xpanel-$domain/vhconf.conf"
       rmdir "/usr/local/lsws/conf/vhosts/xpanel-$domain" >/dev/null 2>&1 || true
@@ -664,8 +700,15 @@ site_action() {
     rm -f "/etc/nginx/sites-enabled/xpanel-$domain.conf" "/etc/nginx/sites-available/xpanel-$domain.conf"
     install -o root -g root -m 0644 "$vhost_source" "/etc/nginx/conf.d/xpanel-backend-$domain.conf"
   elif [[ "$engine" == "apache" ]]; then
-    install -o root -g root -m 0644 "$vhost_source" "/etc/apache2/sites-available/xpanel-$domain.conf"
-    a2ensite "xpanel-$domain.conf" >/dev/null
+    if [[ -n "$APACHE_CONFIG" ]]; then
+      [[ "$APACHE_CONFIG" =~ ^/etc/xpanel-vps/instances/[a-f0-9-]{36}/apache\.conf$ ]] || fail "Invalid managed Apache configuration."
+      remove_legacy_managed_apache_vhost "$domain"
+      install -d -o root -g root -m 0755 "${APACHE_CONFIG%/*}/apache/sites"
+      install -o root -g root -m 0644 "$vhost_source" "${APACHE_CONFIG%/*}/apache/sites/xpanel-$domain.conf"
+    else
+      install -o root -g root -m 0644 "$vhost_source" "/etc/apache2/sites-available/xpanel-$domain.conf"
+      a2ensite "xpanel-$domain.conf" >/dev/null
+    fi
   else
     [[ -x /usr/local/lsws/bin/openlitespeed ]] || fail "OpenLiteSpeed is not installed."
     compact_php_version="${php_version/.}"
@@ -1075,7 +1118,13 @@ site_diagnose() {
       [[ -f "/etc/nginx/conf.d/xpanel-backend-$domain.conf" ]] && diagnostic_check engine pass "El backend Nginx del sitio está instalado." || diagnostic_check engine fail "Falta el backend Nginx del sitio."
       ;;
     apache)
-      if [[ -f "/etc/apache2/sites-enabled/xpanel-$domain.conf" ]] && systemctl is-active --quiet apache2; then diagnostic_check engine pass "Apache está activo y el vhost está habilitado."; else diagnostic_check engine fail "Apache o el vhost del sitio no está activo."; fi
+      if [[ -n "$APACHE_CONFIG" ]]; then
+        if [[ -f "${APACHE_CONFIG%/*}/apache/sites/xpanel-$domain.conf" ]] && systemctl is-active --quiet "$APACHE_SERVICE"; then diagnostic_check engine pass "Apache aislado está activo y el vhost está habilitado."; else diagnostic_check engine fail "Apache aislado o el vhost del sitio no está activo."; fi
+      elif [[ -f "/etc/apache2/sites-enabled/xpanel-$domain.conf" ]] && systemctl is-active --quiet apache2; then
+        diagnostic_check engine pass "Apache está activo y el vhost está habilitado."
+      else
+        diagnostic_check engine fail "Apache o el vhost del sitio no está activo."
+      fi
       ;;
     openlitespeed)
       if [[ -f "/usr/local/lsws/conf/vhosts/xpanel-$domain/vhconf.conf" ]] && systemctl is-active --quiet lsws; then diagnostic_check engine pass "OpenLiteSpeed está activo y el vhost existe."; else diagnostic_check engine fail "OpenLiteSpeed o el vhost del sitio no está activo."; fi
@@ -1084,7 +1133,7 @@ site_diagnose() {
   if [[ "$type" == php ]]; then
     if [[ "$engine" == openlitespeed ]]; then
       [[ -x "/usr/local/lsws/lsphp${php_version/.}/bin/lsphp" ]] && diagnostic_check php-runtime pass "LSPHP $php_version está disponible." || diagnostic_check php-runtime fail "LSPHP $php_version no está disponible."
-    elif systemctl is-active --quiet "php$php_version-fpm" && [[ -S "/run/php/php$php_version-fpm-$domain.sock" ]]; then
+    elif systemctl is-active --quiet "${CUSTOM_FPM_SERVICE:-php$php_version-fpm}" && [[ -S "/run/php/php$php_version-fpm-$domain.sock" ]]; then
       diagnostic_check php-runtime pass "PHP-FPM $php_version y el socket aislado están activos."
     else
       diagnostic_check php-runtime fail "PHP-FPM $php_version o el socket aislado no está activo."

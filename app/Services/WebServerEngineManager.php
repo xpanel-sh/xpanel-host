@@ -34,6 +34,9 @@ class WebServerEngineManager
 
     public function install(WebServerEngine $engine): WebServerEngine
     {
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            throw new RuntimeException('Los motores del servidor se habilitan desde la administración de XPanel VPS.');
+        }
         if ($engine->status === 'installed') {
             return $this->refresh($engine);
         }

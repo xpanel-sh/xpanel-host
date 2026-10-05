@@ -29,6 +29,9 @@ class WebServerEngineController extends Controller
 
     public function install(WebServerEngine $engine, WebServerEngineManager $manager): RedirectResponse
     {
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            abort(403);
+        }
         set_time_limit(1250);
         try {
             $manager->install($engine);

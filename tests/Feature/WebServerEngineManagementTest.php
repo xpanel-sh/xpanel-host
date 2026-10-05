@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Models\Site;
 use App\Models\User;
 use App\Models\WebServerEngine;
 use App\Services\ServerCommandRunner;
+use App\Services\VirtualHostGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -57,6 +59,53 @@ class WebServerEngineManagementTest extends TestCase
             'web_server' => 'apache',
             'status' => 'active',
         ])->assertSessionHasErrors('web_server');
+    }
+
+    public function test_managed_host_shows_available_engines_but_cannot_install_global_packages(): void
+    {
+        config()->set('xpanel.management_mode', 'vps-instance');
+        config()->set('xpanel.apply_system_changes', true);
+        $runner = Mockery::mock(ServerCommandRunner::class);
+        foreach (['nginx', 'apache', 'openlitespeed'] as $slug) {
+            $runner->shouldReceive('run')->once()->with([
+                'sudo', '-n', config('xpanel.site_helper'), 'engine-status', $slug,
+            ])->andReturn('installed='.($slug === 'nginx' ? 'true' : 'false')."\nversion=");
+        }
+        $this->app->instance(ServerCommandRunner::class, $runner);
+
+        $owner = $this->user('owner');
+        $this->actingAs($owner)->get(route('settings.web-servers.index'))
+            ->assertOk()->assertSee('Nginx')->assertSee('No habilitado para este hosting')
+            ->assertDontSee('Instalar Apache');
+        $this->actingAs($owner)->post(route('settings.web-servers.install', 'apache'))->assertForbidden();
+    }
+
+    public function test_managed_apache_site_and_gateway_use_the_same_private_port(): void
+    {
+        config()->set('xpanel.apache_backend_port', 50017);
+        $site = Site::create([
+            'domain' => 'private.example.test', 'document_root' => '/home/xhi0123456789ab/public_html/private.example.test',
+            'php_version' => '8.3', 'type' => 'php', 'web_server' => 'apache', 'status' => 'active',
+        ]);
+
+        $generator = app(VirtualHostGenerator::class);
+        $this->assertStringContainsString('<VirtualHost 127.0.0.1:50017>', $generator->render($site));
+        $this->assertStringContainsString('proxy_pass http://127.0.0.1:50017;', $generator->renderGateway($site));
+    }
+
+    public function test_managed_site_form_refreshes_engines_after_vps_enables_apache(): void
+    {
+        config()->set('xpanel.management_mode', 'vps-instance');
+        config()->set('xpanel.apply_system_changes', true);
+        $runner = Mockery::mock(ServerCommandRunner::class);
+        foreach (['nginx', 'apache', 'openlitespeed'] as $slug) {
+            $runner->shouldReceive('run')->once()->with([
+                'sudo', '-n', config('xpanel.site_helper'), 'engine-status', $slug,
+            ])->andReturn('installed='.($slug === 'openlitespeed' ? 'false' : 'true')."\nversion=");
+        }
+        $this->app->instance(ServerCommandRunner::class, $runner);
+
+        $this->assertSame(['nginx', 'apache'], Site::webServers());
     }
 
     public function test_installed_openlitespeed_generates_listener_mapping_and_gateway_route(): void

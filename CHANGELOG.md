@@ -4,6 +4,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ## [Sin publicar]
 
+- Host administrado consulta motores habilitados mediante el broker y no ofrece instalar paquetes globales; Apache usa el puerto interno asignado a su propia instancia. Host independiente conserva la instalación local de motores.
 ### Cambiado
 
 - El dominio de acceso continúa configurándose dentro de Host tanto en instalaciones independientes como administradas; en modo VPS la solicitud firmada coordina Nginx y SSL con el plano de control sin exponer privilegios al cliente.
