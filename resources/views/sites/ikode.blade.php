@@ -154,9 +154,9 @@
         .xpanel-file-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            min-height: 28px;
-            padding: 4px 8px;
+            gap: 6px;
+            min-height: 26px;
+            padding: 3px 7px;
             border-radius: 8px;
             color: var(--muted-foreground);
             cursor: pointer;
@@ -196,6 +196,7 @@
             background: var(--muted);
         }
         .xpanel-selection-toolbar[hidden] { display: none; }
+        .xpanel-selection-toolbar:not([hidden]) { margin-bottom: 2px; }
         .xpanel-selection-toolbar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 600; }
         .xpanel-selection-toolbar button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 23px; height: 23px; border-radius: 5px; font-size: 12px; }
         .xpanel-selection-toolbar button:hover:not(:disabled) { background: var(--background); }
@@ -239,6 +240,18 @@
             flex: 1;
             font-size: 12px;
         }
+        .xpanel-grid-nav { display: flex; align-items: center; gap: 5px; min-height: 26px; padding: 3px 7px; border-bottom: 1px solid var(--border); font-size: 10px; }
+        .xpanel-grid-nav button { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex: none; border-radius: 5px; }
+        .xpanel-grid-nav button:hover:not(:disabled) { background: var(--muted); }
+        .xpanel-grid-nav button:disabled { opacity: .35; cursor: not-allowed; }
+        .xpanel-grid-nav span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .xpanel-file-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 3px; padding: 6px; }
+        .xpanel-file-grid .xpanel-file-row { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0; min-height: 72px; padding: 6px 3px 4px; text-align: center; }
+        .xpanel-file-grid .xpanel-file-row > i { font-size: 23px; line-height: 1; }
+        .xpanel-file-grid .xpanel-file-check { position: absolute; top: 4px; left: 4px; width: 13px; height: 13px; }
+        .xpanel-file-grid .xpanel-file-name { width: 100%; flex: none; font-size: 10px; }
+        .xpanel-file-grid .xpanel-file-size, .xpanel-file-grid .xpanel-file-toggle { display: none; }
+        .xpanel-file-grid .xpanel-file-rename-input { width: 100%; min-width: 0; font-size: 10px; }
         .xpanel-file-inline {
             display: flex;
             align-items: center;
@@ -992,6 +1005,7 @@
                                     <button type="button" data-fm-action="refresh"><i class="ki-filled ki-arrows-circle"></i> Refrescar</button>
                                 </div>
                             </details>
+                            <button class="ikode_left_action_btn" type="button" id="xpanel_file_view_toggle" title="Cambiar a cuadrícula" aria-label="Cambiar a cuadrícula" aria-pressed="false"><i class="ki-filled ki-element-3"></i></button>
                             <button class="ikode_left_action_btn" type="button" data-fm-action="trash-list" id="xpanel_trash_open" title="Abrir papelera" aria-label="Abrir papelera">
                                 <i class="ki-filled ki-trash"></i>
                             </button>
@@ -1457,7 +1471,7 @@
             const defaultUiState = {
                 layout: { left: true, right: false, bottom: true },
                 split: { mainThree: [24, 52, 24], mainTwo: [28, 72], center: [68, 32], left: [68, 32], editor: [50, 50], terminal: [30, 70] },
-                ui: { leftMode: 'explorer', rightTab: 'info', outlineTab: 'outline', consoleTab: 'terminal' },
+                ui: { leftMode: 'explorer', fileView: 'list', rightTab: 'info', outlineTab: 'outline', consoleTab: 'terminal' },
                 editor: { fontSize: 14, fontFamily: 'jetbrains', theme: 'auto', wordWrap: true, minimap: false },
                 search: { includeContent: true, caseSensitive: false },
                 terminal: {
@@ -1489,6 +1503,7 @@
                         },
                         ui: {
                             leftMode: parsed?.ui?.leftMode || defaultUiState.ui.leftMode,
+                            fileView: parsed?.ui?.fileView === 'grid' ? 'grid' : 'list',
                             rightTab: ['info', 'agents'].includes(parsed?.ui?.rightTab) ? parsed.ui.rightTab : defaultUiState.ui.rightTab,
                             outlineTab: parsed?.ui?.outlineTab || defaultUiState.ui.outlineTab,
                             consoleTab: parsed?.ui?.consoleTab || defaultUiState.ui.consoleTab,
@@ -2324,7 +2339,57 @@
                     input.select();
                 }, 20);
             };
+            const syncFileViewToggle = () => {
+                const button = $('#xpanel_file_view_toggle');
+                const grid = uiState.ui.fileView === 'grid';
+                button.title = grid ? 'Cambiar a listado' : 'Cambiar a cuadrícula';
+                button.setAttribute('aria-label', button.title);
+                button.setAttribute('aria-pressed', String(grid));
+                button.querySelector('i').className = `ki-filled ${grid ? 'ki-row-vertical' : 'ki-element-3'}`;
+            };
+            const renderGrid = () => {
+                const list = $('#xpanel_file_list');
+                const path = state.currentPath || '/';
+                const filter = ($('#xpanel_file_filter').value || '').toLowerCase();
+                const entries = entriesFor(path).filter((entry) => !filter || entry.name.toLowerCase().includes(filter));
+                const help = accountEmptyDirectoryHelp(path);
+                const tiles = entries.map((entry) => {
+                    const selected = state.selectedPaths.has(entry.path);
+                    const renaming = state.pendingRename?.path === entry.path;
+                    return `
+                        <div class="xpanel-file-row xpanel-file-tile ${selected ? 'active' : ''} ${renaming ? 'is-renaming' : ''} ${entry.available === false ? 'xpanel-file-row-muted' : ''}"
+                             data-path="${escapeHtml(entry.path)}" data-dir="${entry.is_dir ? '1' : '0'}" draggable="${renaming ? 'false' : 'true'}">
+                            ${renaming ? '' : `<input class="xpanel-file-check" type="checkbox" tabindex="-1" aria-label="Seleccionar ${escapeHtml(entry.name)}" ${selected ? 'checked' : ''} ${entry.deletable === false ? 'disabled' : ''}>`}
+                            <i class="ki-filled ${icon(entry)}"></i>
+                            ${renaming ? `<input class="xpanel-file-rename-input" data-inline-rename="true" value="${escapeHtml(entry.name)}" autocomplete="off">` : `<span class="xpanel-file-name" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>`}
+                        </div>
+                    `;
+                }).join('');
+                list.innerHTML = `
+                    <div class="xpanel-grid-nav">
+                        <button type="button" data-grid-back title="Subir una carpeta" aria-label="Subir una carpeta" ${path === '/' ? 'disabled' : ''}><i class="ki-filled ki-arrow-left"></i></button>
+                        <span title="${escapeHtml(path)}">${escapeHtml(path)}</span>
+                    </div>
+                    ${renderInlineCreate(path, 0)}
+                    ${tiles ? `<div class="xpanel-file-grid">${tiles}</div>` : (state.pendingCreate ? '' : `<div class="p-3 text-[11px] text-secondary-foreground">${escapeHtml(help || 'Esta carpeta está vacía. Puedes arrastrar archivos aquí.')}</div>`)}
+                `;
+                $('[data-grid-back]').addEventListener('click', async () => {
+                    if (state.currentPath === '/') return;
+                    state.selectedPaths.clear();
+                    state.selected = null;
+                    renderInfo(null);
+                    try { await loadDirectory(dirname(state.currentPath)); }
+                    catch (error) { toast(error.message, 'error'); }
+                });
+                attachTreeEvents();
+                focusPendingInput();
+            };
             const renderTree = () => {
+                syncFileViewToggle();
+                if (uiState.ui.fileView === 'grid') {
+                    renderGrid();
+                    return;
+                }
                 const list = $('#xpanel_file_list');
                 const rootEntries = entriesFor('/');
                 if (!rootEntries.length && !state.pendingCreate) {
@@ -2696,6 +2761,14 @@
             const open = async (entry = state.selected) => {
                 if (!entry) return;
                 if (entry.is_dir) {
+                    if (uiState.ui.fileView === 'grid') {
+                        state.expanded.add(entry.path);
+                        state.selectedPaths.clear();
+                        state.selected = null;
+                        renderInfo(null);
+                        await loadDirectory(entry.path);
+                        return;
+                    }
                     select(entry);
                     await toggleDirectory(entry.path);
                     return;
@@ -3019,6 +3092,7 @@
                 $('#xpanel_file_list').hidden = false;
                 $('#xpanel_left_files_title').textContent = 'EXPLORADOR';
                 $('#xpanel_file_actions_menu').hidden = false;
+                $('#xpanel_file_view_toggle').hidden = false;
                 $('#xpanel_trash_open').hidden = false;
                 $('#xpanel_trash_back').hidden = true;
                 syncSelectionControls();
@@ -3032,6 +3106,7 @@
                     $('#xpanel_file_list').hidden = true;
                     $('#xpanel_left_files_title').textContent = 'PAPELERA';
                     $('#xpanel_file_actions_menu').hidden = true;
+                    $('#xpanel_file_view_toggle').hidden = true;
                     $('#xpanel_trash_open').hidden = true;
                     $('#xpanel_trash_back').hidden = false;
                     $('#xpanel_trash_back').focus();
@@ -3939,6 +4014,11 @@
                 $('#xpanel_file_actions_menu').open = false;
                 action(button.dataset.fmAction, Boolean(button.closest('#xpanel_ctx_menu')));
             }));
+            $('#xpanel_file_view_toggle')?.addEventListener('click', () => {
+                uiState.ui.fileView = uiState.ui.fileView === 'grid' ? 'list' : 'grid';
+                persistUiState();
+                renderTree();
+            });
             $('#xpanel_trash_back')?.addEventListener('click', closeTrash);
             $('#xpanel_trash_refresh')?.addEventListener('click', () => loadTrash().catch((error) => toast(error.message, 'error')));
             $('#xpanel_trash_list')?.addEventListener('click', trashAction);

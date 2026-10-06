@@ -98,6 +98,8 @@ class GlobalFileManagerTest extends TestCase
             ->assertOk()
             ->assertSee('Cuenta completa')
             ->assertSee('id="xpanel_file_actions_menu"', false)
+            ->assertSee('id="xpanel_file_view_toggle"', false)
+            ->assertSee("fileView: 'list'", false)
             ->assertSee('id="xpanel_selection_toolbar"', false)
             ->assertSee('id="xpanel_trash_view"', false)
             ->assertSee('id="xpanel_trash_back"', false)
