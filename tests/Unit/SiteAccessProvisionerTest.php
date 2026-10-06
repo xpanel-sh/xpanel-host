@@ -37,6 +37,34 @@ class SiteAccessProvisionerTest extends TestCase
         $provisioner->sync($site, $settings, 'Strong-Access_2026!');
     }
 
+    public function test_managed_host_prepares_access_staging_before_writing_site_keys(): void
+    {
+        config([
+            'xpanel.apply_system_changes' => true,
+            'xpanel.management_mode' => 'vps-instance',
+            'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh',
+        ]);
+        $site = Site::create([
+            'domain' => 'access.example.com',
+            'document_root' => '/home/xhi0123456789ab/public_html/access.example.com',
+            'php_version' => '8.3', 'type' => 'php', 'status' => 'active',
+        ]);
+        $runner = Mockery::mock(ServerCommandRunner::class);
+        $runner->shouldReceive('run')->once()->ordered()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'access-stage-prepare',
+            $site->systemUser(), $site->document_root,
+        ])->andReturn('');
+        $runner->shouldReceive('run')->once()->ordered()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'access-sync',
+            $site->systemUser(), $site->document_root, '0', '0', '0', '1',
+        ], null)->andReturn('');
+        $settings = new SiteAccessSetting(['web_terminal_enabled' => true]);
+
+        (new SiteAccessProvisioner($runner))->sync($site, $settings);
+
+        $this->assertFileExists(storage_path('app/access/'.$site->systemUser().'/authorized_keys'));
+    }
+
     public function test_parent_terminal_manifest_contains_only_its_domain_family_as_flat_roots(): void
     {
         $parent = Site::create([

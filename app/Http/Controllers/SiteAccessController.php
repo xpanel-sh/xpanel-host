@@ -42,7 +42,6 @@ class SiteAccessController extends Controller
         if ($request->boolean('web_terminal_enabled') && ! config('xpanel.terminal_enabled')) {
             return back()->withErrors(['web_terminal_enabled' => 'La terminal real no está habilitada en este servidor.']);
         }
-        $original = $settings->getAttributes();
         $settings->fill([
             'sftp_enabled' => $request->boolean('sftp_enabled'),
             'ftp_enabled' => $request->boolean('ftp_enabled'),
@@ -52,14 +51,12 @@ class SiteAccessController extends Controller
         if (filled($data['password'] ?? null)) {
             $settings->password_rotated_at = now();
         }
-        $settings->save();
         try {
             $provisioner->sync($site, $settings, $data['password'] ?? null);
         } catch (\Throwable $exception) {
-            $settings->forceFill($original)->save();
-
             return back()->withErrors(['server' => $exception->getMessage()]);
         }
+        $settings->save();
 
         return back()->with('status', 'Accesos del sitio actualizados.');
     }

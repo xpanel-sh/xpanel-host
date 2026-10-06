@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
+use App\Services\SiteAccessProvisioner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -78,6 +79,34 @@ class SiteAccessManagementTest extends TestCase
         $actor->put(route('sites.access.update', $site), ['web_terminal_enabled' => '1'])
             ->assertSessionHas('status');
         $this->assertTrue($site->accessSettings->fresh()->web_terminal_enabled);
+    }
+
+    public function test_failed_terminal_enable_does_not_mark_the_setting_as_enabled(): void
+    {
+        config(['xpanel.terminal_enabled' => true]);
+        $site = $this->site();
+        $this->mock(SiteAccessProvisioner::class)->shouldReceive('sync')->once()
+            ->andThrow(new \RuntimeException('mkdir(): Permission denied'));
+
+        $this->actingAs($this->owner())->put(route('sites.access.update', $site), [
+            'web_terminal_enabled' => '1',
+        ])->assertSessionHasErrors('server');
+
+        $this->assertFalse($site->accessSettings()->firstOrFail()->web_terminal_enabled);
+    }
+
+    public function test_failed_terminal_disable_preserves_the_actual_enabled_setting(): void
+    {
+        config(['xpanel.terminal_enabled' => true]);
+        $site = $this->site();
+        $site->accessSettings()->create(['web_terminal_enabled' => true]);
+        $this->mock(SiteAccessProvisioner::class)->shouldReceive('sync')->once()
+            ->andThrow(new \RuntimeException('mkdir(): Permission denied'));
+
+        $this->actingAs($this->owner())->put(route('sites.access.update', $site), [])
+            ->assertSessionHasErrors('server');
+
+        $this->assertTrue($site->accessSettings()->firstOrFail()->web_terminal_enabled);
     }
 
     public function test_access_pages_show_the_distinct_system_user(): void

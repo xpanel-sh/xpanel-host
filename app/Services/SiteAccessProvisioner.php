@@ -11,6 +11,12 @@ class SiteAccessProvisioner
 
     public function sync(Site $site, SiteAccessSetting $settings, ?string $password = null): void
     {
+        if (config('xpanel.apply_system_changes') && config('xpanel.management_mode') === 'vps-instance') {
+            $this->commands->run([
+                'sudo', '-n', (string) config('xpanel.site_helper'), 'access-stage-prepare',
+                $site->systemUser(), $site->document_root,
+            ]);
+        }
         $this->stageKeys($site);
         $this->stageTerminalRoots($site);
         if (! config('xpanel.apply_system_changes')) {
