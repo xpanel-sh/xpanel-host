@@ -1495,7 +1495,38 @@ ssl_action() {
     [[ "$alias" != "$domain" ]] || fail "Duplicate certificate domain."
     certificate_domains+=(-d "$alias")
   done
+  if [[ "$ACTION" == "ssl-issue" && "$ACCOUNT_USER" =~ ^xhi[a-f0-9]{12}$ && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]]; then
+    local site_root="$ACCOUNT_HOME/public_html/$domain" cursor="$web_root"
+    local -a acme_ancestors=()
+    [[ "$web_root" == "$site_root" || "$web_root" == "$site_root/"* ]] || fail "ACME webroot escaped the managed site."
+    [[ ! -L "$web_root/.well-known" && ! -L "$web_root/.well-known/acme-challenge" ]] || fail "ACME challenge directory is a symlink."
+    while [[ "$cursor" != "$ACCOUNT_HOME" ]]; do
+      [[ -d "$cursor" && ! -L "$cursor" ]] || fail "ACME webroot contains a symlink or missing directory."
+      acme_ancestors+=("$cursor")
+      cursor="$(dirname -- "$cursor")"
+    done
+    [[ -d "$ACCOUNT_HOME" && ! -L "$ACCOUNT_HOME" ]] || fail "Managed account home is invalid."
+  fi
   install -d -o "$site_user" -g "$site_user" -m 0755 "$web_root/.well-known/acme-challenge"
+  if [[ "$ACTION" == "ssl-issue" && "$ACCOUNT_USER" =~ ^xhi[a-f0-9]{12}$ && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]]; then
+    # Grant only traversal on private ancestors; Nginx can read challenge
+    # tokens but cannot list or read the rest of the customer's project.
+    for cursor in "${acme_ancestors[@]}"; do
+      setfacl -m u:www-data:--x "$cursor"
+    done
+    setfacl -m u:www-data:--x "$ACCOUNT_HOME"
+    setfacl -m u:www-data:rx "$web_root/.well-known" "$web_root/.well-known/acme-challenge"
+    setfacl -m d:u:www-data:r "$web_root/.well-known/acme-challenge"
+    local probe_name probe_path probe_response
+    probe_name="xpanel-acme-check-$(openssl rand -hex 8)"
+    probe_path="$web_root/.well-known/acme-challenge/$probe_name"
+    printf '%s' "$probe_name" > "$probe_path"
+    chmod 0644 "$probe_path"
+    probe_response="$(curl --noproxy '*' --silent --show-error --fail --max-time 8 \
+      --resolve "$domain:80:127.0.0.1" "http://$domain/.well-known/acme-challenge/$probe_name" || true)"
+    rm -f -- "$probe_path"
+    [[ "$probe_response" == "$probe_name" ]] || fail "Nginx no puede servir el reto ACME desde el webroot del sitio; revisa el gateway y los permisos antes de solicitar SSL."
+  fi
   if [[ "$ACTION" == "ssl-wildcard-issue" ]]; then
     credentials_file="$(mktemp /root/.xpanel-cloudflare.XXXXXX)"
     trap 'rm -f -- "$credentials_file"' RETURN

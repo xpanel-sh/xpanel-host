@@ -58,6 +58,18 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('ownership-sync-path) ownership_sync_path "$@"', $helper);
     }
 
+    public function test_managed_ssl_grants_nginx_access_only_to_the_acme_challenge(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('if [[ "$ACTION" == "ssl-issue" && "$ACCOUNT_USER" =~ ^xhi[a-f0-9]{12}$', $helper);
+        $this->assertStringContainsString('setfacl -m u:www-data:--x "$cursor"', $helper);
+        $this->assertStringContainsString('setfacl -m u:www-data:rx "$web_root/.well-known" "$web_root/.well-known/acme-challenge"', $helper);
+        $this->assertStringContainsString('setfacl -m d:u:www-data:r "$web_root/.well-known/acme-challenge"', $helper);
+        $this->assertStringContainsString('Nginx no puede servir el reto ACME desde el webroot del sitio', $helper);
+        $this->assertStringContainsString('--webroot -w "$web_root"', $helper);
+    }
+
     public function test_site_apply_repairs_only_the_account_workspace_before_creating_the_site(): void
     {
         $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));

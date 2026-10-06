@@ -4,6 +4,7 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ## [Sin publicar]
 
+- En Host administrado por VPS, la emisión SSL concede a Nginx únicamente acceso de recorrido hasta el webroot y lectura del reto HTTP-01; antes de llamar a Certbot comprueba la respuesta local con un archivo temporal. El webroot original se conserva, por lo que las renovaciones existentes y Host independiente no cambian.
 - La eliminación de sitios en Host administrado completa la limpieza de su identidad de acceso a través del broker; si alguna etapa falla, la página de Sitios muestra la causa en vez de parecer que el botón no hizo nada. Los archivos del sitio se conservan como antes.
 - En Host administrado, el alta de sitios prepara primero el hogar Unix de la cuenta y `public_html` con el usuario correcto, sin cambiar recursivamente archivos del cliente. iKode ya no usa un sandbox local cuando falta el hogar real y comunica el problema de permisos al listar carpetas.
 - iKode incorpora acciones visibles para selección múltiple, menú contextual según archivo/carpeta/espacio vacío, copiar o mover con pegar, ZIP de hasta 100 elementos de entrada y papelera recuperable por ámbito. La sincronización de permisos recursiva se limita a los árboles copiados o restaurados; la consola de Host administrado permanece desactivada hasta disponer de un agente aislado.
