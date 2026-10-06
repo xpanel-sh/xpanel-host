@@ -10,5 +10,10 @@
             <i class="ki-filled ki-technology-2"></i>
             Motores web
         </a>
+        <a href="{{ route('settings.updates.index') }}"
+           class="kt-btn {{ request()->routeIs('settings.updates.*') ? 'kt-btn-primary' : 'kt-btn-ghost' }}">
+            <i class="ki-filled ki-update-file"></i>
+            Actualizaciones
+        </a>
     </div>
 </div>

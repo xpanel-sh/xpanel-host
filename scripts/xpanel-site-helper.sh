@@ -107,6 +107,72 @@ pagespeed_key_set() {
 getent passwd "$SITE_USER" >/dev/null || fail "Configured site user does not exist."
 getent group "$SITE_GROUP" >/dev/null || fail "Configured site group does not exist."
 
+panel_update_guard() {
+  local mode="${XPANEL_MANAGEMENT_MODE:-$(grep '^XPANEL_MANAGEMENT_MODE=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '"' || true)}"
+  [[ "$mode" != "vps-instance" && "$STATE_ROOT" == "$ROOT" && "$ROOT" != /opt/xpanel-host/releases/* && "$ROOT" != /opt/xpanel-host/current && -f "$ROOT/xpanel" ]] || fail "La actualización de este panel pertenece a XPanel VPS."
+  grep -q '^SYSTEM="xpanel-host"' "$ROOT/xpanel" || fail "El repositorio no corresponde a XPanel Host independiente."
+}
+
+panel_update_write_status() {
+  local state="$1" detail="${2:-}" file=/var/lib/xpanel-host/panel-update.status
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host
+  printf 'state=%s\ndetail=%s\nstarted=%s\n' "$state" "${detail//$'\n'/ }" "$(date +%s)" > "$file.tmp"
+  chmod 0644 "$file.tmp"
+  mv -f -- "$file.tmp" "$file"
+}
+
+panel_update_status() {
+  [[ $# -eq 1 ]] || fail "Invalid update status arguments."
+  panel_update_guard
+  if [[ -f /var/lib/xpanel-host/panel-update.status ]]; then
+    panel_update_expire_stale
+    cat /var/lib/xpanel-host/panel-update.status
+  else
+    printf 'state=idle\ndetail=\n'
+  fi
+}
+
+panel_update_expire_stale() {
+  local file=/var/lib/xpanel-host/panel-update.status started
+  [[ -f "$file" ]] || return 0
+  grep -q '^state=running$' "$file" || return 0
+  started="$(sed -n 's/^started=//p' "$file" | head -n 1)"
+  if [[ "$started" =~ ^[0-9]+$ ]] && (( $(date +%s) - started > 7200 )); then
+    panel_update_write_status failed 'La actualización excedió dos horas. Revisa el servicio y vuelve a intentarlo.'
+  fi
+}
+
+panel_update_start() {
+  [[ $# -eq 1 ]] || fail "Invalid update start arguments."
+  panel_update_guard
+  exec 8>/run/lock/xpanel-host-panel-update.lock
+  flock -n 8 || fail "Ya hay una actualización de Host en curso."
+  panel_update_expire_stale
+  if [[ -f /var/lib/xpanel-host/panel-update.status ]] && grep -q '^state=running$' /var/lib/xpanel-host/panel-update.status; then
+    fail "Ya hay una actualización de Host en curso."
+  fi
+  [[ -x /usr/local/bin/xpanel ]] || fail "La CLI xpanel no está instalada."
+  panel_update_write_status running
+  local unit="xpanel-host-panel-update-$(date +%s)-$$"
+  if ! systemd-run --quiet --collect --unit="$unit" /bin/bash "$ROOT/scripts/xpanel-site-helper.sh" panel-update-run; then
+    panel_update_write_status failed "No se pudo iniciar la actualización."
+    fail "No se pudo iniciar la actualización."
+  fi
+  printf 'started=%s\n' "$unit"
+}
+
+panel_update_run() {
+  [[ $# -eq 1 ]] || fail "Invalid update run arguments."
+  panel_update_guard
+  local log=/var/lib/xpanel-host/panel-update.log
+  if /usr/local/bin/xpanel update --root="$ROOT" > "$log" 2>&1; then
+    panel_update_write_status completed
+  else
+    panel_update_write_status failed "$(tail -n 2 "$log" | tr '\n' ' ' | cut -c1-300)"
+    exit 1
+  fi
+}
+
 reload_web_server() {
   local engine="$1"
   if [[ "$engine" == "apache" ]]; then
@@ -2428,6 +2494,9 @@ backup_delete() {
 }
 
 case "$ACTION" in
+  panel-update-status) panel_update_status "$@" ;;
+  panel-update-start) panel_update_start "$@" ;;
+  panel-update-run) panel_update_run "$@" ;;
   pagespeed-key-set) pagespeed_key_set ;;
   server-ip-validate) server_ip_validate "$@" ;;
   panel-access-apply) panel_access_apply "$@" ;;
