@@ -96,6 +96,8 @@ workspace_home="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decod
 XPANEL_RUNTIME_TOKEN="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decode(file_get_contents("php://stdin"), true); if (is_array(\$data) && isset(\$data["runtime_token"]) && is_string(\$data["runtime_token"])) echo \$data["runtime_token"];')"
 [[ "\$XPANEL_RUNTIME_TOKEN" =~ ^[A-Za-z0-9]{64}$ ]] || exit 1
 export XPANEL_RUNTIME_TOKEN
+XPANEL_TERMINAL_COLORS="\$(printf '%s' "\$response" | /usr/bin/php -r '\$data=json_decode(file_get_contents("php://stdin"), true); echo is_array(\$data) && (\$data["colorize_terminal"] ?? false) === true ? "1" : "0";')"
+export XPANEL_TERMINAL_COLORS
 if [[ -n "\$workspace_home" ]]; then
   [[ "\$workspace_home" == "/home/\$expected_user" ]] || exit 1
   cd "\$workspace_home"

@@ -676,9 +676,13 @@ site_action() {
       [[ "$php_profile" == "system" ]] || fail "OpenLiteSpeed does not support isolated PHP profiles."
       remove_php_pool "$php_version" "$pool"
     fi
-    if [[ ! -e "$web_root/index.php" && ! -e "$web_root/index.html" ]]; then
-      printf '%s\n' '<?php echo "XPanel Host: sitio listo"; ?>' > "$web_root/index.php"
-      chown "$site_user:$site_user" "$web_root/index.php"
+    if [[ ! -e "$web_root/index.php" && ! -L "$web_root/index.php" && ! -e "$web_root/index.html" && ! -L "$web_root/index.html" ]]; then
+      local welcome_template="$ROOT/resources/site-templates/welcome.php" welcome_temp=""
+      [[ -f "$welcome_template" && ! -L "$welcome_template" ]] || fail "Default site page is unavailable."
+      welcome_temp="$(mktemp /tmp/xpanel-welcome.XXXXXX)"
+      install -o "$site_user" -g "$site_user" -m 0644 "$welcome_template" "$welcome_temp"
+      mv -n -- "$welcome_temp" "$web_root/index.php"
+      [[ ! -e "$welcome_temp" ]] || rm -f -- "$welcome_temp"
     fi
   elif [[ "$type" == "static" ]]; then
     remove_php_pool "$php_version" "$pool"
@@ -1881,6 +1885,15 @@ access_sync() {
   local domain_label
   domain_label="$(basename -- "$document_root")"
   printf 'export HOME=%q\ncd -- "$HOME"\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$domain_label" > "$jail/etc/profile"
+  cat >> "$jail/etc/profile" <<'TERMINAL_COLORS'
+# XPANEL_TERMINAL_STYLE_V2
+if [[ "${XPANEL_TERMINAL_COLORS:-0}" == "1" ]]; then
+  alias ls='ls --color=auto'
+  alias grep='grep --color=auto'
+  alias diff='diff --color=auto'
+  PS1="\[\e[36m\]${PS1}\[\e[0m\]"
+fi
+TERMINAL_COLORS
   [[ "$TERMINAL_INTERNAL_PORT" =~ ^[0-9]{1,5}$ ]] && (( TERMINAL_INTERNAL_PORT >= 1 && TERMINAL_INTERNAL_PORT <= 65535 )) || fail "Invalid terminal internal port."
   if [[ "$MANAGED_TERMINAL" == "true" ]]; then
     printf 'export XPANEL_RUNTIME_ENDPOINT=%q\nexport XPANEL_RUNTIME_LOOPBACK_TLS=1\n' "https://127.0.0.1:$TERMINAL_INTERNAL_PORT/internal/terminal/runtime/start" >> "$jail/etc/profile"

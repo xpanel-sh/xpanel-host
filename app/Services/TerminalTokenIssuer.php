@@ -19,20 +19,21 @@ class TerminalTokenIssuer
 
     private const RUNTIME_TTL_SECONDS = 28800;
 
-    public function issue(Site $site): array
+    public function issue(Site $site, bool $colorizeTerminal = false): array
     {
         $token = Str::random(64);
         $payload = [
             'scope' => 'site',
             'site_id' => $site->id,
             'system_user' => $site->systemUser(),
+            'colorize_terminal' => $colorizeTerminal,
         ];
         Cache::put($this->payloadKey($token), $payload, self::TTL_SECONDS);
 
         return ['token' => $token, 'expires_in' => self::TTL_SECONDS];
     }
 
-    public function issueAccount(string $systemUser, string $home): array
+    public function issueAccount(string $systemUser, string $home, bool $colorizeTerminal = false): array
     {
         $token = Str::random(64);
         Cache::put($this->payloadKey($token), [
@@ -40,6 +41,7 @@ class TerminalTokenIssuer
             'site_id' => null,
             'system_user' => $systemUser,
             'home' => $home,
+            'colorize_terminal' => $colorizeTerminal,
         ], self::TTL_SECONDS);
 
         return ['token' => $token, 'expires_in' => self::TTL_SECONDS];
@@ -64,6 +66,7 @@ class TerminalTokenIssuer
             || ! array_key_exists('site_id', $payload) || (! is_int($payload['site_id']) && $payload['site_id'] !== null)
             || ! array_key_exists('system_user', $payload) || ! is_string($payload['system_user']) || $payload['system_user'] === ''
             || (isset($payload['home']) && (! is_string($payload['home']) || ! str_starts_with($payload['home'], '/home/')))
+            || (isset($payload['colorize_terminal']) && ! is_bool($payload['colorize_terminal']))
         ) {
             return null;
         }

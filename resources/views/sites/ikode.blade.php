@@ -1099,6 +1099,11 @@
                                 </select>
                             </label>
                             <label class="ikode_setting_row mt-3">
+                                <span class="ikode_setting_label"><i class="ki-filled ki-palette"></i> Colores en terminal</span>
+                                <span class="ikode_setting_check"><input type="checkbox" id="xpanel_terminal_colors"></span>
+                            </label>
+                            <p class="mt-1 text-xs text-secondary-foreground">Colorea el prompt y la salida de ls, grep y diff. Otros programas usan colores si los admiten. Se aplica al reconectar.</p>
+                            <label class="ikode_setting_row mt-3">
                                 <span class="ikode_setting_label"><i class="ki-filled ki-code"></i> Ajustar lineas</span>
                                 <span class="ikode_setting_check"><input type="checkbox" id="xpanel_editor_word_wrap"></span>
                             </label>
@@ -1468,6 +1473,7 @@
                 terminal: {
                     active: 'terminal-1',
                     seq: 1,
+                    colors: false,
                     sessions: [{ id: 'terminal-1', name: 'Terminal 1', cwd: '/' }],
                 },
             };
@@ -1511,6 +1517,7 @@
                         terminal: {
                             active: parsed?.terminal?.active || defaultUiState.terminal.active,
                             seq: Number(parsed?.terminal?.seq || defaultUiState.terminal.seq),
+                            colors: parsed?.terminal?.colors === true,
                             sessions: Array.isArray(parsed?.terminal?.sessions) && parsed.terminal.sessions.length
                                 ? parsed.terminal.sessions.map((session, index) => ({
                                     id: session.id || `terminal-${index + 1}`,
@@ -1585,11 +1592,13 @@
                 const theme = $('#xpanel_editor_theme');
                 const wordWrap = $('#xpanel_editor_word_wrap');
                 const minimap = $('#xpanel_editor_minimap');
+                const terminalColors = $('#xpanel_terminal_colors');
                 if (fontSize) fontSize.value = uiState.editor.fontSize;
                 if (fontFamily) fontFamily.value = uiState.editor.fontFamily;
                 if (theme) theme.value = uiState.editor.theme;
                 if (wordWrap) wordWrap.checked = uiState.editor.wordWrap !== false;
                 if (minimap) minimap.checked = uiState.editor.minimap === true;
+                if (terminalColors) terminalColors.checked = uiState.terminal.colors === true;
             };
             const bindSettings = () => {
                 $('#xpanel_editor_font_size')?.addEventListener('input', (event) => {
@@ -1616,6 +1625,11 @@
                     uiState.editor.minimap = event.target.checked;
                     persistUiState();
                     applyEditorSettings();
+                });
+                $('#xpanel_terminal_colors')?.addEventListener('change', (event) => {
+                    uiState.terminal.colors = event.target.checked;
+                    persistUiState();
+                    toast('Colores de terminal: se aplicarán al abrir o reconectar.');
                 });
                 $('[data-settings-action="reset-editor"]')?.addEventListener('click', () => {
                     uiState.editor = clone(defaultUiState.editor);
@@ -3571,8 +3585,12 @@
             };
 
             const terminalTheme = () => document.documentElement.classList.contains('dark')
-                ? { background: '#111318', foreground: '#e5e7eb', cursor: '#60a5fa', selectionBackground: '#334155' }
-                : { background: '#ffffff', foreground: '#172033', cursor: '#2563eb', selectionBackground: '#bfdbfe' };
+                ? { background: '#111318', foreground: '#e5e7eb', cursor: '#60a5fa', selectionBackground: '#334155',
+                    black: '#94a3b8', red: '#f87171', green: '#86efac', yellow: '#fbbf24', blue: '#93c5fd', magenta: '#d8b4fe', cyan: '#67e8f9', white: '#e5e7eb',
+                    brightBlack: '#94a3b8', brightRed: '#fca5a5', brightGreen: '#bbf7d0', brightYellow: '#fde68a', brightBlue: '#bfdbfe', brightMagenta: '#e9d5ff', brightCyan: '#a5f3fc', brightWhite: '#ffffff' }
+                : { background: '#ffffff', foreground: '#172033', cursor: '#2563eb', selectionBackground: '#bfdbfe',
+                    black: '#111827', red: '#b91c1c', green: '#15803d', yellow: '#92400e', blue: '#1d4ed8', magenta: '#86198f', cyan: '#0e7490', white: '#475569',
+                    brightBlack: '#475569', brightRed: '#dc2626', brightGreen: '#166534', brightYellow: '#a16207', brightBlue: '#2563eb', brightMagenta: '#a21caf', brightCyan: '#155e75', brightWhite: '#0f172a' };
 
             const setTerminalStatus = (terminal, status) => {
                 if (!terminal) return;
@@ -3638,7 +3656,8 @@
                 try {
                     const response = await fetch(config.terminalTokenUrl, {
                         method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+                        headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ colorize_terminal: uiState.terminal.colors === true }),
                     });
                     if (!response.ok) {
                         let message = `No se pudo iniciar la terminal (HTTP ${response.status}).`;

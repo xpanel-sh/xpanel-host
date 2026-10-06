@@ -55,6 +55,10 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('xpanel-vps-terminal-authorize $site_user $TERMINAL_INTERNAL_PORT', $helper);
         $this->assertStringContainsString('https://127.0.0.1:$TERMINAL_INTERNAL_PORT/internal/terminal/runtime/start', $helper);
         $this->assertStringContainsString('XPANEL_RUNTIME_LOOPBACK_TLS=1', $helper);
+        $this->assertStringContainsString("alias ls='ls --color=auto'", $helper);
+        $this->assertStringContainsString("alias grep='grep --color=auto'", $helper);
+        $this->assertStringContainsString("alias diff='diff --color=auto'", $helper);
+        $this->assertStringContainsString('XPANEL_TERMINAL_COLORS', file_get_contents(base_path('scripts/configure-terminal-agent.sh')));
     }
 
     public function test_panel_receives_scoped_write_acl_for_each_site_root(): void

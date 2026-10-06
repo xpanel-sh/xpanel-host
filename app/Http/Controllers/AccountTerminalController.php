@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Services\HostingAccountWorkspace;
 use App\Services\TerminalTokenIssuer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AccountTerminalController extends Controller
 {
-    public function token(HostingAccountWorkspace $workspace, TerminalTokenIssuer $issuer): JsonResponse
+    public function token(Request $request, HostingAccountWorkspace $workspace, TerminalTokenIssuer $issuer): JsonResponse
     {
         abort_unless(config('xpanel.terminal_enabled'), 404);
 
@@ -16,7 +17,7 @@ class AccountTerminalController extends Controller
             'path' => '/terminal-ws',
             'system_user' => $workspace->user(),
             'home' => $workspace->systemRoot(),
-            ...$issuer->issueAccount($workspace->user(), $workspace->systemRoot()),
+            ...$issuer->issueAccount($workspace->user(), $workspace->systemRoot(), $request->boolean('colorize_terminal')),
         ]);
     }
 }

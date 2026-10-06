@@ -111,6 +111,8 @@ class GlobalFileManagerTest extends TestCase
             ->assertSee('data-terminal-reconnect=', false)
             ->assertSee('xpanel-terminal-badge', false)
             ->assertSee('xpanel-terminal-meta', false)
+            ->assertSee('id="xpanel_terminal_colors"', false)
+            ->assertSee('colorize_terminal: uiState.terminal.colors === true', false)
             ->assertSee('id="xpanel_agent_tabs"', false)
             ->assertSee('id="xpanel_agent_connection_form"', false)
             ->assertSee('data-agent-screen="history"', false)

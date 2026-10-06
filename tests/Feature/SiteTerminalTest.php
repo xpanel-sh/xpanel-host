@@ -65,6 +65,20 @@ class SiteTerminalTest extends TestCase
         $this->assertNotSame('', $response->json('token'));
     }
 
+    public function test_site_terminal_color_option_reaches_the_authorized_shell(): void
+    {
+        config(['xpanel.terminal_enabled' => true]);
+        $site = $this->site();
+        $site->accessSettings()->create(['web_terminal_enabled' => true]);
+
+        $token = $this->actingAs($this->owner())
+            ->postJson(route('sites.access.terminal.token', $site), ['colorize_terminal' => true])
+            ->assertOk()->json('token');
+
+        $this->post('/internal/terminal/consume', ['token' => $token])
+            ->assertOk()->assertJson(['colorize_terminal' => true]);
+    }
+
     public function test_consume_endpoint_rejects_non_loopback_callers(): void
     {
         $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9'])
@@ -114,6 +128,22 @@ class SiteTerminalTest extends TestCase
                 'system_user' => 'xpa0123456789',
                 'home' => '/home/xpa0123456789',
             ]);
+    }
+
+    public function test_account_terminal_can_request_colors_without_changing_the_site_setting(): void
+    {
+        config([
+            'xpanel.terminal_enabled' => true,
+            'xpanel.account_user' => 'xpa0123456789',
+            'xpanel.account_home' => '/home/xpa0123456789',
+        ]);
+
+        $token = $this->actingAs($this->owner())
+            ->postJson(route('sites.ikode.terminal.token'), ['colorize_terminal' => true])
+            ->assertOk()->json('token');
+
+        $this->post('/internal/terminal/consume', ['token' => $token])
+            ->assertOk()->assertJson(['colorize_terminal' => true, 'system_user' => 'xpa0123456789']);
     }
 
     public function test_npm_start_from_a_site_terminal_becomes_the_managed_runtime(): void

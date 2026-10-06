@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class SiteTerminalController extends Controller
 {
-    public function token(Site $site, TerminalTokenIssuer $issuer): JsonResponse
+    public function token(Request $request, Site $site, TerminalTokenIssuer $issuer): JsonResponse
     {
         abort_unless(config('xpanel.terminal_enabled'), 404);
         $settings = $site->accessSettings()->first();
@@ -18,7 +18,7 @@ class SiteTerminalController extends Controller
         return response()->json([
             'path' => '/terminal-ws',
             'system_user' => $site->systemUser(),
-            ...$issuer->issue($site),
+            ...$issuer->issue($site, $request->boolean('colorize_terminal')),
         ]);
     }
 
@@ -39,6 +39,7 @@ class SiteTerminalController extends Controller
             'site_id' => $payload['site_id'],
             'system_user' => $payload['system_user'],
             'home' => $payload['home'] ?? null,
+            'colorize_terminal' => $payload['colorize_terminal'] ?? false,
             'runtime_token' => $issuer->issueRuntime($payload),
         ], fn ($value) => $value !== null));
     }

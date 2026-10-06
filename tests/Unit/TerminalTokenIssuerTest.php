@@ -37,6 +37,18 @@ class TerminalTokenIssuerTest extends TestCase
         $this->assertNull($second, 'A token must not be usable twice.');
     }
 
+    public function test_color_preference_is_bound_to_the_one_time_terminal_token(): void
+    {
+        $issuer = new TerminalTokenIssuer;
+        $site = $this->site();
+        ['token' => $token] = $issuer->issue($site, true);
+
+        $this->assertTrue($issuer->verifyAndConsume($token)['colorize_terminal']);
+
+        ['token' => $plainToken] = $issuer->issue($site);
+        $this->assertFalse($issuer->verifyAndConsume($plainToken)['colorize_terminal']);
+    }
+
     public function test_a_token_that_laravel_never_issued_is_rejected(): void
     {
         $issuer = new TerminalTokenIssuer;
