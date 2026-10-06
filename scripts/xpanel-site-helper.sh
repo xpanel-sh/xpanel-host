@@ -127,6 +127,9 @@ panel_update_status() {
   if [[ -f /var/lib/xpanel-host/panel-update.status ]]; then
     panel_update_expire_stale
     cat /var/lib/xpanel-host/panel-update.status
+    if grep -q '^state=running$' /var/lib/xpanel-host/panel-update.status && [[ -f /var/lib/xpanel-host/panel-update.log ]]; then
+      sed -n 's/^XPANEL_STAGE:\(php\|javascript\|build\|applying\)$/stage=\1/p' /var/lib/xpanel-host/panel-update.log | tail -n 1
+    fi
   else
     printf 'state=idle\ndetail=\n'
   fi
@@ -152,6 +155,9 @@ panel_update_start() {
     fail "Ya hay una actualización de Host en curso."
   fi
   [[ -x /usr/local/bin/xpanel ]] || fail "La CLI xpanel no está instalada."
+  install -d -o root -g root -m 0755 /var/lib/xpanel-host
+  : > /var/lib/xpanel-host/panel-update.log
+  chmod 0600 /var/lib/xpanel-host/panel-update.log
   panel_update_write_status running
   local unit="xpanel-host-panel-update-$(date +%s)-$$"
   if ! systemd-run --quiet --collect --unit="$unit" /bin/bash "$ROOT/scripts/xpanel-site-helper.sh" panel-update-run; then

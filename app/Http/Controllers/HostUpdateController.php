@@ -15,7 +15,7 @@ class HostUpdateController extends Controller
             $status = $updates->status();
             $statusError = null;
         } catch (\Throwable $exception) {
-            $status = ['current' => $updates->currentRevision(), 'prepared' => null, 'status' => null, 'error' => null];
+            $status = ['current' => $updates->currentRevision(), 'prepared' => null, 'status' => null, 'stage' => null, 'message' => null, 'error' => null];
             $statusError = $exception->getMessage();
         }
         try {

@@ -251,10 +251,14 @@ else
   echo "El panel ya estaba en mantenimiento; se conservará ese estado."
 fi
 
+printf 'XPANEL_STAGE:php\n'
 composer --working-dir="$ROOT" install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+printf 'XPANEL_STAGE:javascript\n'
 npm --prefix "$ROOT" ci --no-audit --no-fund
+printf 'XPANEL_STAGE:build\n'
 npm --prefix "$ROOT" run build
 
+printf 'XPANEL_STAGE:applying\n'
 chown -R "$site_user:$site_group" "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
 sudo -u "$site_user" php "$ROOT/artisan" migrate --force
 configure_backup_runtime

@@ -30,7 +30,7 @@ class HostUpdateManager
             return json_decode($this->broker->execute('host-update-feed', [], null), true, 512, JSON_THROW_ON_ERROR);
         }
 
-        return Cache::remember('xpanel-host-official-commits', now()->addHour(), function (): array {
+        return Cache::remember('xpanel-host-official-commits', now()->addMinutes(5), function (): array {
             try {
                 $response = Http::acceptJson()->withHeaders(['User-Agent' => 'XPanel-Host'])
                     ->timeout(8)->get('https://api.github.com/repos/xpanel-sh/xpanel-host/commits', [
@@ -58,12 +58,12 @@ class HostUpdateManager
         });
     }
 
-    /** @return array{current:?string,prepared:?string,status:?string,error:?string} */
+    /** @return array{current:?string,prepared:?string,status:?string,stage:?string,message:?string,error:?string} */
     public function status(): array
     {
         $current = $this->currentRevision();
         if (! config('xpanel.apply_system_changes')) {
-            return ['current' => $current, 'prepared' => null, 'status' => null, 'error' => null];
+            return ['current' => $current, 'prepared' => null, 'status' => null, 'stage' => null, 'message' => null, 'error' => null];
         }
         if ($this->managed()) {
             $data = json_decode($this->broker->execute('host-update-status', [], null), true, 512, JSON_THROW_ON_ERROR);
@@ -72,6 +72,8 @@ class HostUpdateManager
                 'current' => $data['current'] ?? $current,
                 'prepared' => $data['prepared'] ?? null,
                 'status' => $data['status'] ?? null,
+                'stage' => $data['stage'] ?? null,
+                'message' => $data['message'] ?? null,
                 'error' => $data['error'] ?? null,
             ];
         }
@@ -79,8 +81,24 @@ class HostUpdateManager
         $output = $this->commands->run(['sudo', '-n', (string) config('xpanel.site_helper'), 'panel-update-status']);
         preg_match('/^state=([^\n]*)/m', $output, $state);
         preg_match('/^detail=([^\n]*)/m', $output, $detail);
+        preg_match('/^stage=(php|javascript|build|applying)$/m', $output, $stage);
 
-        return ['current' => $current, 'prepared' => null, 'status' => $state[1] ?? 'idle', 'error' => ($detail[1] ?? '') ?: null];
+        $status = $state[1] ?? 'idle';
+        $currentStage = $status === 'running' ? ($stage[1] ?? 'preparing') : null;
+
+        return [
+            'current' => $current, 'prepared' => null, 'status' => $status,
+            'stage' => $currentStage,
+            'message' => match ($currentStage) {
+                'php' => 'Instalando dependencias PHP',
+                'javascript' => 'Instalando dependencias JavaScript',
+                'build' => 'Compilando los recursos del panel',
+                'applying' => 'Aplicando la configuración del servidor',
+                'preparing' => 'Preparando la actualización local',
+                default => null,
+            },
+            'error' => ($detail[1] ?? '') ?: null,
+        ];
     }
 
     public function start(): void
@@ -93,6 +111,7 @@ class HostUpdateManager
 
             return;
         }
+        Cache::forget('xpanel-host-official-commits');
         $this->commands->run(['sudo', '-n', (string) config('xpanel.site_helper'), 'panel-update-start']);
     }
 

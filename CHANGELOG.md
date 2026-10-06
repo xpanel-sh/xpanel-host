@@ -4,6 +4,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ## [Sin publicar]
 
+- Ajustes → Actualizaciones muestra las etapas reales tanto en Host administrado como independiente sin recargar la página y actualiza el hash instalado al terminar. La lista de cambios de GitHub usa una caché breve que se invalida al iniciar una actualización.
+
 - Ajustes → Actualizaciones muestra la revisión instalada y los cambios recientes del repositorio oficial. En Host independiente inicia su propia actualización; cuando lo administra VPS solicita por el broker firmado actualizar únicamente esa cuenta.
 
 - En Host administrado por VPS, la emisión SSL concede a Nginx únicamente acceso de recorrido hasta el webroot y lectura del reto HTTP-01; antes de llamar a Certbot comprueba la respuesta local con un archivo temporal. El webroot original se conserva, por lo que las renovaciones existentes y Host independiente no cambian.
