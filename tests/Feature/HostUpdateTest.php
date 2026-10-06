@@ -8,6 +8,7 @@ use App\Services\HostBrokerClient;
 use App\Services\HostUpdateManager;
 use App\Services\ServerCommandRunner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -27,6 +28,30 @@ class HostUpdateTest extends TestCase
 
         $this->actingAs($this->user('owner'))->get(route('settings.updates.index'))->assertOk()->assertSee('XPanel Host');
         $this->actingAs($this->user('developer'))->get(route('settings.updates.index'))->assertForbidden();
+    }
+
+    public function test_recent_changes_are_grouped_by_year_and_date_with_details(): void
+    {
+        config()->set('xpanel.apply_system_changes', false);
+        config()->set('xpanel.management_mode', 'standalone');
+        Cache::forget('xpanel-host-official-commits');
+        Http::fake(['api.github.com/*' => Http::response([[
+            'sha' => str_repeat('a', 40),
+            'commit' => [
+                'message' => "Mejora de actualizaciones\nExplicación detallada del cambio.",
+                'committer' => ['date' => '2026-10-06T12:30:00Z'],
+            ],
+        ]], 200)]);
+
+        $this->actingAs($this->user('owner'))->get(route('settings.updates.index'))
+            ->assertOk()
+            ->assertSee('Historial de cambios')
+            ->assertSee('2026')
+            ->assertSee('Mejora de actualizaciones')
+            ->assertSee('Explicación detallada del cambio.')
+            ->assertSee('role="progressbar"', false);
+
+        Http::assertSent(fn ($request) => $request['per_page'] === 50);
     }
 
     public function test_standalone_host_starts_only_its_local_helper(): void

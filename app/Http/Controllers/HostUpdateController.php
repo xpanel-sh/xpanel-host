@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\HostUpdateManager;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -24,7 +25,18 @@ class HostUpdateController extends Controller
             $commits = [];
         }
 
-        return view('settings.updates', compact('status', 'statusError', 'commits'));
+        $commitsByYear = collect($commits)->map(function (array $commit): array {
+            $date = filled($commit['date'] ?? null)
+                ? Carbon::parse($commit['date'])->timezone(config('app.timezone'))
+                : null;
+
+            return [...$commit, 'local_day' => $date?->format('Y-m-d'), 'local_time' => $date?->format('H:i')];
+        })->groupBy(fn (array $commit) => $commit['local_day'] ? substr($commit['local_day'], 0, 4) : 'Sin fecha')
+            ->map(fn ($year) => $year->groupBy(fn (array $commit) => $commit['local_day'] ?? 'Sin fecha'));
+
+        $latestCommit = isset($commits[0]) ? substr($commits[0]['sha'], 0, 12) : null;
+
+        return view('settings.updates', compact('status', 'statusError', 'commitsByYear', 'latestCommit'));
     }
 
     public function status(HostUpdateManager $updates): JsonResponse
