@@ -35,20 +35,32 @@ class HostUpdateTest extends TestCase
         config()->set('xpanel.apply_system_changes', false);
         config()->set('xpanel.management_mode', 'standalone');
         Cache::forget('xpanel-host-official-commits');
-        Http::fake(['api.github.com/*' => Http::response([[
-            'sha' => str_repeat('a', 40),
-            'commit' => [
-                'message' => "Mejora de actualizaciones\nExplicación detallada del cambio.",
-                'committer' => ['date' => '2026-10-06T12:30:00Z'],
+        Http::fake(['api.github.com/*' => Http::response([
+            [
+                'sha' => str_repeat('a', 40),
+                'commit' => [
+                    'message' => "Mejora de actualizaciones\nExplicación detallada del cambio.",
+                    'committer' => ['date' => '2026-10-06T12:30:00Z'],
+                ],
             ],
-        ]], 200)]);
+            [
+                'sha' => str_repeat('b', 40),
+                'commit' => [
+                    'message' => 'Cambio anterior',
+                    'committer' => ['date' => '2025-12-10T12:30:00Z'],
+                ],
+            ],
+        ], 200)]);
 
         $this->actingAs($this->user('owner'))->get(route('settings.updates.index'))
             ->assertOk()
             ->assertSee('Historial de cambios')
             ->assertSee('2026')
+            ->assertSee('2025')
             ->assertSee('Mejora de actualizaciones')
             ->assertSee('Explicación detallada del cambio.')
+            ->assertSee('data-update-year="2025"', false)
+            ->assertSee('data-update-year-panel="2025"', false)
             ->assertSee('role="progressbar"', false);
 
         Http::assertSent(fn ($request) => $request['per_page'] === 50);

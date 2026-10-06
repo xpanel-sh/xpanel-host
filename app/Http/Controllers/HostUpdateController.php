@@ -30,9 +30,8 @@ class HostUpdateController extends Controller
                 ? Carbon::parse($commit['date'])->timezone(config('app.timezone'))
                 : null;
 
-            return [...$commit, 'local_day' => $date?->format('Y-m-d'), 'local_time' => $date?->format('H:i')];
-        })->groupBy(fn (array $commit) => $commit['local_day'] ? substr($commit['local_day'], 0, 4) : 'Sin fecha')
-            ->map(fn ($year) => $year->groupBy(fn (array $commit) => $commit['local_day'] ?? 'Sin fecha'));
+            return [...$commit, 'local_year' => $date?->year, 'local_date' => $date?->locale('es')->translatedFormat('d \d\e F \d\e Y'), 'local_time' => $date?->format('H:i')];
+        })->groupBy(fn (array $commit) => $commit['local_year'] ?? 'Sin fecha');
 
         $latestCommit = isset($commits[0]) ? substr($commits[0]['sha'], 0, 12) : null;
 

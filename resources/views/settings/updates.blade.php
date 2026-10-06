@@ -47,30 +47,43 @@
 
                 <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-semibold">Historial de cambios</h2><p class="text-xs text-secondary-foreground">Últimas 50 revisiones del repositorio oficial, agrupadas por año y fecha. Se actualiza cada 5 minutos.</p></div><a class="kt-btn kt-btn-outline kt-btn-sm" href="https://github.com/xpanel-sh/xpanel-host/commits/main" target="_blank" rel="noopener noreferrer">Ver repositorio</a></div>
                 @if($commitsByYear->isNotEmpty())
-                    <div class="kt-card"><div class="kt-card-content max-h-[44rem] overflow-y-auto p-4 sm:p-5">
-                        @foreach($commitsByYear as $year => $days)
-                            <section @class(['mt-6' => !$loop->first]) aria-label="Cambios de {{ $year }}">
-                                <h3 class="mb-4 text-base font-semibold text-mono">{{ $year }}</h3>
-                                @foreach($days as $day => $dayCommits)
-                                    <div class="mb-5 last:mb-0">
-                                        <h4 class="mb-3 text-xs font-semibold text-secondary-foreground">{{ $day === 'Sin fecha' ? $day : \Illuminate\Support\Carbon::parse($day)->locale('es')->translatedFormat('d \d\e F') }}</h4>
-                                        <div class="ms-2 border-s border-border">
-                                            @foreach($dayCommits as $commit)
-                                                <article class="relative pb-5 ps-6 last:pb-0">
-                                                    <span class="absolute -start-[5px] top-1.5 size-2.5 rounded-full border-2 border-primary bg-background"></span>
-                                                    <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-                                                        <a class="min-w-0 break-words text-sm font-medium text-mono hover:text-primary" href="{{ $commit['url'] }}" target="_blank" rel="noopener noreferrer">{{ $commit['title'] }}</a>
-                                                        <span class="shrink-0 text-xs text-secondary-foreground">{{ $commit['local_time'] ? $commit['local_time'].' · ' : '' }}<code>{{ substr($commit['sha'], 0, 12) }}</code></span>
+                    <div class="flex flex-col gap-5 lg:flex-row lg:gap-7.5">
+                        @foreach($commitsByYear as $year => $yearCommits)
+                            <div class="kt-card min-w-0 grow {{ $loop->first ? '' : 'hidden' }}" id="activity_{{ $year === 'Sin fecha' ? 'sin-fecha' : $year }}" data-update-year-panel="{{ $year }}">
+                                <div class="kt-card-header">
+                                    <h3 class="kt-card-title">Cambios de {{ $year }}</h3>
+                                    <span class="text-xs text-secondary-foreground">{{ $yearCommits->count() }} {{ $yearCommits->count() === 1 ? 'revisión' : 'revisiones' }}</span>
+                                </div>
+                                <div class="kt-card-content max-h-[38rem] overflow-y-auto">
+                                    <div class="flex flex-col">
+                                        @foreach($yearCommits as $commit)
+                                            <div class="flex items-start relative">
+                                                @unless($loop->last)<div class="w-9 start-0 top-9 absolute bottom-0 rtl:-translate-x-1/2 translate-x-1/2 border-s border-s-input"></div>@endunless
+                                                <div class="flex items-center justify-center shrink-0 rounded-full bg-accent/60 border border-input size-9 text-secondary-foreground">
+                                                    <i class="ki-filled {{ str_starts_with(strtolower($commit['title']), 'fix') ? 'ki-shield-tick' : (str_starts_with(strtolower($commit['title']), 'feat') ? 'ki-code' : 'ki-setting-2') }} text-base"></i>
+                                                </div>
+                                                <div class="ps-2.5 mb-7 text-base grow min-w-0">
+                                                    <div class="flex flex-col">
+                                                        <a class="text-sm font-medium kt-link break-words" href="{{ $commit['url'] }}" target="_blank" rel="noopener noreferrer">{{ $commit['title'] }}</a>
+                                                        <span class="text-xs text-secondary-foreground">{{ $commit['local_date'] ?: 'Sin fecha' }}{{ $commit['local_time'] ? ', '.$commit['local_time'] : '' }} · {{ substr($commit['sha'], 0, 12) }}</span>
+                                                        @if($commit['details'])<p class="mt-1 whitespace-pre-line break-words text-xs leading-5 text-secondary-foreground">{{ $commit['details'] }}</p>@endif
                                                     </div>
-                                                    @if($commit['details'])<p class="mt-1 whitespace-pre-line break-words text-xs leading-5 text-secondary-foreground">{{ $commit['details'] }}</p>@endif
-                                                </article>
-                                            @endforeach
-                                        </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
                                     </div>
-                                @endforeach
-                            </section>
+                                </div>
+                                <div class="kt-card-footer justify-center">
+                                    <a class="kt-link kt-link-underlined kt-link-dashed" href="https://github.com/xpanel-sh/xpanel-host/commits/main" target="_blank" rel="noopener noreferrer">Ver historial completo</a>
+                                </div>
+                            </div>
                         @endforeach
-                    </div></div>
+                        <div class="flex flex-row flex-wrap gap-2.5 self-start lg:flex-col" data-kt-tabs="true" aria-label="Seleccionar año del historial">
+                            @foreach($commitsByYear as $year => $yearCommits)
+                                <a class="kt-btn kt-btn-sm bg-transparent shadow-none text-secondary-foreground hover:text-primary kt-tab-active:bg-primary/10 kt-tab-active:text-primary {{ $loop->first ? 'active' : '' }}" data-kt-tab-toggle="#activity_{{ $year === 'Sin fecha' ? 'sin-fecha' : $year }}" data-update-year="{{ $year }}" href="#activity_{{ $year === 'Sin fecha' ? 'sin-fecha' : $year }}" aria-current="{{ $loop->first ? 'true' : 'false' }}">{{ $year }}</a>
+                            @endforeach
+                        </div>
+                    </div>
                 @else
                     <div class="kt-card"><div class="kt-card-content p-4 text-sm text-secondary-foreground">No se pudo consultar GitHub ahora. La actualización sigue disponible cuando el servidor tiene conexión.</div></div>
                 @endif
@@ -83,6 +96,18 @@
 @push('scripts')
 <script>
     (() => {
+        const yearTabs = [...document.querySelectorAll('[data-update-year]')];
+        const yearPanels = [...document.querySelectorAll('[data-update-year-panel]')];
+        yearTabs.forEach((tab) => tab.addEventListener('click', (event) => {
+            event.preventDefault();
+            const selectedYear = tab.dataset.updateYear;
+            yearTabs.forEach((item) => {
+                const active = item.dataset.updateYear === selectedYear;
+                item.classList.toggle('active', active);
+                item.setAttribute('aria-current', String(active));
+            });
+            yearPanels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.updateYearPanel !== selectedYear));
+        }));
         const steps = ['download', 'php', 'javascript', 'build', 'applying'];
         const labels = { pending: 'En espera', running: 'Actualizando', completed: 'Completada', unchanged: 'Al día', failed: 'Falló' };
         const progress = document.getElementById('host-update-progress');
