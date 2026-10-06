@@ -154,14 +154,16 @@
         .xpanel-file-row {
             display: flex;
             align-items: center;
-            gap: 6px;
-            min-height: 26px;
-            padding: 3px 7px;
+            gap: 5px;
+            min-height: 23px;
+            padding: 2px 7px;
             border-radius: 8px;
             color: var(--muted-foreground);
             cursor: pointer;
             user-select: none;
         }
+        .xpanel-file-tree .xpanel-file-row { margin-bottom: 1px; }
+        .xpanel-file-row > i { font-size: 13px; line-height: 1; }
         .xpanel-file-tree {
             padding: 4px;
             min-height: 100%;
@@ -171,12 +173,9 @@
             background: var(--muted);
             color: var(--foreground);
         }
-        .xpanel-file-row.active {
-            box-shadow: inset 2px 0 0 var(--primary);
-        }
         .xpanel-file-check {
-            width: 15px;
-            height: 15px;
+            width: 13px;
+            height: 13px;
             margin: 0;
             flex: 0 0 auto;
             accent-color: var(--primary);
@@ -225,14 +224,15 @@
             opacity: .75;
         }
         .xpanel-file-row .xpanel-file-toggle {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             color: var(--muted-foreground);
             flex: 0 0 auto;
         }
+        .xpanel-file-row .xpanel-file-toggle i { font-size: 11px; }
         .xpanel-file-row .xpanel-file-name {
             overflow: hidden;
             text-overflow: ellipsis;
@@ -245,10 +245,10 @@
         .xpanel-grid-nav button:hover:not(:disabled) { background: var(--muted); }
         .xpanel-grid-nav button:disabled { opacity: .35; cursor: not-allowed; }
         .xpanel-grid-nav span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .xpanel-file-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 3px; padding: 6px; }
+        .xpanel-file-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: start; gap: 3px; padding: 6px; }
         .xpanel-file-grid .xpanel-file-row { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0; min-height: 72px; padding: 6px 3px 4px; text-align: center; }
         .xpanel-file-grid .xpanel-file-row > i { font-size: 23px; line-height: 1; }
-        .xpanel-file-grid .xpanel-file-check { position: absolute; top: 4px; left: 4px; width: 13px; height: 13px; }
+        .xpanel-file-grid .xpanel-file-check { position: absolute; top: 4px; left: 4px; width: 12px; height: 12px; }
         .xpanel-file-grid .xpanel-file-name { width: 100%; flex: none; font-size: 10px; }
         .xpanel-file-grid .xpanel-file-size, .xpanel-file-grid .xpanel-file-toggle { display: none; }
         .xpanel-file-grid .xpanel-file-rename-input { width: 100%; min-width: 0; font-size: 10px; }
@@ -1005,7 +1005,7 @@
                                     <button type="button" data-fm-action="refresh"><i class="ki-filled ki-arrows-circle"></i> Refrescar</button>
                                 </div>
                             </details>
-                            <button class="ikode_left_action_btn" type="button" id="xpanel_file_view_toggle" title="Cambiar a cuadrícula" aria-label="Cambiar a cuadrícula" aria-pressed="false"><i class="ki-filled ki-element-3"></i></button>
+                            <button class="ikode_left_action_btn" type="button" id="xpanel_file_view_toggle" title="Cambiar a cuadrícula" aria-label="Cambiar a cuadrícula" aria-pressed="false"><i class="ki-outline ki-abstract-14"></i></button>
                             <button class="ikode_left_action_btn" type="button" data-fm-action="trash-list" id="xpanel_trash_open" title="Abrir papelera" aria-label="Abrir papelera">
                                 <i class="ki-filled ki-trash"></i>
                             </button>
@@ -2345,7 +2345,7 @@
                 button.title = grid ? 'Cambiar a listado' : 'Cambiar a cuadrícula';
                 button.setAttribute('aria-label', button.title);
                 button.setAttribute('aria-pressed', String(grid));
-                button.querySelector('i').className = `ki-filled ${grid ? 'ki-row-vertical' : 'ki-element-3'}`;
+                button.querySelector('i').className = grid ? 'ki-filled ki-element-11' : 'ki-outline ki-abstract-14';
             };
             const renderGrid = () => {
                 const list = $('#xpanel_file_list');
