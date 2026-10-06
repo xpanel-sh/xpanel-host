@@ -53,6 +53,17 @@ class HostUpdateTest extends TestCase
             ->assertRedirect()->assertSessionHasNoErrors();
     }
 
+    public function test_repeated_update_attempts_return_an_application_error_instead_of_429(): void
+    {
+        config()->set('xpanel.apply_system_changes', false);
+        $user = $this->user('owner');
+
+        for ($attempt = 0; $attempt < 4; $attempt++) {
+            $this->actingAs($user)->post(route('settings.updates.start'))
+                ->assertRedirect()->assertSessionHasErrors('update');
+        }
+    }
+
     public function test_managed_status_exposes_the_current_update_stage(): void
     {
         config()->set('xpanel.apply_system_changes', true);

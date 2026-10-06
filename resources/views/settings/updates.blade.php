@@ -107,18 +107,32 @@
         };
         render(@json($status));
         let checking = false;
+        let pollTimer;
+        let retryDelay = 0;
+        const schedule = () => {
+            clearTimeout(pollTimer);
+            pollTimer = setTimeout(check, retryDelay || (progress.hidden ? 15000 : 3000));
+        };
         const check = async () => {
             if (checking || document.hidden) return;
             checking = true;
             try {
                 const response = await fetch(@json(route('settings.updates.status')), { headers: { Accept: 'application/json' }, cache: 'no-store' });
-                if (response.ok) render(await response.json());
+                if (response.status === 429) {
+                    retryDelay = Math.max(30000, Number(response.headers.get('Retry-After') || 0) * 1000);
+                } else if (response.ok) {
+                    retryDelay = 0;
+                    render(await response.json());
+                }
             } catch (_) {
                 if (!progress.hidden) stage.textContent = 'Conexión interrumpida; reintentando...';
-            } finally { checking = false; }
+            } finally { checking = false; if (!document.hidden) schedule(); }
         };
-        setInterval(check, 3000);
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+        schedule();
+        document.addEventListener('visibilitychange', () => {
+            clearTimeout(pollTimer);
+            if (!document.hidden) check();
+        });
     })();
 </script>
 @endpush

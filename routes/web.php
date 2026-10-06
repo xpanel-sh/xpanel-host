@@ -378,8 +378,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/settings/web-servers', [WebServerEngineController::class, 'index'])->name('settings.web-servers.index');
             Route::post('/settings/web-servers/{engine}/install', [WebServerEngineController::class, 'install'])->name('settings.web-servers.install');
             Route::get('/settings/updates', [HostUpdateController::class, 'index'])->name('settings.updates.index');
-            Route::get('/settings/updates/status', [HostUpdateController::class, 'status'])->middleware('throttle:30,1')->name('settings.updates.status');
-            Route::post('/settings/updates', [HostUpdateController::class, 'start'])->middleware('throttle:3,1')->name('settings.updates.start');
+            Route::get('/settings/updates/status', [HostUpdateController::class, 'status'])->middleware('throttle:120,1')->name('settings.updates.status');
+            Route::post('/settings/updates', [HostUpdateController::class, 'start'])->name('settings.updates.start');
         });
     });
 });
