@@ -47,6 +47,16 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('/internal/terminal/runtime/start', $agent);
     }
 
+    public function test_managed_terminal_uses_vps_service_key_and_its_instance_loopback_endpoint(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('/var/lib/xpanel-vps/terminal/service_terminal.pub', $helper);
+        $this->assertStringContainsString('xpanel-vps-terminal-authorize $site_user $TERMINAL_INTERNAL_PORT', $helper);
+        $this->assertStringContainsString('https://127.0.0.1:$TERMINAL_INTERNAL_PORT/internal/terminal/runtime/start', $helper);
+        $this->assertStringContainsString('XPANEL_RUNTIME_LOOPBACK_TLS=1', $helper);
+    }
+
     public function test_panel_receives_scoped_write_acl_for_each_site_root(): void
     {
         $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));

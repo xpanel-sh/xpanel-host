@@ -28,6 +28,11 @@ APACHE_SERVICE="${XPANEL_APACHE_SERVICE:-}"
 APACHE_BACKEND_PORT="${XPANEL_APACHE_BACKEND_PORT:-8082}"
 TERMINAL_INTERNAL_PORT="${XPANEL_TERMINAL_INTERNAL_PORT:-$(grep '^XPANEL_TERMINAL_INTERNAL_PORT=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '\"' || true)}"
 TERMINAL_INTERNAL_PORT="${TERMINAL_INTERNAL_PORT:-7091}"
+MANAGED_TERMINAL=false
+if [[ "${XPANEL_MANAGEMENT_MODE:-}" == "vps-instance" ]]; then
+  MANAGED_TERMINAL=true
+  [[ "$TERMINAL_INTERNAL_PORT" =~ ^[0-9]{4,5}$ ]] && (( TERMINAL_INTERNAL_PORT >= 1024 && TERMINAL_INTERNAL_PORT <= 65535 && TERMINAL_INTERNAL_PORT != 7093 )) || { echo "Invalid managed terminal port." >&2; exit 1; }
+fi
 
 fail() { echo "$1" >&2; exit 1; }
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
@@ -1758,12 +1763,17 @@ access_sync() {
   local terminal_keys_file="$key_root/authorized_keys.terminal"
   if [[ "$web_terminal_enabled" == "1" ]]; then
     local service_key="/var/lib/xpanel-host/ssh/service_terminal.pub"
+    local authorize_command="/usr/local/bin/xpanel-terminal-authorize $site_user"
+    if [[ "$MANAGED_TERMINAL" == "true" ]]; then
+      service_key="/var/lib/xpanel-vps/terminal/service_terminal.pub"
+      authorize_command="/usr/local/bin/xpanel-vps-terminal-authorize $site_user $TERMINAL_INTERNAL_PORT"
+    fi
     [[ -f "$service_key" ]] || fail "Terminal service key not installed."
     local terminal_key
     terminal_key="$(cat "$service_key")"
     [[ "$terminal_key" =~ ^ssh-ed25519\ [A-Za-z0-9+/]+={0,3}(\ [^[:cntrl:]]{1,200})?$ ]] || fail "Invalid terminal service key."
-    printf 'no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-user-rc,command="/usr/local/bin/xpanel-terminal-authorize %s" %s\n' \
-      "$site_user" "$terminal_key" > "$terminal_keys_file"
+    printf 'no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-user-rc,command="%s" %s\n' \
+      "$authorize_command" "$terminal_key" > "$terminal_keys_file"
     chown root:root "$terminal_keys_file"
     chmod 0644 "$terminal_keys_file"
   else
@@ -1872,7 +1882,11 @@ access_sync() {
   domain_label="$(basename -- "$document_root")"
   printf 'export HOME=%q\ncd -- "$HOME"\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$domain_label" > "$jail/etc/profile"
   [[ "$TERMINAL_INTERNAL_PORT" =~ ^[0-9]{1,5}$ ]] && (( TERMINAL_INTERNAL_PORT >= 1 && TERMINAL_INTERNAL_PORT <= 65535 )) || fail "Invalid terminal internal port."
-  printf 'export XPANEL_RUNTIME_ENDPOINT=%q\n' "http://127.0.0.1:$TERMINAL_INTERNAL_PORT/internal/terminal/runtime/start" >> "$jail/etc/profile"
+  if [[ "$MANAGED_TERMINAL" == "true" ]]; then
+    printf 'export XPANEL_RUNTIME_ENDPOINT=%q\nexport XPANEL_RUNTIME_LOOPBACK_TLS=1\n' "https://127.0.0.1:$TERMINAL_INTERNAL_PORT/internal/terminal/runtime/start" >> "$jail/etc/profile"
+  else
+    printf 'export XPANEL_RUNTIME_ENDPOINT=%q\n' "http://127.0.0.1:$TERMINAL_INTERNAL_PORT/internal/terminal/runtime/start" >> "$jail/etc/profile"
+  fi
   cat >> "$jail/etc/profile" <<'PROFILE'
 
 # Conventional application start commands are delegated to XPanel. It
@@ -1882,7 +1896,9 @@ access_sync() {
 xpanel_managed_start() {
   local managed_command="$1" response status
   [[ -n "${XPANEL_RUNTIME_TOKEN:-}" ]] || return 125
-  response="$(/usr/bin/curl --silent --show-error --fail-with-body --max-time 1800 --noproxy '*' \
+  local -a loopback_tls=()
+  [[ "${XPANEL_RUNTIME_LOOPBACK_TLS:-}" != "1" ]] || loopback_tls=(--insecure)
+  response="$(/usr/bin/curl "${loopback_tls[@]}" --silent --show-error --fail-with-body --max-time 1800 --noproxy '*' \
     -H 'Accept: application/json' \
     --data-urlencode "token=$XPANEL_RUNTIME_TOKEN" \
     --data-urlencode "cwd=$PWD" \

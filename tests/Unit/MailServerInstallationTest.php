@@ -97,7 +97,7 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('go build -C "$ROOT/agent"', $agentConfigurator);
         $this->assertStringContainsString("sed -i '/^XPANEL_TERMINAL_SIGNING_KEY=/d'", $agentConfigurator);
         $this->assertStringContainsString('xpanel-terminal-authorize', $agentConfigurator);
-        $this->assertStringContainsString('command="/usr/local/bin/xpanel-terminal-authorize %s"', file_get_contents(base_path('scripts/xpanel-site-helper.sh')));
+        $this->assertStringContainsString('authorize_command="/usr/local/bin/xpanel-terminal-authorize $site_user"', file_get_contents(base_path('scripts/xpanel-site-helper.sh')));
         $this->assertStringNotContainsString('XPANEL_TERMINAL_SIGNING_KEY=', file_get_contents(base_path('.env.example')));
     }
 
