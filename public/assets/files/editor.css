@@ -252,6 +252,57 @@
     gap: 6px;
 }
 
+.ikode_file_actions_menu {
+    position: relative;
+}
+
+.ikode_file_actions_menu summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.ikode_file_actions_menu summary::-webkit-details-marker { display: none; }
+
+.ikode_file_actions_menu[open] summary {
+    opacity: 1;
+    background: rgba(59, 130, 246, .16);
+}
+
+.ikode_file_actions_dropdown {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: -26px;
+    z-index: 30;
+    width: 178px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .16);
+    letter-spacing: normal;
+}
+
+.ikode_file_actions_dropdown button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    text-align: left;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.ikode_file_actions_dropdown button:hover:not(:disabled) { background: var(--muted); }
+.ikode_file_actions_dropdown button:disabled { opacity: .45; cursor: not-allowed; }
+.ikode_file_actions_dropdown button i { width: 14px; text-align: center; }
+
+.ikode_file_actions_menu[hidden],
+.ikode_left_action_btn[hidden],
+#xpanel_trash_view[hidden] { display: none; }
+
 .ikode_left_action_btn {
     width: 20px;
     height: 20px;
@@ -433,6 +484,61 @@
 .ikode_setting_check input {
     width: 16px;
     height: 16px;
+}
+
+.ikode_setting_actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    position: relative;
+    flex: none;
+}
+
+.ikode_setting_help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    color: var(--muted-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.ikode_setting_help:hover,
+.ikode_setting_help:focus-visible {
+    color: var(--foreground);
+}
+
+.ikode_setting_help_text {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 20;
+    width: min(240px, 70vw);
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.45;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s ease;
+}
+
+.ikode_setting_help:hover + .ikode_setting_help_text,
+.ikode_setting_help:focus-visible + .ikode_setting_help_text {
+    visibility: visible;
+    opacity: 1;
 }
 
 .ikode_setting_reset {

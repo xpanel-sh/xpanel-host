@@ -97,6 +97,11 @@ class GlobalFileManagerTest extends TestCase
         $this->actingAs($developer)->get(route('sites.ikode'))
             ->assertOk()
             ->assertSee('Cuenta completa')
+            ->assertSee('id="xpanel_file_actions_menu"', false)
+            ->assertSee('id="xpanel_selection_toolbar"', false)
+            ->assertSee('id="xpanel_trash_view"', false)
+            ->assertSee('id="xpanel_trash_back"', false)
+            ->assertDontSee('id="xpanel_trash_modal"', false)
             ->assertSee('/^\\.env(?:\\..+)?$/', false);
     }
 

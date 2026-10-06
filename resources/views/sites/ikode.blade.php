@@ -168,57 +168,55 @@
         }
         .xpanel-file-row:hover,
         .xpanel-file-row.active {
-            background: hsl(var(--muted));
-            color: hsl(var(--foreground));
+            background: var(--muted);
+            color: var(--foreground);
         }
         .xpanel-file-row.active {
-            box-shadow: inset 2px 0 0 hsl(var(--primary));
+            box-shadow: inset 2px 0 0 var(--primary);
         }
         .xpanel-file-check {
             width: 15px;
             height: 15px;
             margin: 0;
             flex: 0 0 auto;
-            accent-color: hsl(var(--primary));
+            accent-color: var(--primary);
             cursor: pointer;
         }
         .xpanel-file-check:disabled {
             cursor: not-allowed;
             opacity: .35;
         }
-        .xpanel-selection-count {
-            max-width: 90px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            color: var(--muted-foreground);
-            font-size: 10px;
-        }
         .xpanel-selection-toolbar {
             display: flex;
             align-items: center;
-            gap: 4px;
-            flex-wrap: wrap;
-            padding: 6px 8px;
-            border-bottom: 1px solid hsl(var(--border));
-            background: hsl(var(--primary) / .06);
+            gap: 3px;
+            min-height: 30px;
+            padding: 3px 7px;
+            border-bottom: 1px solid var(--border);
+            background: var(--muted);
         }
         .xpanel-selection-toolbar[hidden] { display: none; }
-        .xpanel-selection-toolbar .kt-btn { min-height: 27px; padding: 2px 7px; font-size: 11px; }
-        .xpanel-trash-list { max-height: min(55vh, 420px); overflow-y: auto; }
-        .xpanel-trash-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid hsl(var(--border)); }
+        .xpanel-selection-toolbar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 600; }
+        .xpanel-selection-toolbar button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 23px; height: 23px; border-radius: 5px; font-size: 12px; }
+        .xpanel-selection-toolbar button:hover:not(:disabled) { background: var(--background); }
+        .xpanel-selection-toolbar button:disabled { opacity: .4; cursor: not-allowed; }
+        .xpanel-trash-list { padding: 0 8px 8px; }
+        .xpanel-trash-row { display: flex; align-items: flex-start; gap: 6px; padding: 8px 2px; border-bottom: 1px solid var(--border); }
         .xpanel-trash-row:last-child { border-bottom: 0; }
+        .xpanel-trash-row .xpanel-trash-actions { display: flex; align-items: center; flex: none; gap: 2px; }
+        .xpanel-trash-row .xpanel-trash-actions button { display: inline-flex; align-items: center; justify-content: center; width: 23px; height: 23px; border-radius: 5px; }
+        .xpanel-trash-row .xpanel-trash-actions button:hover:not(:disabled) { background: var(--muted); }
         .xpanel-selection-box {
             position: fixed;
             z-index: 90;
             pointer-events: none;
-            border: 1px solid hsl(var(--primary));
-            background: hsl(var(--primary) / .12);
+            border: 1px solid var(--primary);
+            background: color-mix(in srgb, var(--primary) 12%, transparent);
             border-radius: 3px;
         }
         .xpanel-file-row.drop-target {
-            outline: 1px dashed hsl(var(--primary));
-            background: hsl(var(--primary) / 0.08);
+            outline: 1px dashed var(--primary);
+            background: color-mix(in srgb, var(--primary) 8%, transparent);
         }
         .xpanel-file-row.xpanel-file-row-muted {
             color: var(--muted-foreground);
@@ -982,42 +980,34 @@
             <aside class="ikode_editor_left border-r border-border" id="xpanel_left_pane">
                 <div class="ikode_left_split ikode_left_mode_panel" id="xpanel_left_split" data-left-panel="explorer">
                     <div class="ikode_editor_lefthead border-b border-border">
-                        <span>EXPLORADOR</span>
+                        <span id="xpanel_left_files_title">EXPLORADOR</span>
                         <div class="ikode_left_actions">
-                            <span class="xpanel-selection-count" id="xpanel_selection_count" title="Elementos seleccionados">0 seleccionados</span>
-                            <button class="ikode_left_action_btn" type="button" data-fm-action="select-all" title="Seleccionar todo en esta carpeta">
-                                <i class="ki-filled ki-check"></i>
-                            </button>
-                            <button class="ikode_left_action_btn text-destructive" type="button" data-fm-action="delete-selected" title="Eliminar seleccionados" disabled>
+                            <details class="ikode_file_actions_menu" id="xpanel_file_actions_menu">
+                                <summary class="ikode_left_action_btn" title="Opciones del explorador" aria-label="Opciones del explorador"><i class="ki-filled ki-dots-horizontal"></i></summary>
+                                <div class="ikode_file_actions_dropdown">
+                                    <button type="button" data-fm-action="select-all"><i class="ki-filled ki-check"></i> Seleccionar todo</button>
+                                    <button type="button" data-fm-action="new-file"><i class="ki-filled ki-file-up"></i> Nuevo archivo</button>
+                                    <button type="button" data-fm-action="new-folder"><i class="ki-filled ki-folder-up"></i> Nueva carpeta</button>
+                                    <button type="button" data-fm-action="paste" disabled><i class="ki-filled ki-file-added"></i> Pegar aquí</button>
+                                    <button type="button" data-fm-action="refresh"><i class="ki-filled ki-arrows-circle"></i> Refrescar</button>
+                                </div>
+                            </details>
+                            <button class="ikode_left_action_btn" type="button" data-fm-action="trash-list" id="xpanel_trash_open" title="Abrir papelera" aria-label="Abrir papelera">
                                 <i class="ki-filled ki-trash"></i>
                             </button>
-                            <button class="ikode_left_action_btn" type="button" data-fm-action="new-file" title="Nuevo archivo">
-                                <i class="ki-filled ki-file-up"></i>
-                            </button>
-                            <button class="ikode_left_action_btn" type="button" data-fm-action="new-folder" title="Nueva carpeta">
-                                <i class="ki-filled ki-folder-up"></i>
-                            </button>
-                            <button class="ikode_left_action_btn" type="button" data-fm-action="refresh" title="Refrescar">
-                                <i class="ki-filled ki-arrows-circle"></i>
-                            </button>
-                            <button class="ikode_left_action_btn" type="button" data-fm-action="paste" title="Pegar en la carpeta actual" disabled>
-                                <i class="ki-filled ki-file-added"></i>
-                            </button>
-                            <button class="ikode_left_action_btn" type="button" data-fm-action="trash-list" title="Papelera">
-                                <i class="ki-filled ki-trash"></i>
-                            </button>
+                            <button class="ikode_left_action_btn" type="button" id="xpanel_trash_back" title="Volver a archivos" aria-label="Volver a archivos" hidden><i class="ki-filled ki-arrow-left"></i></button>
                         </div>
-                    </div>
-                    <div class="xpanel-selection-toolbar" id="xpanel_selection_toolbar" hidden>
-                        <strong class="text-xs text-mono" id="xpanel_selection_toolbar_count">0 seleccionados</strong>
-                        <button class="kt-btn kt-btn-outline" type="button" data-fm-action="copy"><i class="ki-filled ki-copy"></i> Copiar</button>
-                        <button class="kt-btn kt-btn-outline" type="button" data-fm-action="cut"><i class="ki-filled ki-arrow-right"></i> Mover</button>
-                        <button class="kt-btn kt-btn-outline" type="button" data-fm-action="compress"><i class="ki-filled ki-archive"></i> ZIP</button>
-                        <button class="kt-btn kt-btn-outline text-destructive" type="button" data-fm-action="delete-selected"><i class="ki-filled ki-trash"></i> Papelera</button>
                     </div>
                     <div class="xpanel-file-progress-wrap" id="xpanel_file_progress_wrap" hidden>
                         <progress id="xpanel_file_progress" max="100" value="0">0%</progress>
                         <div class="xpanel-file-progress-label" id="xpanel_file_progress_label">Preparando...</div>
+                    </div>
+                    <div class="xpanel-selection-toolbar" id="xpanel_selection_toolbar" hidden>
+                        <strong id="xpanel_selection_toolbar_count">0 seleccionados</strong>
+                        <button type="button" data-fm-action="copy" title="Copiar seleccionados" aria-label="Copiar seleccionados"><i class="ki-filled ki-copy"></i></button>
+                        <button type="button" data-fm-action="cut" title="Mover seleccionados" aria-label="Mover seleccionados"><i class="ki-filled ki-arrow-right"></i></button>
+                        <button type="button" data-fm-action="compress" title="Comprimir ZIP" aria-label="Comprimir seleccionados en ZIP"><i class="ki-filled ki-archive"></i></button>
+                        <button class="text-destructive" type="button" data-fm-action="delete-selected" title="Enviar a papelera" aria-label="Enviar seleccionados a papelera"><i class="ki-filled ki-trash"></i></button>
                     </div>
 
                     <div class="ikode_left_files" id="xpanel_left_files_pane"
@@ -1026,6 +1016,14 @@
                          ondrop="XPanelFM.drop(event)">
                         <div id="xpanel_file_list">
                             <div class="p-3 text-xs text-secondary-foreground">Cargando...</div>
+                        </div>
+                        <div id="xpanel_trash_view" hidden>
+                            <div class="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
+                                <span class="flex items-center gap-2 text-xs font-semibold"><i class="ki-filled ki-trash"></i> Papelera</span>
+                                <button class="ikode_left_action_btn" type="button" id="xpanel_trash_refresh" title="Refrescar papelera" aria-label="Refrescar papelera"><i class="ki-filled ki-arrows-circle"></i></button>
+                            </div>
+                            <p class="px-3 py-2 text-[11px] text-secondary-foreground">Restaura o elimina definitivamente.</p>
+                            <div id="xpanel_trash_list" class="xpanel-trash-list text-xs"></div>
                         </div>
                     </div>
 
@@ -1098,11 +1096,14 @@
                                     <option value="light">Claro</option>
                                 </select>
                             </label>
-                            <label class="ikode_setting_row mt-3">
-                                <span class="ikode_setting_label"><i class="ki-filled ki-palette"></i> Colores en terminal</span>
-                                <span class="ikode_setting_check"><input type="checkbox" id="xpanel_terminal_colors"></span>
-                            </label>
-                            <p class="mt-1 text-xs text-secondary-foreground">Colorea el prompt y la salida de ls, grep y diff. Otros programas usan colores si los admiten. Se aplica al reconectar.</p>
+                            <div class="ikode_setting_row mt-3">
+                                <label class="ikode_setting_label" for="xpanel_terminal_colors"><i class="ki-filled ki-palette"></i> Colores en terminal</label>
+                                <span class="ikode_setting_actions">
+                                    <button class="ikode_setting_help" type="button" aria-label="Ayuda sobre colores en terminal" aria-describedby="xpanel_terminal_colors_help">?</button>
+                                    <span class="ikode_setting_help_text" id="xpanel_terminal_colors_help" role="tooltip">Colorea el prompt y la salida de ls, grep y diff. Otros programas usan colores si los admiten. Recarga la página o reconecta la terminal para aplicar el cambio.</span>
+                                    <span class="ikode_setting_check"><input type="checkbox" id="xpanel_terminal_colors" aria-label="Colores en terminal"></span>
+                                </span>
+                            </div>
                             <label class="ikode_setting_row mt-3">
                                 <span class="ikode_setting_label"><i class="ki-filled ki-code"></i> Ajustar lineas</span>
                                 <span class="ikode_setting_check"><input type="checkbox" id="xpanel_editor_word_wrap"></span>
@@ -1379,16 +1380,6 @@
     </div>
 </div>
 
-<div id="xpanel_trash_modal" class="fixed inset-0 hidden z-[110] items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="xpanel_trash_title">
-    <div class="w-full max-w-xl max-h-[80vh] overflow-hidden bg-background border border-border rounded-lg p-5 shadow-2xl m-4">
-        <div class="flex items-center justify-between gap-3 mb-3">
-            <div><h3 id="xpanel_trash_title" class="text-base font-semibold text-mono">Papelera</h3><p class="text-xs text-secondary-foreground">Restaura un elemento o elimínalo definitivamente.</p></div>
-            <button type="button" class="kt-btn kt-btn-outline" id="xpanel_trash_close" aria-label="Cerrar papelera">Cerrar</button>
-        </div>
-        <div id="xpanel_trash_list" class="xpanel-trash-list text-sm"></div>
-    </div>
-</div>
-
     </div>
     </div>
 @endsection
@@ -1427,7 +1418,6 @@
                 selected: null,
                 selectedPaths: new Set(),
                 clipboard: null,
-                trashReturnFocus: null,
                 selectionAnchor: null,
                 ctxEntry: null,
                 ctxDirectory: '/',
@@ -1629,7 +1619,7 @@
                 $('#xpanel_terminal_colors')?.addEventListener('change', (event) => {
                     uiState.terminal.colors = event.target.checked;
                     persistUiState();
-                    toast('Colores de terminal: se aplicarán al abrir o reconectar.');
+                    toast('Recarga la página o reconecta la terminal para aplicar los colores.');
                 });
                 $('[data-settings-action="reset-editor"]')?.addEventListener('click', () => {
                     uiState.editor = clone(defaultUiState.editor);
@@ -1944,12 +1934,10 @@
             const deletableSelection = () => selectedEntries().filter((entry) => entry.deletable !== false);
             const syncSelectionControls = () => {
                 const count = state.selectedPaths.size;
-                const label = $('#xpanel_selection_count');
-                if (label) label.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
                 const toolbar = $('#xpanel_selection_toolbar');
-                if (toolbar) toolbar.hidden = count < 2;
+                if (toolbar) toolbar.hidden = count === 0 || !$('#xpanel_trash_view').hidden;
                 const toolbarCount = $('#xpanel_selection_toolbar_count');
-                if (toolbarCount) toolbarCount.textContent = `${count} seleccionados`;
+                if (toolbarCount) toolbarCount.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
                 $$('[data-fm-action="delete-selected"]').forEach((button) => {
                     button.disabled = deletableSelection().length === 0;
                 });
@@ -3026,26 +3014,40 @@
                 });
             };
             const closeTrash = () => {
-                $('#xpanel_trash_modal').classList.add('hidden');
-                $('#xpanel_trash_modal').classList.remove('flex');
-                if (state.trashReturnFocus?.isConnected && !state.trashReturnFocus.closest('.hidden')) state.trashReturnFocus.focus();
+                if ($('#xpanel_trash_view').hidden) return;
+                $('#xpanel_trash_view').hidden = true;
+                $('#xpanel_file_list').hidden = false;
+                $('#xpanel_left_files_title').textContent = 'EXPLORADOR';
+                $('#xpanel_file_actions_menu').hidden = false;
+                $('#xpanel_trash_open').hidden = false;
+                $('#xpanel_trash_back').hidden = true;
+                syncSelectionControls();
+                $('#xpanel_trash_open').focus();
             };
             const loadTrash = async () => {
                 const list = $('#xpanel_trash_list');
                 list.innerHTML = '<p class="py-4 text-secondary-foreground">Cargando...</p>';
-                if ($('#xpanel_trash_modal').classList.contains('hidden')) state.trashReturnFocus = document.activeElement;
-                $('#xpanel_trash_modal').classList.remove('hidden');
-                $('#xpanel_trash_modal').classList.add('flex');
-                $('#xpanel_trash_close').focus();
+                if ($('#xpanel_trash_view').hidden) {
+                    $('#xpanel_trash_view').hidden = false;
+                    $('#xpanel_file_list').hidden = true;
+                    $('#xpanel_left_files_title').textContent = 'PAPELERA';
+                    $('#xpanel_file_actions_menu').hidden = true;
+                    $('#xpanel_trash_open').hidden = true;
+                    $('#xpanel_trash_back').hidden = false;
+                    $('#xpanel_trash_back').focus();
+                    syncSelectionControls();
+                }
                 let payload;
                 try { payload = await api('GET', '/trash'); }
                 catch (error) { list.textContent = error.message; throw error; }
                 list.innerHTML = payload.entries.length ? payload.entries.map((item) => `
                     <div class="xpanel-trash-row" data-trash-id="${escapeHtml(item.id)}">
                         <i class="ki-filled ${item.is_dir ? 'ki-folder' : 'ki-document'} text-primary"></i>
-                        <div class="min-w-0 flex-1"><div class="truncate font-medium" title="${escapeHtml(item.path)}">${escapeHtml(item.name)}</div><div class="truncate text-xs text-secondary-foreground">${escapeHtml(item.path)} · ${escapeHtml(item.trashed_at || '')}</div></div>
-                        <button class="kt-btn kt-btn-outline shrink-0" type="button" data-trash-action="restore">Restaurar</button>
-                        <button class="kt-btn kt-btn-outline text-destructive shrink-0" type="button" data-trash-action="purge" aria-label="Eliminar definitivamente ${escapeHtml(item.name)}"><i class="ki-filled ki-trash"></i></button>
+                        <div class="min-w-0 flex-1"><div class="truncate font-medium" title="${escapeHtml(item.path)}">${escapeHtml(item.name)}</div><div class="truncate text-[10px] text-secondary-foreground" title="${escapeHtml(item.path)} · ${escapeHtml(item.trashed_at || '')}">${escapeHtml(item.path)}</div></div>
+                        <div class="xpanel-trash-actions">
+                            <button type="button" data-trash-action="restore" title="Restaurar ${escapeHtml(item.name)}" aria-label="Restaurar ${escapeHtml(item.name)}"><i class="ki-filled ki-arrows-circle"></i></button>
+                            <button class="text-destructive" type="button" data-trash-action="purge" title="Eliminar definitivamente ${escapeHtml(item.name)}" aria-label="Eliminar definitivamente ${escapeHtml(item.name)}"><i class="ki-filled ki-trash"></i></button>
+                        </div>
                     </div>
                 `).join('') : '<p class="py-6 text-center text-secondary-foreground">La papelera está vacía.</p>';
             };
@@ -3866,6 +3868,7 @@
                     drag = null;
                 };
                 pane.addEventListener('pointerdown', (event) => {
+                    if (!$('#xpanel_trash_view').hidden) return;
                     if (event.button !== 0 || event.target.closest('.xpanel-file-row, button, input, textarea, a')) return;
                     const box = document.createElement('div');
                     box.className = 'xpanel-selection-box';
@@ -3911,6 +3914,7 @@
             window.XPanelFM = {
                 dragOver(event) {
                     event.preventDefault();
+                    if (!$('#xpanel_trash_view').hidden) return;
                     ($('#xpanel_drop_hint') || $('#xpanel_file_list')).classList.add('dragover');
                 },
                 dragLeave() {
@@ -3918,6 +3922,7 @@
                 },
                 async drop(event) {
                     event.preventDefault();
+                    if (!$('#xpanel_trash_view').hidden) return;
                     ($('#xpanel_drop_hint') || $('#xpanel_file_list')).classList.remove('dragover');
                     const target = requireConcreteSiteTarget();
                     const dragged = draggedEntryFromEvent(event);
@@ -3931,11 +3936,12 @@
             };
 
             $$('[data-fm-action]').forEach((button) => button.addEventListener('click', () => {
+                $('#xpanel_file_actions_menu').open = false;
                 action(button.dataset.fmAction, Boolean(button.closest('#xpanel_ctx_menu')));
             }));
-            $('#xpanel_trash_close')?.addEventListener('click', closeTrash);
+            $('#xpanel_trash_back')?.addEventListener('click', closeTrash);
+            $('#xpanel_trash_refresh')?.addEventListener('click', () => loadTrash().catch((error) => toast(error.message, 'error')));
             $('#xpanel_trash_list')?.addEventListener('click', trashAction);
-            $('#xpanel_trash_modal')?.addEventListener('click', (event) => { if (event.target.id === 'xpanel_trash_modal') closeTrash(); });
             $$('[data-left-mode]').forEach((button) => button.addEventListener('click', () => switchLeftMode(button.dataset.leftMode)));
             $$('[data-layout-toggle]').forEach((button) => button.addEventListener('click', () => toggleLayoutPane(button.dataset.layoutToggle)));
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
@@ -4075,7 +4081,10 @@
                 $('#xpanel_file_filter')?.focus();
             });
             $('#xpanel_upload_input').addEventListener('change', (event) => upload(Array.from(event.target.files || [])));
-            $('#xpanel_left_files_pane').addEventListener('contextmenu', (event) => context(event));
+            $('#xpanel_left_files_pane').addEventListener('contextmenu', (event) => {
+                if (!$('#xpanel_trash_view').hidden) return;
+                context(event);
+            });
             bindMarqueeSelection();
             $('[data-input-cancel]').addEventListener('click', closeInput);
             $('[data-input-confirm]').addEventListener('click', async () => {
@@ -4088,6 +4097,7 @@
             });
             document.addEventListener('click', (event) => {
                 if (!event.target.closest('#xpanel_ctx_menu')) $('#xpanel_ctx_menu').classList.add('hidden');
+                if (!event.target.closest('#xpanel_file_actions_menu')) $('#xpanel_file_actions_menu').open = false;
                 if (!event.target.closest('.xpanel-search-wrap')) closeSearchLauncher();
             });
             document.addEventListener('keydown', (event) => {
@@ -4096,15 +4106,16 @@
                     event.preventDefault();
                     save();
                 }
-                if (!editing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+                if (!editing && $('#xpanel_trash_view').hidden && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
                     event.preventDefault();
                     selectAllInCurrentFolder();
                 }
-                if (!editing && event.key === 'Delete' && deletableSelection().length) {
+                if (!editing && $('#xpanel_trash_view').hidden && event.key === 'Delete' && deletableSelection().length) {
                     event.preventDefault();
                     remove().catch((error) => toast(error.message, 'error'));
                 }
                 if (event.key === 'Escape') {
+                    $('#xpanel_file_actions_menu').open = false;
                     closeTrash();
                     closeSearchLauncher();
                     switchAgentScreen('chat');
