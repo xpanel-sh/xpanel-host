@@ -64,6 +64,16 @@
         }
         .xpanel-file-shell .ikode_editor_codepane { flex: 1 1 auto; min-height: 0; }
         .xpanel-file-shell .ikode_editor_bottom { flex: 0 0 220px; min-height: 120px; }
+        .xpanel-file-shell #xpanel_left_outline_pane { min-height: 0; }
+        .xpanel-file-shell #xpanel_left_outline_pane .ikode_left_bottom_body { min-height: 0; overflow: auto; }
+        .xpanel-outline-tree { padding: 4px 6px 8px; font-size: 11px; }
+        .xpanel-outline-row { display: flex; width: 100%; align-items: center; gap: 6px; min-height: 23px; padding: 2px 5px; border-radius: 5px; text-align: left; }
+        .xpanel-outline-row:hover, .xpanel-outline-row.is-active { background: hsl(var(--muted)); }
+        .xpanel-outline-row.is-active { color: hsl(var(--primary)); }
+        .xpanel-outline-row .xpanel-outline-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .xpanel-outline-children { border-left: 1px solid hsl(var(--border)); margin-left: 12px; padding-left: 8px; }
+        .xpanel-outline-toggle { width: 12px; flex: 0 0 12px; }
+        .xpanel-console-empty { padding: 10px; font-size: 11px; color: hsl(var(--muted-foreground)); }
         .xpanel-file-shell .ikode_editor_right.is-start-hidden { display: none; }
         .xpanel-file-shell .ikode_tabs_actions {
             height: 35px;
@@ -1049,17 +1059,8 @@
                         </div>
                         <div class="ikode_left_bottom_body">
                             <div data-outline-view="outline">
-                                <div class="ikode_left_item">
-                                    <i class="ki-filled ki-folder"></i>
-                                    <span class="min-w-0 truncate" id="xpanel_breadcrumb">/</span>
-                                </div>
-                                <div class="ikode_left_item">
-                                    <i class="ki-filled ki-row-vertical"></i>
-                                    <span id="xpanel_outline_count">0 elementos</span>
-                                </div>
-                                <div class="ikode_left_item">
-                                    <i class="ki-filled ki-code"></i>
-                                    <span id="xpanel_outline_file">Sin archivo abierto</span>
+                                <div class="xpanel-outline-tree" id="xpanel_outline_tree" aria-label="Símbolos del archivo activo">
+                                    <div class="xpanel-console-empty">Abre un archivo de código para ver su estructura.</div>
                                 </div>
                             </div>
                             <div class="ikode_hidden" data-outline-view="timeline">
@@ -1198,16 +1199,15 @@
                             <button class="ikode_terminal_tab" type="button" data-console-tab="ports">Ports</button>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="problems">
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">info</span><span class="xpanel-console-text">0 errores criticos detectados en el gestor.</span></div>
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">hint</span><span class="xpanel-console-text">Las validaciones reales se conectaran al agente del sitio.</span></div>
+                            <div id="xpanel_problems_list" class="xpanel-console-empty">Abre un archivo de código para ver sus diagnósticos.</div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="output">
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">xpanel</span><span class="xpanel-console-text">Esperando tareas en {{ $scopeLabel }}.</span></div>
+                            <div class="xpanel-console-line"><span class="xpanel-console-time">iKode</span><span class="xpanel-console-text">Resultado de operaciones y eventos de archivos en {{ $scopeLabel }}.</span></div>
                             <div id="xpanel_output_log"></div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="logs">
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">logs</span><span class="xpanel-console-text">Esperando eventos del gestor.</span></div>
-                            <div id="xpanel_logs_output"></div>
+                            <div class="flex justify-end p-1"><button class="ikode_terminal_tab" type="button" id="xpanel_logs_refresh" title="Actualizar logs">Actualizar</button></div>
+                            <div id="xpanel_logs_output" class="xpanel-console-empty">Abre esta pestaña para consultar los logs del sitio.</div>
                         </div>
                         <div data-console-view="terminal">
                             <div class="xpanel-terminal-workspace">
@@ -1235,9 +1235,8 @@
                             </div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="ports">
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">80</span><span class="xpanel-console-text">HTTP del sitio</span></div>
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">443</span><span class="xpanel-console-text">HTTPS del sitio</span></div>
-                            <div class="xpanel-console-line"><span class="xpanel-console-time">22</span><span class="xpanel-console-text">SSH administrado por el nodo</span></div>
+                            <div class="xpanel-console-empty">Puertos configurados; no indica si un proceso está escuchando. Los puertos públicos los administra el servidor.</div>
+                            <div id="xpanel_ports_list" class="xpanel-console-empty">Abre esta pestaña para ver los puertos configurados.</div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="preview">
                             <div id="xpanel_inline_preview">Sin vista previa.</div>
@@ -1444,6 +1443,7 @@
                 currentPath: '/',
                 entries: [],
                 dirCache: {},
+                entryIndex: new Map(),
                 expanded: new Set(['/']),
                 loadingDirs: new Set(),
                 selected: null,
@@ -1481,6 +1481,12 @@
                 activeConversationId: null,
                 agentsLoaded: false,
                 agentBusy: false,
+                outlineNodes: [],
+                outlineCollapsed: new Set(),
+                outlineTimer: null,
+                outlineRows: new Map(),
+                outlineActiveId: null,
+                visibleLimit: {},
             };
 
             const $ = (selector) => document.querySelector(selector);
@@ -1668,22 +1674,19 @@
                 const safeMessage = escapeHtml(String(message));
                 const timeline = $('#xpanel_timeline_list');
                 const output = $('#xpanel_output_log');
-                const logs = $('#xpanel_logs_output');
                 const line = document.createElement('div');
                 line.className = 'xpanel-console-line';
                 line.innerHTML = `<span class="xpanel-console-time">${new Date().toLocaleTimeString()}</span><span class="xpanel-console-text">${safeMessage}</span>`;
-                logs?.prepend(line);
                 if (output) {
-                    const out = document.createElement('div');
-                    out.className = 'xpanel-console-line';
-                    out.innerHTML = `<span class="xpanel-console-time">${new Date().toLocaleTimeString()}</span><span class="xpanel-console-text">${safeMessage}</span>`;
-                    output.prepend(out);
+                    output.prepend(line);
+                    while (output.children.length > 100) output.lastElementChild.remove();
                 }
                 if (timeline) {
                     const item = document.createElement('div');
                     item.className = 'ikode_left_item';
                     item.innerHTML = `<i class="ki-filled ki-time"></i><span>${safeMessage}</span>`;
                     timeline.prepend(item);
+                    while (timeline.children.length > 60) timeline.lastElementChild.remove();
                 }
             };
 
@@ -1697,8 +1700,9 @@
 
             const showProgress = (label = 'Procesando...', value = 0) => {
                 $('#xpanel_file_progress_wrap').hidden = false;
-                $('#xpanel_file_progress').value = Math.max(0, Math.min(100, value));
-                $('#xpanel_file_progress').textContent = `${Math.round(value)}%`;
+                if (value === null) $('#xpanel_file_progress').removeAttribute('value');
+                else $('#xpanel_file_progress').value = Math.max(0, Math.min(100, value));
+                $('#xpanel_file_progress').textContent = value === null ? '' : `${Math.round(value)}%`;
                 $('#xpanel_file_progress_label').textContent = label;
             };
             const setProgress = (value, label = null) => {
@@ -2028,16 +2032,13 @@
             };
 
             const activeTab = () => state.tabs.find((tab) => tab.path === state.activeTab) || null;
-            const entriesFor = (path = '/') => (state.dirCache[path || '/'] || []).slice().sort((a, b) => {
+            const sortEntries = (entries) => entries.sort((a, b) => {
                 if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
                 return a.name.localeCompare(b.name);
             });
+            const entriesFor = (path = '/') => state.dirCache[path || '/'] || [];
             const getEntry = (path) => {
-                for (const entries of Object.values(state.dirCache)) {
-                    const found = (entries || []).find((entry) => entry.path === path);
-                    if (found) return found;
-                }
-                return null;
+                return state.entryIndex.get(path) || null;
             };
             const setCurrentPath = (path = '/') => {
                 state.currentPath = path || '/';
@@ -2045,7 +2046,8 @@
                 updateSummary();
             };
             const renderBreadcrumb = () => {
-                $('#xpanel_breadcrumb').textContent = state.currentPath;
+                const breadcrumb = $('#xpanel_breadcrumb');
+                if (breadcrumb) breadcrumb.textContent = state.currentPath;
             };
             const updateSummary = () => {
                 const entries = entriesFor(state.currentPath);
@@ -2055,7 +2057,6 @@
                 $('#xpanel_summary_count').textContent = entries.length;
                 $('#xpanel_summary_dirs').textContent = dirCount;
                 $('#xpanel_summary_files').textContent = fileCount;
-                $('#xpanel_outline_count').textContent = `${entries.length} elemento(s)`;
                 $('#xpanel_summary_tabs').textContent = state.tabs.length;
                 $('#xpanel_summary_active').textContent = activeTab()?.name || '-';
                 $('#xpanel_summary_editor').textContent = `${uiState.editor.fontSize}px / ${uiState.editor.wordWrap ? 'wrap' : 'nowrap'}`;
@@ -2137,6 +2138,9 @@
                 state.openPath = null;
                 state.openName = null;
                 state.isDirty = false;
+                state.outlineNodes = [];
+                renderOutline();
+                renderProblems();
                 $('#xpanel_empty_state').classList.remove('ikode_hidden');
                 $('#xpanel_file_preview').classList.add('ikode_hidden');
                 $('#xpanel_editor_groups').classList.add('ikode_hidden');
@@ -2178,6 +2182,175 @@
                 `;
                 $('#xpanel_inline_preview').innerHTML = `Vista previa no soportada: <span class="font-mono">${safeName}</span>`;
             };
+            let outlineSymbolSequence = 0;
+            const outlineSymbol = (name, kind, line, end = line) => ({ id: `${line}-${kind}-${name}-${++outlineSymbolSequence}`, name, kind, line, end, children: [] });
+            const parseOutline = (model) => {
+                outlineSymbolSequence = 0;
+                const source = model.getValue();
+                const lang = model.getLanguageId();
+                const roots = [];
+                const stack = [];
+                let symbolCount = 0;
+                const appendNode = (target, node) => {
+                    if (symbolCount >= 600) return false;
+                    target.push(node);
+                    symbolCount++;
+                    return true;
+                };
+                const add = (node) => {
+                    return appendNode(stack.at(-1)?.children || roots, node);
+                };
+                const parseStyle = (body, firstLine, parent) => {
+                    const cssStack = [];
+                    let depth = 0;
+                    body.split('\n').forEach((text, offset) => {
+                        const trimmed = text.trim();
+                        const leadingClosers = (trimmed.match(/^\}+/) || [''])[0].length;
+                        depth = Math.max(0, depth - leadingClosers);
+                        while (cssStack.length && cssStack.at(-1).depth > depth) cssStack.pop().node.end = firstLine + offset;
+                        const selector = trimmed.match(/^([^{};]+)\s*\{/);
+                        if (selector && symbolCount < 600) {
+                            const node = outlineSymbol(selector[1].trim(), 'selector', firstLine + offset);
+                            appendNode(cssStack.at(-1)?.node.children || parent.children, node);
+                            cssStack.push({ node, depth: depth + 1 });
+                        }
+                        depth = Math.max(0, depth + (text.match(/\{/g) || []).length - (text.match(/\}/g) || []).length + leadingClosers);
+                    });
+                    cssStack.forEach(({ node }) => { node.end = firstLine + body.split('\n').length; });
+                };
+                if (lang === 'html' || lang === 'xml') {
+                    const tags = /<\/?([a-zA-Z][\w:-]*)\b[^>]*>/g;
+                    const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
+                    let match;
+                    let lastOffset = 0;
+                    let line = 1;
+                    while ((match = tags.exec(source)) && symbolCount < 600) {
+                        line += (source.slice(lastOffset, match.index).match(/\n/g) || []).length;
+                        lastOffset = tags.lastIndex;
+                        const tag = match[1].toLowerCase();
+                        if (match[0].startsWith('</')) {
+                            for (let index = stack.length - 1; index >= 0; index--) {
+                                if (stack[index].name === tag) {
+                                    stack[index].end = line;
+                                    stack.length = index;
+                                    break;
+                                }
+                            }
+                        } else {
+                            const node = outlineSymbol(tag, 'tag', line);
+                            add(node);
+                            if (!voidTags.has(tag) && !match[0].endsWith('/>')) stack.push(node);
+                            if (tag === 'style' || tag === 'script') {
+                                const close = new RegExp(`<\\/${tag}\\s*>`, 'gi');
+                                close.lastIndex = tags.lastIndex;
+                                const end = close.exec(source);
+                                if (end) {
+                                    const body = source.slice(tags.lastIndex, end.index);
+                                    if (tag === 'style') parseStyle(body, line + (match[0].match(/\n/g) || []).length, node);
+                                    else body.split('\n').forEach((text, offset) => {
+                                        const found = text.match(/\b(?:class|function|const|let|var)\s+([\w$]+)/);
+                                        if (found) appendNode(node.children, outlineSymbol(found[1], 'symbol', line + offset));
+                                    });
+                                    tags.lastIndex = end.index;
+                                }
+                            }
+                        }
+                    }
+                    stack.forEach((node) => { node.end = model.getLineCount(); });
+                } else {
+                    const lines = source.split('\n');
+                    let depth = 0;
+                    lines.forEach((text, index) => {
+                        if (symbolCount >= 600) return;
+                        const trimmed = text.trim();
+                        const closing = (trimmed.match(/^\}+/) || [''])[0].length;
+                        depth = Math.max(0, depth - closing);
+                        while (stack.length && stack.at(-1).depth > depth) {
+                            stack.pop().node.end = index + 1;
+                        }
+                        let match = null;
+                        let kind = 'symbol';
+                        if (lang === 'css' || lang === 'scss') {
+                            match = trimmed.match(/^([^{};]+)\s*\{/);
+                            kind = 'selector';
+                        } else if (lang === 'markdown') {
+                            match = trimmed.match(/^(#{1,6})\s+(.+)/);
+                            kind = 'heading';
+                        } else {
+                            match = trimmed.match(/^\s*(?:export\s+|public\s+|private\s+|protected\s+|static\s+|async\s+|abstract\s+|final\s+)*\b(class|interface|trait|enum|function|def|const|let|var)\s+([\w$]+)/);
+                            kind = match?.[1] || 'symbol';
+                        }
+                        if (match) {
+                            const name = kind === 'heading' ? match[2] : (kind === 'selector' ? match[1].trim() : match[2]);
+                            const node = outlineSymbol(name, kind, index + 1);
+                            appendNode(stack.at(-1)?.node.children || roots, node);
+                            if (kind === 'heading') {
+                                node.end = lines.length;
+                            } else if (trimmed.includes('{') || (lang === 'python' && trimmed.endsWith(':'))) {
+                                stack.push({ node, depth: depth + 1 });
+                            }
+                        }
+                        if (lang !== 'markdown') {
+                            const opens = (text.match(/\{/g) || []).length;
+                            const closes = (text.match(/\}/g) || []).length - closing;
+                            depth = Math.max(0, depth + opens - closes);
+                        }
+                    });
+                    stack.forEach(({ node }) => { node.end = lines.length; });
+                }
+                return roots;
+            };
+            const renderOutline = () => {
+                const box = $('#xpanel_outline_tree');
+                if (!box) return;
+                const nodes = state.outlineNodes;
+                if (!nodes.length) {
+                    box.innerHTML = '<div class="xpanel-console-empty">No hay símbolos disponibles para este archivo.</div>';
+                    state.outlineRows.clear();
+                    state.outlineActiveId = null;
+                    return;
+                }
+                const draw = (items) => items.map((node) => {
+                    const collapsed = state.outlineCollapsed.has(node.id);
+                    const children = node.children.length ? `<div class="xpanel-outline-children" ${collapsed ? 'hidden' : ''}>${draw(node.children)}</div>` : '';
+                    return `<div class="xpanel-outline-node"><button type="button" class="xpanel-outline-row" data-outline-line="${node.line}" data-outline-id="${escapeHtml(node.id)}" title="${escapeHtml(node.name)} · línea ${node.line}"><span class="xpanel-outline-toggle" data-outline-toggle="${escapeHtml(node.id)}">${node.children.length ? (collapsed ? '›' : '⌄') : ''}</span><i class="ki-filled ${node.kind === 'tag' ? 'ki-code' : node.kind === 'selector' ? 'ki-brush' : 'ki-category'}"></i><span class="xpanel-outline-name">${escapeHtml(node.name)}</span></button>${children}</div>`;
+                }).join('');
+                box.innerHTML = draw(nodes);
+                state.outlineRows = new Map(Array.from(box.querySelectorAll('[data-outline-id]')).map((row) => [row.dataset.outlineId, row]));
+                state.outlineActiveId = null;
+                highlightOutline();
+            };
+            const highlightOutline = () => {
+                const line = state.editor?.getPosition()?.lineNumber || 0;
+                let best = null;
+                const visit = (nodes) => nodes.forEach((node) => {
+                    if (node.line <= line && line <= node.end) { best = node; visit(node.children); }
+                });
+                visit(state.outlineNodes);
+                if (state.outlineActiveId === (best?.id || null)) return;
+                state.outlineRows.get(state.outlineActiveId)?.classList.remove('is-active');
+                state.outlineRows.get(best?.id)?.classList.add('is-active');
+                state.outlineActiveId = best?.id || null;
+            };
+            const scheduleOutline = () => {
+                clearTimeout(state.outlineTimer);
+                const tab = activeTab();
+                if (!tab?.model) { state.outlineNodes = []; renderOutline(); return; }
+                if (!uiState.layout.left || uiState.ui.leftMode !== 'explorer' || uiState.ui.outlineTab !== 'outline') return;
+                state.outlineTimer = setTimeout(() => {
+                    if (activeTab()?.model !== tab.model) return;
+                    state.outlineNodes = parseOutline(tab.model);
+                    renderOutline();
+                }, 180);
+            };
+            const renderProblems = () => {
+                const box = $('#xpanel_problems_list');
+                if (!box || typeof monaco === 'undefined') return;
+                const model = activeTab()?.model;
+                if (!model) { box.innerHTML = '<div class="xpanel-console-empty">Abre un archivo de código para ver sus diagnósticos.</div>'; return; }
+                const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+                box.innerHTML = markers.length ? markers.slice(0, 100).map((marker) => `<button type="button" class="xpanel-console-line w-full text-left" data-problem-line="${marker.startLineNumber}" data-problem-column="${marker.startColumn}"><span class="xpanel-console-time">${marker.severity >= 8 ? 'Error' : marker.severity >= 4 ? 'Aviso' : 'Info'} · ${marker.startLineNumber}:${marker.startColumn}</span><span class="xpanel-console-text">${escapeHtml(marker.message)}</span></button>`).join('') : '<div class="xpanel-console-empty">No hay diagnósticos del editor para este archivo. No incluye verificaciones del servidor.</div>';
+            };
             const showActiveTab = () => {
                 const tab = activeTab();
                 if (!tab) {
@@ -2188,13 +2361,14 @@
                 state.openName = tab.name;
                 state.isDirty = !!tab.isDirty;
                 $('#xpanel_empty_state').classList.add('ikode_hidden');
-                $('#xpanel_outline_file').textContent = tab.name;
+                scheduleOutline();
                 renderTabs();
                 if (tab.kind === 'code') {
                     $('#xpanel_file_preview').classList.add('ikode_hidden');
                     $('#xpanel_editor_groups').classList.remove('ikode_hidden');
                     $('#xpanel_editor_group_main .xpanel-editor-group-body').classList.remove('ikode_hidden');
                     state.editor.setModel(tab.model);
+                    renderProblems();
                     if ($('#xpanel_file_shell').classList.contains('xpanel-editor-duplicated')) {
                         state.cloneEditor?.setModel(cloneTab()?.model || null);
                         $('#xpanel_editor_group_clone').classList.remove('ikode_hidden');
@@ -2208,6 +2382,7 @@
                     $('#xpanel_editor_groups').classList.remove('ikode_hidden');
                     $('#xpanel_editor_group_main .xpanel-editor-group-body').classList.add('ikode_hidden');
                     state.editor?.setModel(null);
+                    renderProblems();
                     closeDuplicatePane();
                     renderPreview(tab);
                 }
@@ -2315,6 +2490,7 @@
             const renderDirectoryRows = (parentPath = '/', depth = 0) => {
                 const filter = ($('#xpanel_file_filter').value || '').toLowerCase();
                 const entries = entriesFor(parentPath).filter((entry) => !filter || entry.name.toLowerCase().includes(filter) || entry.is_dir);
+                const limit = state.visibleLimit[parentPath] || 200;
                 let html = renderInlineCreate(parentPath, depth);
                 if (entries.length === 0 && !state.pendingCreate) {
                     const help = accountEmptyDirectoryHelp(parentPath);
@@ -2322,7 +2498,7 @@
                         html += `<div class="xpanel-file-row xpanel-file-row-muted" style="padding-left:${8 + depth * 14}px"><span class="xpanel-file-toggle"></span><i class="ki-filled ki-information-2"></i><span class="xpanel-file-name" title="${escapeHtml(help)}">${escapeHtml(help)}</span></div>`;
                     }
                 }
-                html += entries.map((entry) => {
+                html += entries.slice(0, limit).map((entry) => {
                     const expanded = state.expanded.has(entry.path);
                     const selected = state.selectedPaths.has(entry.path);
                     const toggle = entry.is_dir ? (expanded ? 'ki-down' : 'ki-right') : '';
@@ -2348,6 +2524,7 @@
                         ${childRows}
                     `;
                 }).join('');
+                if (entries.length > limit) html += `<button type="button" class="xpanel-file-row w-full text-primary text-xs" style="padding-left:${8 + depth * 14}px" data-load-more="${escapeHtml(parentPath)}">Mostrar 200 más (${entries.length - limit} restantes)</button>`;
                 return html;
             };
             const focusPendingInput = () => {
@@ -2371,8 +2548,9 @@
                 const path = state.currentPath || '/';
                 const filter = ($('#xpanel_file_filter').value || '').toLowerCase();
                 const entries = entriesFor(path).filter((entry) => !filter || entry.name.toLowerCase().includes(filter));
+                const limit = state.visibleLimit[path] || 200;
                 const help = accountEmptyDirectoryHelp(path);
-                const tiles = entries.map((entry) => {
+                const tiles = entries.slice(0, limit).map((entry) => {
                     const selected = state.selectedPaths.has(entry.path);
                     const renaming = state.pendingRename?.path === entry.path;
                     return `
@@ -2391,6 +2569,7 @@
                     </div>
                     ${renderInlineCreate(path, 0)}
                     ${tiles ? `<div class="xpanel-file-grid">${tiles}</div>` : (state.pendingCreate ? '' : `<div class="p-3 text-[11px] text-secondary-foreground">${escapeHtml(help || 'Esta carpeta está vacía. Puedes arrastrar archivos aquí.')}</div>`)}
+                    ${entries.length > limit ? `<button type="button" class="p-2 text-xs text-primary" data-grid-more>Mostrar 200 más (${entries.length - limit} restantes)</button>` : ''}
                 `;
                 $('[data-grid-back]').addEventListener('click', async () => {
                     if (state.currentPath === '/') return;
@@ -2401,6 +2580,10 @@
                     catch (error) { toast(error.message, 'error'); }
                 });
                 attachTreeEvents();
+                $('[data-grid-more]')?.addEventListener('click', () => {
+                    state.visibleLimit[path] = limit + 200;
+                    renderGrid();
+                });
                 focusPendingInput();
             };
             const renderTree = () => {
@@ -2423,6 +2606,10 @@
                 }
                 list.innerHTML = `<div class="xpanel-file-tree">${renderDirectoryRows('/', 0)}</div>`;
                 attachTreeEvents();
+                $$('[data-load-more]').forEach((button) => button.addEventListener('click', () => {
+                    state.visibleLimit[button.dataset.loadMore] = (state.visibleLimit[button.dataset.loadMore] || 200) + 200;
+                    renderTree();
+                }));
                 focusPendingInput();
             };
             const draggedEntryFromEvent = (event) => {
@@ -2437,7 +2624,12 @@
             const finishSelection = (entry = null) => {
                 state.selected = entry || selectedEntries().at(-1) || null;
                 renderInfo(state.selected);
-                renderTree();
+                $$('.xpanel-file-row[data-path]').forEach((row) => {
+                    const selected = state.selectedPaths.has(row.dataset.path);
+                    row.classList.toggle('active', selected);
+                    const checkbox = row.querySelector('.xpanel-file-check');
+                    if (checkbox) checkbox.checked = selected;
+                });
             };
             const replaceSelection = (entry) => {
                 state.selectedPaths.clear();
@@ -2747,7 +2939,9 @@
                 }
                 try {
                     const payload = await api('GET', `/list?domain=${domainParam()}&path=${encodeURIComponent(targetPath)}`);
-                    state.dirCache[targetPath] = payload.entries || [];
+                    for (const entry of state.dirCache[targetPath] || []) state.entryIndex.delete(entry.path);
+                    state.dirCache[targetPath] = sortEntries(payload.entries || []);
+                    for (const entry of state.dirCache[targetPath]) state.entryIndex.set(entry.path, entry);
                     if (targetPath === state.currentPath) state.entries = state.dirCache[targetPath];
                     updateSummary();
                     if (shouldRender) renderTree();
@@ -2765,8 +2959,7 @@
                 if (entry) state.selectedPaths.add(entry.path);
                 state.selectionAnchor = entry?.path || null;
                 if (entry && updateCurrentPath) setCurrentPath(entry.is_dir ? entry.path : dirname(entry.path));
-                renderInfo(entry);
-                renderTree();
+                finishSelection(entry);
             };
             const toggleDirectory = async (path) => {
                 if (state.expanded.has(path)) {
@@ -2817,6 +3010,7 @@
                         const payload = await api('GET', `/read?domain=${domainParam()}&path=${encodeURIComponent(entry.path)}`);
                         tab.model = monaco.editor.createModel(payload.content || '', language(entry.name));
                         tab.model.onDidChangeContent(() => {
+                            if (state.activeTab === tab.path) scheduleOutline();
                             if (!tab.isDirty) {
                                 tab.isDirty = true;
                                 if (state.activeTab === tab.path) state.isDirty = true;
@@ -2830,7 +3024,7 @@
                         return;
                     }
                 }
-                activateTab(entry.path);
+                if (state.activeTab === entry.path) activateTab(entry.path);
                 log(`Archivo abierto: ${entry.path}`);
             };
             const save = async (tab = activeTab()) => {
@@ -3141,11 +3335,12 @@
                 if (entries.some((entry) => dirname(entry.path) !== parent)) return toast('Selecciona elementos de una misma carpeta.', 'error');
                 promptInput('Nombre del archivo ZIP', uniqueName(parent, 'file', entries.length === 1 ? `${entries[0].name}.zip` : 'archivos.zip'), async (name) => {
                     if (!/^[^\\/]+\.zip$/i.test(name)) throw new Error('Escribe un nombre terminado en .zip');
-                    showProgress('Comprimiendo archivos...', 15);
+                    showProgress('Comprimiendo archivos... Este proceso puede tardar con carpetas grandes.', null);
                     try {
                         await api('POST', '/compress', { domain: config.domain, paths: entries.map((entry) => entry.path), destination: pathJoin(parent, name) });
                         await loadDirectory(parent);
                         toast('ZIP creado');
+                        log(`ZIP creado: ${pathJoin(parent, name)} (${entries.length} elementos seleccionados)`);
                     } finally {
                         hideProgress();
                     }
@@ -3262,7 +3457,7 @@
                     return;
                 }
                 const parent = dirname(entry.path);
-                showProgress(`Descomprimiendo ${entry.name}...`, 10);
+                showProgress(`Descomprimiendo ${entry.name}... Este proceso puede tardar con archivos grandes.`, null);
                 try {
                     let response = await api('POST', '/extract', { domain: config.domain, path: entry.path });
                     if (response.status === 'conflict') {
@@ -3274,7 +3469,7 @@
                             log(`Descompresion cancelada (${response.conflict_count} archivo(s) en conflicto): ${entry.path}`);
                             return;
                         }
-                        showProgress(`Descomprimiendo ${entry.name}...`, 10);
+                        showProgress(`Descomprimiendo ${entry.name}... Este proceso puede tardar con archivos grandes.`, null);
                         response = await api('POST', '/extract', { domain: config.domain, path: entry.path, overwrite: true });
                     }
                     setProgress(100, `Descompresion completada (${response.count || 0} archivo(s))`);
@@ -3338,7 +3533,10 @@
             };
             const clearCachedBranch = (path) => {
                 Object.keys(state.dirCache).forEach((key) => {
-                    if (key === path || key.startsWith(`${path}/`)) delete state.dirCache[key];
+                    if (key === path || key.startsWith(`${path}/`)) {
+                        for (const entry of state.dirCache[key]) state.entryIndex.delete(entry.path);
+                        delete state.dirCache[key];
+                    }
                 });
             };
             const moveEntry = async (entry, targetDir) => {
@@ -3696,6 +3894,7 @@
                 persistUiState();
                 syncLayoutButtons();
                 rebuildLayout();
+                if (pane === 'left' && uiState.layout.left) scheduleOutline();
             };
 
             const toggleFullscreen = (button) => {
@@ -3714,6 +3913,7 @@
                 });
                 persistUiState();
                 rebuildLayout();
+                if (mode === 'explorer') scheduleOutline();
             };
 
             const switchOutlineTab = (tab) => {
@@ -3725,6 +3925,7 @@
                     view.classList.toggle('ikode_hidden', view.dataset.outlineView !== tab);
                 });
                 persistUiState();
+                if (tab === 'outline') scheduleOutline();
             };
 
             const terminalTheme = () => document.documentElement.classList.contains('dark')
@@ -3821,7 +4022,6 @@
                         setTerminalStatus(terminal, 'Conectado');
                         requestAnimationFrame(() => {
                             terminal.fitAddon?.fit();
-                            terminal.term?.focus();
                         });
                     };
                     socket.onmessage = (event) => {
@@ -3849,7 +4049,22 @@
                 }
             };
 
-            const switchConsoleTab = (tab) => {
+            const loadConsoleData = async (kind) => {
+                const box = $(`#xpanel_${kind === 'ports' ? 'ports_list' : 'logs_output'}`);
+                if (!box) return;
+                box.innerHTML = '<div class="xpanel-console-empty">Consultando datos de este hosting...</div>';
+                try {
+                    const payload = await api('GET', `/console?kind=${encodeURIComponent(kind)}`);
+                    if (kind === 'ports') {
+                        box.innerHTML = payload.ports?.length ? payload.ports.map((port) => `<div class="xpanel-console-line"><span class="xpanel-console-time">${escapeHtml(port.port)}</span><span class="xpanel-console-text">${escapeHtml(port.domain)} · ${escapeHtml(port.protocol)} · ${escapeHtml(port.scope)} · ${escapeHtml(port.status || 'sin estado')}</span></div>`).join('') : '<div class="xpanel-console-empty">No hay sitios configurados. Los puertos se muestran como configuración; esta vista no comprueba si hay procesos escuchando.</div>';
+                    } else {
+                        box.innerHTML = (payload.limited ? '<div class="xpanel-console-empty">Se muestran los primeros 30 dominios para mantener la consulta rápida.</div>' : '') + (payload.logs?.length ? payload.logs.map((logFile) => `<div class="xpanel-console-line font-semibold"><span class="xpanel-console-text">${escapeHtml(logFile.domain)} · ${escapeHtml(logFile.type)}.log</span></div>${logFile.lines.map((line) => `<div class="xpanel-console-line"><span class="xpanel-console-text font-mono whitespace-pre-wrap break-all">${escapeHtml(line)}</span></div>`).join('')}`).join('') : '<div class="xpanel-console-empty">Todavía no hay logs de acceso o error legibles para este hosting.</div>');
+                    }
+                } catch (error) {
+                    box.innerHTML = `<div class="xpanel-console-empty text-destructive">${escapeHtml(error.message)}</div>`;
+                }
+            };
+            const switchConsoleTab = (tab, focus = false) => {
                 uiState.ui.consoleTab = tab;
                 $$('[data-console-tab]').forEach((button) => {
                     button.classList.toggle('ikode_terminal_tab_active', button.dataset.consoleTab === tab);
@@ -3862,8 +4077,13 @@
                     rebuildLayout();
                     const terminal = activeTerminal();
                     if (terminal && !terminal.attempted) connectTerminal(terminal);
-                    requestAnimationFrame(() => terminal?.fitAddon?.fit());
+                    requestAnimationFrame(() => {
+                        terminal?.fitAddon?.fit();
+                        if (focus && uiState.layout.bottom) terminal?.term?.focus();
+                    });
                 }
+                if (tab === 'logs' || tab === 'ports') loadConsoleData(tab);
+                if (tab === 'problems') renderProblems();
             };
 
             const switchRightTab = (tab) => {
@@ -3898,7 +4118,7 @@
                     </div>
                 `).join('');
             };
-            const switchTerminalSession = (id) => {
+            const switchTerminalSession = (id, focus = false) => {
                 if (!state.terminals.some((terminal) => terminal.id === id)) return;
                 state.activeTerminalId = id;
                 const terminal = activeTerminal();
@@ -3912,7 +4132,7 @@
                 if (!terminal.attempted) connectTerminal(terminal);
                 requestAnimationFrame(() => {
                     terminal.fitAddon?.fit();
-                    terminal.term?.focus();
+                    if (focus && uiState.ui.consoleTab === 'terminal' && uiState.layout.bottom) terminal.term?.focus();
                 });
             };
             const createTerminal = () => {
@@ -3993,44 +4213,12 @@
                 const pane = $('#xpanel_left_files_pane');
                 if (!pane) return;
                 let drag = null;
-                const stop = (event) => {
+                const updateMarquee = () => {
                     if (!drag) return;
-                    drag.box.remove();
-                    if (drag.moved) {
-                        event?.preventDefault();
-                        const last = selectedEntries().at(-1) || null;
-                        state.selected = last;
-                        state.selectionAnchor = last?.path || state.selectionAnchor;
-                        renderInfo(last);
-                        renderTree();
-                    } else if (!drag.preserve) {
-                        replaceSelection(null);
-                    }
-                    drag = null;
-                };
-                pane.addEventListener('pointerdown', (event) => {
-                    if (!$('#xpanel_trash_view').hidden) return;
-                    if (event.button !== 0 || event.target.closest('.xpanel-file-row, button, input, textarea, a')) return;
-                    const box = document.createElement('div');
-                    box.className = 'xpanel-selection-box';
-                    document.body.appendChild(box);
-                    drag = {
-                        pointerId: event.pointerId,
-                        startX: event.clientX,
-                        startY: event.clientY,
-                        moved: false,
-                        box,
-                        preserve: event.ctrlKey || event.metaKey,
-                        base: (event.ctrlKey || event.metaKey) ? new Set(state.selectedPaths) : new Set(),
-                    };
-                    pane.setPointerCapture?.(event.pointerId);
-                });
-                pane.addEventListener('pointermove', (event) => {
-                    if (!drag || drag.pointerId !== event.pointerId) return;
-                    const left = Math.min(drag.startX, event.clientX);
-                    const top = Math.min(drag.startY, event.clientY);
-                    const width = Math.abs(event.clientX - drag.startX);
-                    const height = Math.abs(event.clientY - drag.startY);
+                    const left = Math.min(drag.startX, drag.nextX);
+                    const top = Math.min(drag.startY, drag.nextY);
+                    const width = Math.abs(drag.nextX - drag.startX);
+                    const height = Math.abs(drag.nextY - drag.startY);
                     if (!drag.moved && width < 4 && height < 4) return;
                     drag.moved = true;
                     Object.assign(drag.box.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
@@ -4047,6 +4235,55 @@
                         if (checkbox) checkbox.checked = state.selectedPaths.has(row.dataset.path);
                     });
                     renderInfo(selectedEntries().at(-1) || null);
+                };
+                const stop = (event) => {
+                    if (!drag) return;
+                    if (drag.frame) cancelAnimationFrame(drag.frame);
+                    drag.nextX = event?.clientX ?? drag.nextX ?? drag.startX;
+                    drag.nextY = event?.clientY ?? drag.nextY ?? drag.startY;
+                    updateMarquee();
+                    drag.box.remove();
+                    if (drag.moved) {
+                        event?.preventDefault();
+                        const last = selectedEntries().at(-1) || null;
+                        state.selected = last;
+                        state.selectionAnchor = last?.path || state.selectionAnchor;
+                        renderInfo(last);
+                    } else if (!drag.preserve) {
+                        replaceSelection(null);
+                    }
+                    drag = null;
+                };
+                pane.addEventListener('pointerdown', (event) => {
+                    if (!$('#xpanel_trash_view').hidden) return;
+                    if (event.button !== 0 || event.target.closest('.xpanel-file-row, button, input, textarea, a')) return;
+                    const box = document.createElement('div');
+                    box.className = 'xpanel-selection-box';
+                    document.body.appendChild(box);
+                    drag = {
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startY: event.clientY,
+                        nextX: event.clientX,
+                        nextY: event.clientY,
+                        moved: false,
+                        box,
+                        preserve: event.ctrlKey || event.metaKey,
+                        base: (event.ctrlKey || event.metaKey) ? new Set(state.selectedPaths) : new Set(),
+                    };
+                    pane.setPointerCapture?.(event.pointerId);
+                });
+                pane.addEventListener('pointermove', (event) => {
+                    if (!drag || drag.pointerId !== event.pointerId) return;
+                    drag.nextX = event.clientX;
+                    drag.nextY = event.clientY;
+                    if (drag.frame) return;
+                    const current = drag;
+                    drag.frame = requestAnimationFrame(() => {
+                        if (drag !== current) return;
+                        drag.frame = null;
+                        updateMarquee();
+                    });
                 });
                 pane.addEventListener('pointerup', stop);
                 pane.addEventListener('pointercancel', stop);
@@ -4116,7 +4353,7 @@
             $$('[data-layout-toggle]').forEach((button) => button.addEventListener('click', () => toggleLayoutPane(button.dataset.layoutToggle)));
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));
             $$('[data-outline-tab]').forEach((button) => button.addEventListener('click', () => switchOutlineTab(button.dataset.outlineTab)));
-            $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab)));
+            $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab, true)));
             $$('[data-right-tab]').forEach((button) => button.addEventListener('click', () => switchRightTab(button.dataset.rightTab)));
             $('#xpanel_agent_add')?.addEventListener('click', () => openAgentSettings());
             $('#xpanel_agent_tabs')?.addEventListener('click', (event) => {
@@ -4212,8 +4449,25 @@
                     return;
                 }
                 const button = event.target.closest('[data-terminal-id]');
-                if (button) switchTerminalSession(button.dataset.terminalId);
+                if (button) switchTerminalSession(button.dataset.terminalId, true);
             });
+            $('#xpanel_outline_tree')?.addEventListener('click', (event) => {
+                const row = event.target.closest('[data-outline-line]');
+                if (!row) return;
+                if (event.target.closest('[data-outline-toggle]') && row.parentElement.querySelector('.xpanel-outline-children')) {
+                    const id = row.dataset.outlineId;
+                    if (state.outlineCollapsed.has(id)) state.outlineCollapsed.delete(id);
+                    else state.outlineCollapsed.add(id);
+                    renderOutline();
+                    return;
+                }
+                revealEditorLine(Number(row.dataset.outlineLine));
+            });
+            $('#xpanel_problems_list')?.addEventListener('click', (event) => {
+                const row = event.target.closest('[data-problem-line]');
+                if (row) revealEditorLine(Number(row.dataset.problemLine), Number(row.dataset.problemColumn));
+            });
+            $('#xpanel_logs_refresh')?.addEventListener('click', () => loadConsoleData('logs'));
             window.addEventListener('resize', () => activeTerminal()?.fitAddon?.fit());
             hydrateSettings();
             bindSettings();
@@ -4308,13 +4562,15 @@
                     theme: resolveMonacoTheme(),
                     ...editorOptions(),
                 });
+                state.editor.onDidChangeCursorPosition(highlightOutline);
+                monaco.editor.onDidChangeMarkers(renderProblems);
                 $('#xpanel_editor_groups').classList.add('ikode_hidden');
                 $('#xpanel_editor_group_clone').classList.add('ikode_hidden');
                 new MutationObserver(() => {
                     monaco.editor.setTheme(resolveMonacoTheme());
                 }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
                 applyEditorSettings();
-                applyStoredLayout();
+                layoutEditor();
                 loadDirectory('/');
             });
 

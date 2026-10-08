@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
-use App\Services\HostingAccountWorkspace;
 use App\Services\FileManagerOperations;
+use App\Services\HostingAccountWorkspace;
+use App\Services\IkodeConsoleData;
 use App\Services\OwnershipRepairer;
 use App\Support\ResolvesSandboxedPath;
 use Illuminate\Http\JsonResponse;
@@ -84,6 +85,11 @@ class GlobalFileManagerController extends Controller
         usort($entries, fn ($a, $b) => [! $a['is_dir'], $a['name']] <=> [! $b['is_dir'], $b['name']]);
 
         return response()->json(['path' => $path, 'entries' => $entries]);
+    }
+
+    public function console(Request $request, IkodeConsoleData $console): JsonResponse
+    {
+        return response()->json($console->forAccount((string) $request->query('kind', '')));
     }
 
     public function read(Request $request): JsonResponse
@@ -196,7 +202,7 @@ class GlobalFileManagerController extends Controller
 
     public function copy(Request $request): JsonResponse
     {
-        $data = $request->validate(['paths' => 'required|array|min:1|max:100', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        $data = $request->validate(['paths' => 'required|array|min:1|max:500', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
         $root = $this->workspace->localRoot();
         $destination = $this->resolveWithinRoot($root, $data['destination'], mustExist: true);
         $sources = [];
@@ -215,7 +221,7 @@ class GlobalFileManagerController extends Controller
 
     public function compress(Request $request): JsonResponse
     {
-        $data = $request->validate(['paths' => 'required|array|min:1|max:100', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        $data = $request->validate(['paths' => 'required|array|min:1|max:500', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
         $root = $this->workspace->localRoot();
         $target = $this->resolveWithinRoot($root, $data['destination']);
         $this->assertSafeName(basename($target));

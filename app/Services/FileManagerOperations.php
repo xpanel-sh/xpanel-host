@@ -140,7 +140,7 @@ class FileManagerOperations
     /** @param list<string> $sources */
     private function inspect(array $sources): void
     {
-        abort_if($sources === [] || count($sources) > 100, 422, 'Selecciona entre 1 y 100 elementos.');
+        abort_if($sources === [] || count($sources) > 500, 422, 'Selecciona entre 1 y 500 elementos.');
         $count = 0;
         $bytes = 0;
         $walk = function (string $path) use (&$walk, &$count, &$bytes): void {

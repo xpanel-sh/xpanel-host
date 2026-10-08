@@ -197,6 +197,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::get('/read', [GlobalFileManagerController::class, 'read'])->name('read');
                 Route::get('/download', [GlobalFileManagerController::class, 'download'])->name('download');
                 Route::get('/trash', [GlobalFileManagerController::class, 'trashList'])->name('trash.list');
+                Route::get('/console', [GlobalFileManagerController::class, 'console'])->name('console');
                 Route::post('/search', [GlobalFileManagerController::class, 'search'])->name('search');
                 Route::get('/agents', [IkodeAgentController::class, 'state'])->name('agents.state');
             });
@@ -253,6 +254,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::get('/read', [FileManagerController::class, 'read'])->name('read');
                 Route::get('/download', [FileManagerController::class, 'download'])->name('download');
                 Route::get('/trash', [FileManagerController::class, 'trashList'])->name('trash.list');
+                Route::get('/console', [FileManagerController::class, 'console'])->name('console');
                 Route::post('/search', [FileManagerController::class, 'search'])->name('search');
                 Route::get('/agents', [IkodeAgentController::class, 'state'])->name('agents.state');
             });

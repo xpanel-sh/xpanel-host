@@ -90,6 +90,30 @@ class GlobalFileManagerTest extends TestCase
             ->assertSee($site->domain);
     }
 
+    public function test_ikode_console_uses_real_site_ports_and_scoped_log_files(): void
+    {
+        $site = $this->site('console-'.uniqid().'.example.com');
+        $other = $this->site('other-'.uniqid().'.example.com');
+        $child = $this->site('child.'.$site->domain);
+        $child->forceFill(['parent_site_id' => $site->id])->save();
+        $site->forceFill(['type' => 'node', 'runtime_port' => 3300, 'ssl_status' => 'active'])->save();
+        $logs = $this->accountRoot().'/logs';
+        mkdir($logs.'/'.$site->domain, 0755, true);
+        mkdir($logs.'/'.$other->domain, 0755, true);
+        mkdir($logs.'/'.$child->domain, 0755, true);
+        file_put_contents($logs.'/'.$site->domain.'/error.log', "own-site-error\n");
+        file_put_contents($logs.'/'.$child->domain.'/error.log', "child-site-error\n");
+        file_put_contents($logs.'/'.$other->domain.'/error.log', "other-site-error\n");
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.console', [$site, 'kind' => 'ports']))
+            ->assertOk()->assertJsonFragment(['port' => 3300, 'scope' => 'Interno · 127.0.0.1']);
+        $this->actingAs($developer)->getJson(route('sites.files.api.console', [$site, 'kind' => 'logs']))
+            ->assertOk()->assertSee('own-site-error')->assertSee('child-site-error')->assertDontSee('other-site-error');
+        $this->actingAs($developer)->getJson(route('sites.ikode.api.console', ['kind' => 'logs']))
+            ->assertOk()->assertSee('own-site-error')->assertSee('other-site-error');
+    }
+
     public function test_global_ikode_page_renders(): void
     {
         $developer = $this->userWithRole('developer');

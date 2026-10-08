@@ -460,6 +460,22 @@ class FileManagerTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_large_directory_lists_every_entry_and_can_compress_more_than_one_hundred_files(): void
+    {
+        $site = $this->site();
+        $user = $this->userWithRole('developer');
+        for ($index = 0; $index < 350; $index++) {
+            file_put_contents($site->localRoot().'/part-'.$index.'.txt', (string) $index);
+        }
+
+        $paths = array_map(fn (int $index) => '/'.$site->domain.'/part-'.$index.'.txt', range(0, 124));
+        $this->actingAs($user)->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
+            ->assertOk()->assertJsonCount(350, 'entries');
+        $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
+            'paths' => $paths, 'destination' => '/'.$site->domain.'/parts.zip',
+        ])->assertOk()->assertJson(['count' => 125]);
+    }
+
     public function test_trash_cannot_be_restored_from_another_site_or_overwrite_a_replacement(): void
     {
         $first = $this->site();
