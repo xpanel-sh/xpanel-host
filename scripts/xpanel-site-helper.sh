@@ -1346,10 +1346,28 @@ resource_snapshot() {
     if [[ -f "$state" && ! -L "$state" ]]; then
       read -r old_inode old_size < "$state" || true
     fi
-    if [[ "$inode" == "$old_inode" && "$old_size" =~ ^[0-9]+$ && "$size" -ge "$old_size" ]]; then
-      access_values="$(tail -c "+$((old_size + 1))" -- "$log" | awk '{requests++; if ($10 ~ /^[0-9]+$/) bytes += $10} END {print requests + 0, bytes + 0}')"
-      read -r request_count transfer_bytes <<< "$access_values"
-    fi
+    # Count only this month's complete access-log records. On rotation, read
+    # the unread tail of .1 before the new file. A first reading includes the
+    # current log (and its uncompressed predecessor) instead of discarding it.
+    local rotated="$log.1" month
+    month="$(LC_ALL=C date +%b/%Y)"
+    access_values="$(
+      {
+        if [[ "$inode" == "$old_inode" && "$old_size" =~ ^[0-9]+$ && "$size" -ge "$old_size" ]]; then
+          tail -c "+$((old_size + 1))" -- "$log"
+        else
+          if [[ -f "$rotated" && ! -L "$rotated" ]]; then
+            if [[ "$old_inode" == "$(stat -c %i -- "$rotated")" && "$old_size" =~ ^[0-9]+$ ]]; then
+              tail -c "+$((old_size + 1))" -- "$rotated"
+            elif [[ "$old_inode" == 0 ]]; then
+              cat -- "$rotated"
+            fi
+          fi
+          cat -- "$log"
+        fi
+      } | awk -v month="$month" 'index($4, "/" month ":") && $10 ~ /^[0-9]+$/ {requests++; bytes += $10} END {printf "%d %.0f", requests + 0, bytes + 0}'
+    )"
+    read -r request_count transfer_bytes <<< "$access_values"
     temporary="$(mktemp "$metrics_root/.access-state.XXXXXX")"
     printf '%s %s\n' "$inode" "$size" > "$temporary"
     install -o root -g "$SITE_GROUP" -m 0640 "$temporary" "$state"
