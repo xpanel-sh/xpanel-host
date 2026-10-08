@@ -35,6 +35,8 @@ return [
     'assigned_inodes' => env('XPANEL_ASSIGNED_INODES'),
     'assigned_bandwidth_gb' => env('XPANEL_ASSIGNED_BANDWIDTH_GB'),
     'assigned_max_sites' => env('XPANEL_ASSIGNED_MAX_SITES'),
+    'assigned_max_databases' => env('XPANEL_ASSIGNED_MAX_DATABASES'),
+    'assigned_email_accounts' => env('XPANEL_ASSIGNED_EMAIL_ACCOUNTS'),
     'systemd_slice' => env('XPANEL_SYSTEMD_SLICE'),
     'apache_backend_port' => (int) env('XPANEL_APACHE_BACKEND_PORT', 8082),
     'cgroup_root' => env('XPANEL_CGROUP_ROOT', '/sys/fs/cgroup'),

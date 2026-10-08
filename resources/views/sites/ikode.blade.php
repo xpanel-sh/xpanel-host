@@ -925,6 +925,28 @@
             .xpanel-search-wrap { width: min(460px, 62vw); }
             .xpanel-search-input-row { grid-template-columns: 1fr; }
         }
+
+        .xpanel-file-shell .ikode_terminal_tabs { display:flex; align-items:center; gap:4px; flex-shrink:0; }
+        .xpanel-file-shell [data-console-view] { min-height:0; overflow:auto; }
+        .xpanel-file-shell [data-console-view="terminal"] { overflow:hidden; }
+        .xpanel-console-toolbar { margin-left:auto; display:flex; align-items:center; gap:8px; padding:0 8px; flex-shrink:0; }
+        .xpanel-console-tab-actions,.xpanel-console-panel-actions { display:flex; align-items:center; gap:4px; }
+        .xpanel-console-tab-actions[hidden] { display:none!important; }
+        .xpanel-console-panel-actions { border-left:1px solid hsl(var(--border)); padding-left:8px; }
+        .xpanel-console-toolbar .xpanel-terminal-action { border:0; border-radius:3px; width:26px; height:26px; }
+        .xpanel-file-shell .xpanel-terminal-sidebar { border-right:0; border-left:1px solid hsl(var(--border)); }
+        .xpanel-terminal-main { flex:1; min-width:0; }
+        .xpanel-terminal-item { grid-template-columns:minmax(0,1fr) auto; border:0; border-radius:3px; }
+        .xpanel-terminal-item.active { border:0; box-shadow:none; background:hsl(var(--muted)); }
+        .xpanel-terminal-meta { opacity:0; pointer-events:none; }
+        .xpanel-terminal-item:hover .xpanel-terminal-meta,.xpanel-terminal-item:focus-within .xpanel-terminal-meta { opacity:1; pointer-events:auto; }
+        .xpanel-terminal-meta .xpanel-terminal-action { border:0; width:23px; height:23px; }
+        .xpanel-console-maximized #xpanel_code_pane { display:none!important; }
+        .xpanel-console-maximized #xpanel_bottom_pane { flex:1 1 100%!important; min-height:0; }
+        .dark .xpanel-terminal-workspace,.dark .xpanel-terminal-main,.dark .xpanel-terminal-mount,.dark .xpanel-terminal-sidebar { background:#181818; }
+        .dark .xpanel-file-shell .ikode_terminal_tab_active { background:#303030; color:#eee; }
+        @media(hover:none){ .xpanel-terminal-meta { opacity:1; pointer-events:auto; } }
+        @media(max-width:760px){ .xpanel-file-shell .xpanel-terminal-workspace { flex-direction:row; } .xpanel-file-shell .xpanel-terminal-sidebar { flex:0 0 150px; min-width:120px; max-height:none; } .xpanel-console-toolbar { padding:0 4px; gap:4px; } .xpanel-file-shell .ikode_terminal_tab { padding-left:7px; padding-right:7px; } }
     </style>
 @endpush
 
@@ -1197,6 +1219,13 @@
                             <button class="ikode_terminal_tab" type="button" data-console-tab="logs">Logs</button>
                             <button class="ikode_terminal_tab ikode_terminal_tab_active" type="button" data-console-tab="terminal">Terminal</button>
                             <button class="ikode_terminal_tab" type="button" data-console-tab="ports">Ports</button>
+                            <div class="xpanel-console-toolbar">
+                                <div class="xpanel-console-tab-actions" data-console-actions="logs" hidden><button class="xpanel-terminal-action" type="button" id="xpanel_logs_refresh" title="Actualizar logs" aria-label="Actualizar logs"><i class="ki-filled ki-arrows-circle"></i></button></div>
+                                <div class="xpanel-console-tab-actions" data-console-actions="ports" hidden><button class="xpanel-terminal-action" type="button" id="xpanel_ports_refresh" title="Actualizar puertos" aria-label="Actualizar puertos"><i class="ki-filled ki-arrows-circle"></i></button></div>
+                                <div class="xpanel-console-tab-actions" data-console-actions="output" hidden><button class="xpanel-terminal-action" type="button" id="xpanel_output_clear" title="Limpiar output" aria-label="Limpiar output"><i class="ki-filled ki-trash"></i></button></div>
+                                <div class="xpanel-console-tab-actions" data-console-actions="terminal"><button class="xpanel-terminal-action" type="button" data-terminal-action="new" title="Nueva terminal" aria-label="Nueva terminal"><i class="ki-filled ki-plus"></i></button></div>
+                                <div class="xpanel-console-panel-actions"><button class="xpanel-terminal-action" type="button" id="xpanel_console_expand" aria-pressed="false" title="Expandir consola" aria-label="Expandir consola"><i class="ki-filled ki-maximize"></i></button><button class="xpanel-terminal-action" type="button" id="xpanel_console_close" title="Cerrar consola" aria-label="Cerrar consola"><i class="ki-filled ki-cross"></i></button></div>
+                            </div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="problems">
                             <div id="xpanel_problems_list" class="xpanel-console-empty">Abre un archivo de código para ver sus diagnósticos.</div>
@@ -1206,25 +1235,10 @@
                             <div id="xpanel_output_log"></div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="logs">
-                            <div class="flex justify-end p-1"><button class="ikode_terminal_tab" type="button" id="xpanel_logs_refresh" title="Actualizar logs">Actualizar</button></div>
                             <div id="xpanel_logs_output" class="xpanel-console-empty">Abre esta pestaña para consultar los logs del sitio.</div>
                         </div>
                         <div data-console-view="terminal">
                             <div class="xpanel-terminal-workspace">
-                                <aside class="xpanel-terminal-sidebar" id="xpanel_terminal_sidebar">
-                                    <div class="xpanel-terminal-sidebar-head">
-                                        <span>TERMINALES</span>
-                                        <div class="xpanel-terminal-actions">
-                                            <button class="xpanel-terminal-action" type="button" data-terminal-action="new" title="Nueva terminal">
-                                                <i class="ki-filled ki-plus"></i>
-                                            </button>
-                                            <button class="xpanel-terminal-action" type="button" data-terminal-action="remove" title="Eliminar terminal">
-                                                <i class="ki-filled ki-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="xpanel-terminal-list" id="xpanel_terminal_list"></div>
-                                </aside>
                                 <section class="xpanel-terminal-main" id="xpanel_terminal_main">
                                     @if($webTerminalEnabled)
                                         <div id="xpanel_terminal_mounts" class="xpanel-terminal-mounts"></div>
@@ -1232,6 +1246,7 @@
                                         <div class="xpanel-terminal-disabled">{{ config('xpanel.management_mode') === 'vps-instance' ? 'La terminal de esta instancia aún no está habilitada por XPanel VPS. Los archivos sí permanecen limitados a este hosting.' : ($site ? 'Terminal desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.') }}</div>
                                     @endif
                                 </section>
+                                <aside class="xpanel-terminal-sidebar ikode_hidden" id="xpanel_terminal_sidebar" aria-label="Sesiones de terminal"><div class="xpanel-terminal-list" id="xpanel_terminal_list"></div></aside>
                             </div>
                         </div>
                         <div class="ikode_terminal_body ikode_hidden" data-console-view="ports">
@@ -2188,117 +2203,168 @@
                 outlineSymbolSequence = 0;
                 const source = model.getValue();
                 const lang = model.getLanguageId();
-                const roots = [];
-                const stack = [];
-                let symbolCount = 0;
-                const appendNode = (target, node) => {
-                    if (symbolCount >= 600) return false;
-                    target.push(node);
-                    symbolCount++;
-                    return true;
+                const lineOffsets = [0];
+                for (let i = 0; i < source.length; i++) if (source[i] === '\n') lineOffsets.push(i + 1);
+                const lineAt = (offset) => {
+                    let low = 0, high = lineOffsets.length;
+                    while (low + 1 < high) { const middle = (low + high) >> 1; if (lineOffsets[middle] <= offset) low = middle; else high = middle; }
+                    return low + 1;
                 };
-                const add = (node) => {
-                    return appendNode(stack.at(-1)?.children || roots, node);
-                };
-                const parseStyle = (body, firstLine, parent) => {
-                    const cssStack = [];
-                    let depth = 0;
-                    body.split('\n').forEach((text, offset) => {
-                        const trimmed = text.trim();
-                        const leadingClosers = (trimmed.match(/^\}+/) || [''])[0].length;
-                        depth = Math.max(0, depth - leadingClosers);
-                        while (cssStack.length && cssStack.at(-1).depth > depth) cssStack.pop().node.end = firstLine + offset;
-                        const selector = trimmed.match(/^([^{};]+)\s*\{/);
-                        if (selector && symbolCount < 600) {
-                            const node = outlineSymbol(selector[1].trim(), 'selector', firstLine + offset);
-                            appendNode(cssStack.at(-1)?.node.children || parent.children, node);
-                            cssStack.push({ node, depth: depth + 1 });
+                let count = 0;
+                const append = (nodes, node) => { if (count >= 600) return false; nodes.push(node); count++; return true; };
+                const maskCode = (text, language) => {
+                    // Keep UTF-16 offsets identical to Monaco's source positions.
+                    const output = text.split('');
+                    const blank = (start, end) => { for (let i = start; i < end; i++) if (output[i] !== '\n' && output[i] !== '\r') output[i] = ' '; };
+                    for (let i = 0; i < text.length; i++) {
+                        let end = i;
+                        if (text.startsWith('/*', i)) { const close = text.indexOf('*/', i + 2); end = close < 0 ? text.length : close + 2; }
+                        else if ((text.startsWith('//', i) && language !== 'css' && language !== 'less') || ((language === 'python' || language === 'php') && text[i] === '#')) { end = text.indexOf('\n', i); if (end < 0) end = text.length; }
+                        else if ('"\'`'.includes(text[i])) {
+                            const quote = text[i]; end = i + 1;
+                            while (end < text.length) { if (text[end] === '\\') { end += 2; continue; } if (text[end++] === quote) break; }
+                        } else if (text[i] === '/' && language !== 'css' && language !== 'scss' && language !== 'php' && language !== 'python') {
+                            const prefix = text.slice(0, i).trimEnd();
+                            if (!prefix || /[=(:,!&|?{;]$/.test(prefix) || /\b(return|throw|case)$/.test(prefix)) {
+                                end = i + 1; let inClass = false;
+                                while (end < text.length && text[end] !== '\n') {
+                                    if (text[end] === '\\') { end += 2; continue; }
+                                    if (text[end] === '[') inClass = true;
+                                    if (text[end] === ']') inClass = false;
+                                    if (text[end++] === '/' && !inClass) break;
+                                }
+                            }
                         }
-                        depth = Math.max(0, depth + (text.match(/\{/g) || []).length - (text.match(/\}/g) || []).length + leadingClosers);
-                    });
-                    cssStack.forEach(({ node }) => { node.end = firstLine + body.split('\n').length; });
+                        if (end > i) { blank(i, end); i = end - 1; }
+                    }
+                    return output.join('');
                 };
-                if (lang === 'html' || lang === 'xml') {
-                    const tags = /<\/?([a-zA-Z][\w:-]*)\b[^>]*>/g;
-                    const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
+                const parseCss = (body, base) => {
+                    const clean = maskCode(body, 'css');
+                    const roots = [], stack = [];
+                    let start = 0, parentheses = 0;
+                    for (let i = 0; i < clean.length && count < 600; i++) {
+                        if (clean[i] === '(') parentheses++;
+                        if (clean[i] === ')') parentheses = Math.max(0, parentheses - 1);
+                        if (parentheses) continue;
+                        if (clean[i] === '{') {
+                            const header = clean.slice(start, i).trim();
+                            if (header) {
+                                const first = start + clean.slice(start, i).search(/\S/);
+                                const name = body.slice(first, i).replace(/\/\*[\s\S]*?\*\//g, '').trim();
+                                const node = outlineSymbol(name, 'selector', lineAt(base + first), lineAt(base + body.length));
+                                append(stack.at(-1)?.children || roots, node); stack.push(node);
+                            }
+                            start = i + 1;
+                        } else if (clean[i] === '}') { const node = stack.pop(); if (node) node.end = lineAt(base + i); start = i + 1; }
+                        else if (clean[i] === ';') start = i + 1;
+                    }
+                    return roots;
+                };
+                const parseCode = (body, base, language) => {
+                    const clean = maskCode(body, language);
+                    const roots = [], pairs = new Map(), braces = [], candidates = [];
+                    for (let i = 0; i < clean.length; i++) {
+                        if ('{(['.includes(clean[i])) braces.push(i);
+                        else if ('})]'.includes(clean[i])) { const open = braces.pop(); if (open !== undefined) pairs.set(open, i); }
+                    }
+                    const blockRange = (start, from, multiline = false) => {
+                        for (let i = from; i < clean.length; i++) {
+                            if (clean[i] === '(' || clean[i] === '[') { i = pairs.get(i) ?? i; continue; }
+                            if (clean[i] === '{') return pairs.get(i) ?? clean.length;
+                            if (clean[i] === ';' || clean[i] === '}') return i;
+                            if (!multiline && clean[i] === '\n' && !/[=,:=>]\s*$/.test(clean.slice(from, i))) return i;
+                        }
+                        return clean.length;
+                    };
                     let match;
-                    let lastOffset = 0;
-                    let line = 1;
-                    while ((match = tags.exec(source)) && symbolCount < 600) {
-                        line += (source.slice(lastOffset, match.index).match(/\n/g) || []).length;
-                        lastOffset = tags.lastIndex;
+                    const declarations = /\b(class|interface|trait|enum|function)\s+&?\s*([\w$]+)\b/g;
+                    while ((match = declarations.exec(clean))) candidates.push({ name: match[2], kind: match[1], start: match.index, end: blockRange(match.index, declarations.lastIndex, true) });
+                    const variables = /\b(const|let|var)\s+([\w$]+)\b/g;
+                    while ((match = variables.exec(clean))) {
+                        const end = blockRange(match.index, variables.lastIndex);
+                        const value = clean.slice(variables.lastIndex, end);
+                        const kind = /=>|\bfunction\b/.test(value) ? 'function' : match[1];
+                        candidates.push({ name: match[2], kind, start: match.index, end });
+                    }
+                    const methods = /(?:^|[;{}\n])\s*(?:(?:public|private|protected|static|async|abstract|final|get|set|readonly)\s+)*([\w$]+)\s*\([^;{}]*\)\s*(?::[^{};\n]+)?\s*\{/g;
+                    const controls = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'function']);
+                    while ((match = methods.exec(clean))) {
+                        if (controls.has(match[1])) continue;
+                        const open = methods.lastIndex - 1;
+                        const start = match.index + match[0].indexOf(match[1]);
+                        candidates.push({ name: match[1], kind: 'method', start, end: pairs.get(open) ?? clean.length });
+                    }
+                    candidates.sort((a, b) => a.start - b.start || b.end - a.end);
+                    const stack = [];
+                    const seen = new Set();
+                    for (const candidate of candidates) {
+                        const key = `${candidate.start}:${candidate.name}`;
+                        if (seen.has(key)) continue; seen.add(key);
+                        while (stack.length && candidate.start >= stack.at(-1).end) stack.pop();
+                        const node = outlineSymbol(candidate.name, candidate.kind, lineAt(base + candidate.start), lineAt(base + candidate.end));
+                        if (!append(stack.at(-1)?.node.children || roots, node)) break;
+                        if (candidate.end > candidate.start) stack.push({ ...candidate, node });
+                    }
+                    return roots;
+                };
+                if (lang === 'css' || lang === 'scss' || lang === 'less') return parseCss(source, 0);
+                if (lang === 'html' || lang === 'xml' || lang === 'blade') {
+                    const roots = [], stack = [];
+                    const tags = /<!--[\s\S]*?-->|\{\{--[\s\S]*?--\}\}|<\/?([a-zA-Z][\w:-]*)\b(?:"[^"]*"|'[^']*'|[^'">])*>/g;
+                    const voidTags = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+                    let match;
+                    while ((match = tags.exec(source)) && count < 600) {
+                        if (!match[1]) continue;
                         const tag = match[1].toLowerCase();
                         if (match[0].startsWith('</')) {
-                            for (let index = stack.length - 1; index >= 0; index--) {
-                                if (stack[index].name === tag) {
-                                    stack[index].end = line;
-                                    stack.length = index;
-                                    break;
-                                }
-                            }
-                        } else {
-                            const node = outlineSymbol(tag, 'tag', line);
-                            add(node);
-                            if (!voidTags.has(tag) && !match[0].endsWith('/>')) stack.push(node);
-                            if (tag === 'style' || tag === 'script') {
-                                const close = new RegExp(`<\\/${tag}\\s*>`, 'gi');
-                                close.lastIndex = tags.lastIndex;
-                                const end = close.exec(source);
-                                if (end) {
-                                    const body = source.slice(tags.lastIndex, end.index);
-                                    if (tag === 'style') parseStyle(body, line + (match[0].match(/\n/g) || []).length, node);
-                                    else body.split('\n').forEach((text, offset) => {
-                                        const found = text.match(/\b(?:class|function|const|let|var)\s+([\w$]+)/);
-                                        if (found) appendNode(node.children, outlineSymbol(found[1], 'symbol', line + offset));
-                                    });
-                                    tags.lastIndex = end.index;
-                                }
+                            const index = stack.findLastIndex(node => node.tag === tag);
+                            if (index >= 0) { for (let i = index; i < stack.length; i++) stack[i].end = lineAt(tags.lastIndex - 1); stack.length = index; }
+                            continue;
+                        }
+                        const id = match[0].match(/\sid\s*=\s*["']([^"']*)["']/i)?.[1];
+                        const classes = match[0].match(/\sclass\s*=\s*["']([^"']*)["']/i)?.[1]?.trim().split(/\s+/).filter(value => /^[\w:-]+$/.test(value)).slice(0, 3) || [];
+                        const name = tag + (id ? `#${id}` : '') + classes.map(value => `.${value}`).join('');
+                        const node = outlineSymbol(name, 'tag', lineAt(match.index), model.getLineCount()); node.tag = tag;
+                        append(stack.at(-1)?.children || roots, node);
+                        if ((lang !== 'xml' && voidTags.has(tag)) || /\/\s*>$/.test(match[0])) { node.end = lineAt(tags.lastIndex - 1); continue; }
+                        if (tag === 'style' || tag === 'script') {
+                            const close = new RegExp(`<\\/${tag}\\s*>`, 'gi'); close.lastIndex = tags.lastIndex;
+                            const end = close.exec(source);
+                            if (end) {
+                                const base = tags.lastIndex, body = source.slice(base, end.index);
+                                node.children = tag === 'style' ? parseCss(body, base) : parseCode(body, base, 'javascript');
+                                node.end = lineAt(close.lastIndex - 1); tags.lastIndex = close.lastIndex; continue;
                             }
                         }
+                        stack.push(node);
                     }
-                    stack.forEach((node) => { node.end = model.getLineCount(); });
-                } else {
-                    const lines = source.split('\n');
-                    let depth = 0;
-                    lines.forEach((text, index) => {
-                        if (symbolCount >= 600) return;
-                        const trimmed = text.trim();
-                        const closing = (trimmed.match(/^\}+/) || [''])[0].length;
-                        depth = Math.max(0, depth - closing);
-                        while (stack.length && stack.at(-1).depth > depth) {
-                            stack.pop().node.end = index + 1;
-                        }
-                        let match = null;
-                        let kind = 'symbol';
-                        if (lang === 'css' || lang === 'scss') {
-                            match = trimmed.match(/^([^{};]+)\s*\{/);
-                            kind = 'selector';
-                        } else if (lang === 'markdown') {
-                            match = trimmed.match(/^(#{1,6})\s+(.+)/);
-                            kind = 'heading';
-                        } else {
-                            match = trimmed.match(/^\s*(?:export\s+|public\s+|private\s+|protected\s+|static\s+|async\s+|abstract\s+|final\s+)*\b(class|interface|trait|enum|function|def|const|let|var)\s+([\w$]+)/);
-                            kind = match?.[1] || 'symbol';
-                        }
-                        if (match) {
-                            const name = kind === 'heading' ? match[2] : (kind === 'selector' ? match[1].trim() : match[2]);
-                            const node = outlineSymbol(name, kind, index + 1);
-                            appendNode(stack.at(-1)?.node.children || roots, node);
-                            if (kind === 'heading') {
-                                node.end = lines.length;
-                            } else if (trimmed.includes('{') || (lang === 'python' && trimmed.endsWith(':'))) {
-                                stack.push({ node, depth: depth + 1 });
-                            }
-                        }
-                        if (lang !== 'markdown') {
-                            const opens = (text.match(/\{/g) || []).length;
-                            const closes = (text.match(/\}/g) || []).length - closing;
-                            depth = Math.max(0, depth + opens - closes);
-                        }
-                    });
-                    stack.forEach(({ node }) => { node.end = lines.length; });
+                    return roots;
                 }
-                return roots;
+                if (lang === 'markdown' || lang === 'python') {
+                    const roots = [], stack = [];
+                    let fence = null;
+                    const lines = (lang === 'python' ? maskCode(source, 'python') : source).split('\n');
+                    lines.forEach((text, index) => {
+                        if (lang === 'markdown') {
+                            const marker = text.match(/^\s*(`{3,}|~{3,})/);
+                            if (marker) { if (!fence) fence = marker[1]; else if (marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = null; return; }
+                            if (fence) return;
+                        }
+                        const match = lang === 'markdown' ? text.match(/^\s*(#{1,6})\s+(.+)/) : text.match(/^(\s*)(?:async\s+)?(class|def)\s+(\w+)/);
+                        if (lang === 'python' && text.trim() && !text.trim().startsWith('#')) {
+                            const indent = text.match(/^\s*/)[0].replace(/\t/g, '    ').length;
+                            while (stack.length && indent <= stack.at(-1).depth) stack.pop().node.end = Math.max(1, index);
+                        }
+                        if (!match) return;
+                        const depth = lang === 'markdown' ? match[1].length : match[1].replace(/\t/g, '    ').length;
+                        while (stack.length && stack.at(-1).depth >= depth) stack.pop().node.end = Math.max(1, index);
+                        const node = outlineSymbol(lang === 'markdown' ? match[2] : match[3], lang === 'markdown' ? 'heading' : match[2], index + 1, model.getLineCount());
+                        if (append(stack.at(-1)?.node.children || roots, node)) stack.push({ depth, node });
+                    });
+                    return roots;
+                }
+                return parseCode(source, 0, lang);
             };
             const renderOutline = () => {
                 const box = $('#xpanel_outline_tree');
@@ -3669,6 +3735,7 @@
                 }
             };
 
+            let consoleMaximized = false;
             let mainSplit = null;
             let bottomSplit = null;
             let leftSplit = null;
@@ -3679,6 +3746,7 @@
                 window.requestAnimationFrame(() => {
                     state.editor?.layout();
                     state.cloneEditor?.layout();
+                    activeTerminal()?.fitAddon?.fit();
                 });
             };
 
@@ -3709,7 +3777,7 @@
                 if (bottomSplit) uiState.split.center = bottomSplit.getSizes();
                 if (leftSplit) uiState.split.left = leftSplit.getSizes();
                 if (editorSplit) uiState.split.editor = editorSplit.getSizes();
-                if (terminalSplit) uiState.split.terminal = terminalSplit.getSizes();
+                if (terminalSplit) uiState.split.terminal = [...terminalSplit.getSizes()].reverse();
                 persistUiState();
             };
 
@@ -3764,7 +3832,7 @@
                     bottomSplit = null;
                 }
 
-                if (!window.Split || !splitVisible('#xpanel_bottom_pane')) {
+                if (consoleMaximized || !window.Split || !splitVisible('#xpanel_bottom_pane')) {
                     $('#xpanel_code_pane').style.flexBasis = '';
                     $('#xpanel_bottom_pane').style.flexBasis = '';
                     return;
@@ -3848,13 +3916,16 @@
                     terminalSplit = null;
                 }
 
-                if (!window.Split || uiState.ui.consoleTab !== 'terminal' || !splitVisible('#xpanel_bottom_pane') || window.matchMedia('(max-width: 760px)').matches) {
+                $('#xpanel_terminal_sidebar').classList.toggle('ikode_hidden', state.terminals.length < 2);
+                $('#xpanel_terminal_sidebar').style.flexBasis = '';
+                $('#xpanel_terminal_main').style.flexBasis = '';
+                if (state.terminals.length < 2 || !window.Split || uiState.ui.consoleTab !== 'terminal' || !splitVisible('#xpanel_bottom_pane') || window.matchMedia('(max-width: 760px)').matches) {
                     return;
                 }
 
-                terminalSplit = Split(['#xpanel_terminal_sidebar', '#xpanel_terminal_main'], {
-                    sizes: uiState.split.terminal,
-                    minSize: [150, 260],
+                terminalSplit = Split(['#xpanel_terminal_main', '#xpanel_terminal_sidebar'], {
+                    sizes: [...uiState.split.terminal].reverse(),
+                    minSize: [260, 150],
                     gutterSize: 3,
                     elementStyle: splitElementStyle,
                     gutterStyle: splitGutterStyle,
@@ -3891,6 +3962,7 @@
                 if (pane === 'bottom') {
                     $('#xpanel_code_pane').classList.toggle('border-b', uiState.layout[pane]);
                 }
+                if (pane === 'bottom' && !uiState.layout.bottom && consoleMaximized) toggleConsoleMaximized();
                 persistUiState();
                 syncLayoutButtons();
                 rebuildLayout();
@@ -3929,7 +4001,7 @@
             };
 
             const terminalTheme = () => document.documentElement.classList.contains('dark')
-                ? { background: '#111318', foreground: '#e5e7eb', cursor: '#60a5fa', selectionBackground: '#334155',
+                ? { background: '#181818', foreground: '#d4d4d4', cursor: '#d4d4d4', selectionBackground: '#454545',
                     black: '#94a3b8', red: '#f87171', green: '#86efac', yellow: '#fbbf24', blue: '#93c5fd', magenta: '#d8b4fe', cyan: '#67e8f9', white: '#e5e7eb',
                     brightBlack: '#94a3b8', brightRed: '#fca5a5', brightGreen: '#bbf7d0', brightYellow: '#fde68a', brightBlue: '#bfdbfe', brightMagenta: '#e9d5ff', brightCyan: '#a5f3fc', brightWhite: '#ffffff' }
                 : { background: '#ffffff', foreground: '#172033', cursor: '#2563eb', selectionBackground: '#bfdbfe',
@@ -3943,7 +4015,7 @@
             };
 
             const ensureRealTerminal = (terminal) => {
-                if (!terminal || terminal.term) return;
+                if (!terminal || terminal.disposed || terminal.term) return;
                 const mounts = $('#xpanel_terminal_mounts');
                 if (!mounts || typeof Terminal === 'undefined' || typeof FitAddon === 'undefined') return;
 
@@ -3981,7 +4053,7 @@
             // keystrokes, the unprivileged agent transports PTY bytes, and the
             // confined Linux login shell executes them unchanged.
             const connectTerminal = async (terminal, reconnect = false) => {
-                if (!terminal || !config.webTerminalEnabled || !config.terminalTokenUrl) return;
+                if (!terminal || terminal.disposed || !config.webTerminalEnabled || !config.terminalTokenUrl) return;
                 ensureRealTerminal(terminal);
                 if (!terminal.term) return;
                 if (!reconnect && terminal.socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(terminal.socket.readyState)) return;
@@ -4014,6 +4086,7 @@
                     }
 
                     const { path, token, system_user: systemUser } = await response.json();
+                    if (terminal.disposed) return;
                     const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const socket = new WebSocket(`${scheme}//${location.host}${path}?token=${encodeURIComponent(token)}&user=${encodeURIComponent(systemUser)}`);
                     terminal.socket = socket;
@@ -4042,6 +4115,7 @@
                         if (terminal.socket === socket) setTerminalStatus(terminal, 'Error de conexión');
                     };
                 } catch (error) {
+                    if (terminal.disposed) return;
                     setTerminalStatus(terminal, 'Error de conexión');
                     terminal.term.write(`\r\n\x1b[31m${error.message}\x1b[0m\r\n`);
                 } finally {
@@ -4072,6 +4146,7 @@
                 $$('[data-console-view]').forEach((view) => {
                     view.classList.toggle('ikode_hidden', view.dataset.consoleView !== tab);
                 });
+                $$('[data-console-actions]').forEach((group) => { group.hidden = group.dataset.consoleActions !== tab; });
                 persistUiState();
                 if (tab === 'terminal') {
                     rebuildLayout();
@@ -4106,14 +4181,15 @@
                 if (!list) return;
                 list.innerHTML = state.terminals.map((terminal) => `
                     <div class="xpanel-terminal-item ${terminal.id === state.activeTerminalId ? 'active' : ''}">
-                        <button class="xpanel-terminal-select" type="button" data-terminal-id="${terminal.id}" title="${escapeHtml(terminal.name)}">
+                        <button class="xpanel-terminal-select" type="button" data-terminal-id="${terminal.id}" title="${escapeHtml(terminal.name)} · ${escapeHtml(terminal.status || 'Desconectado')}" aria-pressed="${terminal.id === state.activeTerminalId}">
                             <span class="xpanel-terminal-active-dot"></span>
                             <i class="ki-filled ki-screen"></i>
                             <span class="xpanel-terminal-name">${escapeHtml(terminal.name)}</span>
                         </button>
                         <div class="xpanel-terminal-meta">
-                            <span class="xpanel-terminal-badge" title="${escapeHtml(terminal.status || 'Desconectado')}">${escapeHtml(terminal.status || 'Desconectado')}</span>
+
                             ${config.webTerminalEnabled ? `<button class="xpanel-terminal-action xpanel-terminal-reconnect" type="button" data-terminal-reconnect="${terminal.id}" title="Reconectar ${escapeHtml(terminal.name)}" aria-label="Reconectar ${escapeHtml(terminal.name)}"><i class="ki-filled ki-arrows-circle"></i></button>` : ''}
+                            <button class="xpanel-terminal-action xpanel-terminal-remove" type="button" data-terminal-remove="${terminal.id}" title="Eliminar ${escapeHtml(terminal.name)}" aria-label="Eliminar ${escapeHtml(terminal.name)}"><i class="ki-filled ki-trash"></i></button>
                         </div>
                     </div>
                 `).join('');
@@ -4151,6 +4227,7 @@
                 };
                 state.terminals.push(terminal);
                 switchTerminalSession(terminal.id);
+                rebuildLayout();
             };
             const resetSingleTerminal = () => {
                 state.terminalSeq = 1;
@@ -4170,12 +4247,16 @@
                 state.activeTerminalId = terminal.id;
                 persistTerminals();
                 switchTerminalSession(terminal.id);
+                rebuildLayout();
             };
-            const removeActiveTerminal = () => {
-                const index = state.terminals.findIndex((terminal) => terminal.id === state.activeTerminalId);
+            const removeTerminalSession = (id = state.activeTerminalId) => {
+                const index = state.terminals.findIndex((terminal) => terminal.id === id);
                 if (index < 0) return;
                 const removed = state.terminals[index];
-                removed.socket?.close();
+                removed.disposed = true;
+                const socket = removed.socket;
+                removed.socket = null;
+                socket?.close();
                 removed.term?.dispose();
                 removed.mount?.remove();
                 if (state.terminals.length <= 1) {
@@ -4183,14 +4264,15 @@
                     return;
                 }
                 state.terminals.splice(index, 1);
-                const next = state.terminals[Math.max(0, index - 1)] || state.terminals[0];
+                const next = state.terminals.find((terminal) => terminal.id === state.activeTerminalId) || state.terminals[Math.max(0, index - 1)] || state.terminals[0];
                 state.activeTerminalId = next?.id || null;
                 persistTerminals();
                 switchTerminalSession(state.activeTerminalId);
+                rebuildLayout();
             };
             const terminalAction = (action) => {
                 if (action === 'new') createTerminal();
-                if (action === 'remove') removeActiveTerminal();
+                if (action === 'remove') removeTerminalSession();
             };
 
             const applyStoredLayout = () => {
@@ -4437,6 +4519,8 @@
             $$('[data-clone-action]').forEach((button) => button.addEventListener('click', () => cloneAction(button.dataset.cloneAction)));
             $$('[data-duplicate-close]').forEach((button) => button.addEventListener('click', closeDuplicatePane));
             $('#xpanel_terminal_list')?.addEventListener('click', (event) => {
+                const remove = event.target.closest('[data-terminal-remove]');
+                if (remove) { removeTerminalSession(remove.dataset.terminalRemove); return; }
                 const reconnect = event.target.closest('[data-terminal-reconnect]');
                 if (reconnect) {
                     const terminal = state.terminals.find((entry) => entry.id === reconnect.dataset.terminalReconnect);
@@ -4467,6 +4551,19 @@
                 const row = event.target.closest('[data-problem-line]');
                 if (row) revealEditorLine(Number(row.dataset.problemLine), Number(row.dataset.problemColumn));
             });
+            const toggleConsoleMaximized = () => {
+                consoleMaximized = !consoleMaximized;
+                $('#xpanel_file_shell').classList.toggle('xpanel-console-maximized', consoleMaximized);
+                const button = $('#xpanel_console_expand');
+                button.setAttribute('aria-pressed', String(consoleMaximized));
+                button.setAttribute('aria-label', consoleMaximized ? 'Restaurar consola' : 'Expandir consola');
+                button.title = consoleMaximized ? 'Restaurar consola' : 'Expandir consola';
+                rebuildLayout();
+            };
+            $('#xpanel_console_expand').addEventListener('click', toggleConsoleMaximized);
+            $('#xpanel_console_close').addEventListener('click', () => { if (uiState.layout.bottom) toggleLayoutPane('bottom'); });
+            $('#xpanel_ports_refresh').addEventListener('click', () => loadConsoleData('ports'));
+            $('#xpanel_output_clear').addEventListener('click', () => { $('#xpanel_output_log').replaceChildren(); });
             $('#xpanel_logs_refresh')?.addEventListener('click', () => loadConsoleData('logs'));
             window.addEventListener('resize', () => activeTerminal()?.fitAddon?.fit());
             hydrateSettings();
@@ -4568,6 +4665,7 @@
                 $('#xpanel_editor_group_clone').classList.add('ikode_hidden');
                 new MutationObserver(() => {
                     monaco.editor.setTheme(resolveMonacoTheme());
+                    state.terminals.forEach((terminal) => { if (terminal.term) terminal.term.options.theme = terminalTheme(); });
                 }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
                 applyEditorSettings();
                 layoutEditor();

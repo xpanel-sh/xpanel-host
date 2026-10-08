@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\MailAccount;
 use App\Models\ServerIpAddress;
 use App\Services\MailDnsService;
+use App\Services\HostingPlanQuota;
 use App\Services\MailProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -57,8 +58,9 @@ class MailController extends Controller
         ]);
     }
 
-    public function store(Request $request, MailProvisioner $provisioner): RedirectResponse
+    public function store(Request $request, MailProvisioner $provisioner, HostingPlanQuota $quota): RedirectResponse
     {
+        $quota->assertCanCreateMailbox();
         $data = $request->validate([
             'local_part' => 'required|string|max:64|regex:/^[a-zA-Z0-9._-]+$/',
             'domain_id' => 'required|exists:domains,id',

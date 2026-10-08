@@ -31,6 +31,8 @@ class WordPressInstaller
             throw new RuntimeException('Este sitio ya tiene una instalación WordPress registrada.');
         }
 
+        app(HostingPlanQuota::class)->assertCanCreateDatabase();
+
         $prefix = 'xp_'.substr(hash('sha256', $site->domain), 0, 8).'_';
         $database = $site->databases()->create([
             'name' => substr($prefix.$data['database_name'], 0, 64),

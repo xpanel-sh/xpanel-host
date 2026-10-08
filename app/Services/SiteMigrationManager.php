@@ -29,6 +29,9 @@ class SiteMigrationManager
         if ($data['application'] === 'wordpress' && ($site->type !== 'php' || $sql === null)) {
             throw new RuntimeException('Una migración WordPress requiere un sitio PHP y un respaldo SQL.GZ.');
         }
+        if ($sql !== null) {
+            app(HostingPlanQuota::class)->assertCanCreateDatabase();
+        }
 
         $migration = $site->migrations()->create([
             'token' => (string) Str::uuid(), 'user_id' => $user?->id,

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Site;
 use App\Models\SiteDatabase;
 use App\Services\DatabaseProvisioner;
+use App\Services\HostingPlanQuota;
 use App\Services\RemoteMysqlProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,8 +21,9 @@ class DatabaseController extends Controller
         ]);
     }
 
-    public function store(Request $request, Site $site, DatabaseProvisioner $provisioner): RedirectResponse
+    public function store(Request $request, Site $site, DatabaseProvisioner $provisioner, HostingPlanQuota $quota): RedirectResponse
     {
+        $quota->assertCanCreateDatabase();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:24', 'regex:/^[a-z0-9_]+$/'],
             'username' => ['required', 'string', 'max:16', 'regex:/^[a-z0-9_]+$/'],

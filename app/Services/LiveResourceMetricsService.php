@@ -30,7 +30,8 @@ class LiveResourceMetricsService
         $month = now()->startOfMonth();
         $monthlyTransfer = (int) SiteResourceSample::query()->where('sampled_at', '>=', $month)->sum('transfer_bytes');
         $monthlyRequests = (int) SiteResourceSample::query()->where('sampled_at', '>=', $month)->sum('request_count');
-        $siteCount = Site::query()->whereNull('parent_site_id')->count();
+        // Subdomains have independent runtimes and consume a plan site slot.
+        $siteCount = Site::query()->count();
 
         return [
             'live' => true,

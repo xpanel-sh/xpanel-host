@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\Site;
 use App\Services\CertificateProvisioner;
 use App\Services\HostingAccountWorkspace;
+use App\Services\HostingPlanQuota;
 use App\Services\ServerContext;
 use App\Services\SiteAccessProvisioner;
 use App\Services\SiteProvisioner;
@@ -27,9 +28,10 @@ class SubdomainController extends Controller
         ]);
     }
 
-    public function store(Request $request, Site $site, SiteProvisioner $provisioner, SiteAccessProvisioner $access): RedirectResponse
+    public function store(Request $request, Site $site, SiteProvisioner $provisioner, SiteAccessProvisioner $access, HostingPlanQuota $quota): RedirectResponse
     {
         abort_if($site->parent_site_id !== null, 404);
+        $quota->assertCanCreateSite();
 
         $request->merge(['label' => strtolower(rtrim(trim((string) $request->input('label')), '.'))]);
         $data = $request->validate([

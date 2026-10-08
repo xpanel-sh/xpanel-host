@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Site;
 use App\Services\ServerResourceUsageService;
 use App\Services\SiteResourceUsageService;
+use App\Services\TransferAlertService;
 use Illuminate\Console\Command;
 
 class CollectSiteResourceUsage extends Command
@@ -13,7 +14,7 @@ class CollectSiteResourceUsage extends Command
 
     protected $description = 'Collect per-site resource usage samples';
 
-    public function handle(SiteResourceUsageService $usage, ServerResourceUsageService $serverUsage): int
+    public function handle(SiteResourceUsageService $usage, ServerResourceUsageService $serverUsage, TransferAlertService $alerts): int
     {
         $query = Site::query()->where('status', 'active');
         if (is_string($this->option('site')) && $this->option('site') !== '') {
@@ -32,6 +33,12 @@ class CollectSiteResourceUsage extends Command
         });
 
         if (! is_string($this->option('site')) || $this->option('site') === '') {
+            try {
+                $alerts->check();
+            } catch (\Throwable $exception) {
+                $failed = true;
+                $this->error('Alerta de tráfico: '.$exception->getMessage());
+            }
             try {
                 $serverUsage->collect();
                 $this->line('Recursos globales del servidor medidos.');

@@ -6,6 +6,7 @@ use App\Models\Domain;
 use App\Models\Site;
 use App\Services\CertificateProvisioner;
 use App\Services\HostingAccountWorkspace;
+use App\Services\HostingPlanQuota;
 use App\Services\LiveResourceMetricsService;
 use App\Services\ServerContext;
 use App\Services\ServerResourceUsageService;
@@ -91,8 +92,9 @@ class SiteController extends Controller
         ]);
     }
 
-    public function store(Request $request, SiteProvisioner $provisioner): RedirectResponse
+    public function store(Request $request, SiteProvisioner $provisioner, HostingPlanQuota $quota): RedirectResponse
     {
+        $quota->assertCanCreateSite();
         try {
             $data = $this->validated($request);
         } catch (ValidationException $exception) {
