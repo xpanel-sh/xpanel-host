@@ -107,6 +107,23 @@ class GlobalFileManagerTest extends TestCase
             ->assertSee('/^\\.env(?:\\..+)?$/', false);
     }
 
+    public function test_ikode_selection_actions_stay_below_files_and_move_opens_a_destination_picker(): void
+    {
+        $html = $this->actingAs($this->userWithRole('developer'))
+            ->get(route('sites.ikode'))
+            ->assertOk()
+            ->assertSee('id="xpanel_move_modal"', false)
+            ->getContent();
+
+        $this->assertTrue(strpos($html, 'id="xpanel_file_list"') < strpos($html, 'id="xpanel_selection_toolbar"'));
+        $this->assertTrue(strpos($html, 'id="xpanel_selection_toolbar"') < strpos($html, 'id="xpanel_left_outline_pane"'));
+
+        $template = file_get_contents(resource_path('views/sites/ikode.blade.php'));
+        $this->assertStringContainsString('await ensureDirectory(directory);', $template);
+        $this->assertStringContainsString("if (name === 'cut') await openMovePicker();", $template);
+        $this->assertStringContainsString('await pasteSelection(false, state.moveDestination);', $template);
+    }
+
     public function test_ikode_uses_one_real_terminal_inside_the_designed_terminal_workspace(): void
     {
         config(['xpanel.terminal_enabled' => true, 'xpanel.apply_system_changes' => true]);

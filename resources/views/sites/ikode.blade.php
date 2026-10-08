@@ -191,11 +191,13 @@
             gap: 3px;
             min-height: 30px;
             padding: 3px 7px;
-            border-bottom: 1px solid var(--border);
+            border-top: 1px solid var(--border);
             background: var(--muted);
+            flex: 0 0 auto;
         }
         .xpanel-selection-toolbar[hidden] { display: none; }
-        .xpanel-selection-toolbar:not([hidden]) { margin-bottom: 2px; }
+        #xpanel_left_files_pane { display: flex; flex-direction: column; overflow: hidden; }
+        #xpanel_file_list, #xpanel_trash_view { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
         .xpanel-selection-toolbar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 600; }
         .xpanel-selection-toolbar button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 23px; height: 23px; border-radius: 5px; font-size: 12px; }
         .xpanel-selection-toolbar button:hover:not(:disabled) { background: var(--background); }
@@ -1016,14 +1018,6 @@
                         <progress id="xpanel_file_progress" max="100" value="0">0%</progress>
                         <div class="xpanel-file-progress-label" id="xpanel_file_progress_label">Preparando...</div>
                     </div>
-                    <div class="xpanel-selection-toolbar" id="xpanel_selection_toolbar" hidden>
-                        <strong id="xpanel_selection_toolbar_count">0 seleccionados</strong>
-                        <button type="button" data-fm-action="copy" title="Copiar seleccionados" aria-label="Copiar seleccionados"><i class="ki-filled ki-copy"></i></button>
-                        <button type="button" data-fm-action="cut" title="Mover seleccionados" aria-label="Mover seleccionados"><i class="ki-filled ki-arrow-right"></i></button>
-                        <button type="button" data-fm-action="compress" title="Comprimir ZIP" aria-label="Comprimir seleccionados en ZIP"><i class="ki-filled ki-archive"></i></button>
-                        <button class="text-destructive" type="button" data-fm-action="delete-selected" title="Enviar a papelera" aria-label="Enviar seleccionados a papelera"><i class="ki-filled ki-trash"></i></button>
-                    </div>
-
                     <div class="ikode_left_files" id="xpanel_left_files_pane"
                          ondragover="XPanelFM.dragOver(event)"
                          ondragleave="XPanelFM.dragLeave(event)"
@@ -1038,6 +1032,13 @@
                             </div>
                             <p class="px-3 py-2 text-[11px] text-secondary-foreground">Restaura o elimina definitivamente.</p>
                             <div id="xpanel_trash_list" class="xpanel-trash-list text-xs"></div>
+                        </div>
+                        <div class="xpanel-selection-toolbar" id="xpanel_selection_toolbar" hidden>
+                            <strong id="xpanel_selection_toolbar_count">0 seleccionados</strong>
+                            <button type="button" data-fm-action="copy" title="Copiar seleccionados" aria-label="Copiar seleccionados"><i class="ki-filled ki-copy"></i></button>
+                            <button type="button" data-fm-action="cut" title="Mover seleccionados" aria-label="Mover seleccionados"><i class="ki-filled ki-arrow-right"></i></button>
+                            <button type="button" data-fm-action="compress" title="Comprimir ZIP" aria-label="Comprimir seleccionados en ZIP"><i class="ki-filled ki-archive"></i></button>
+                            <button class="text-destructive" type="button" data-fm-action="delete-selected" title="Enviar a papelera" aria-label="Enviar seleccionados a papelera"><i class="ki-filled ki-trash"></i></button>
                         </div>
                     </div>
 
@@ -1394,6 +1395,22 @@
     </div>
 </div>
 
+<div id="xpanel_move_modal" class="fixed inset-0 hidden z-[110] items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-sm rounded-md border border-border bg-background p-5 shadow-2xl">
+        <h3 class="text-base font-semibold text-mono">Mover seleccionados</h3>
+        <p class="mt-1 text-xs text-secondary-foreground">Elige la carpeta de destino. No se moverá nada hasta confirmar.</p>
+        <div class="mt-4 flex items-center gap-2 border-b border-border pb-2">
+            <button class="ikode_left_action_btn" type="button" id="xpanel_move_up" title="Subir una carpeta" aria-label="Subir una carpeta"><i class="ki-filled ki-arrow-left"></i></button>
+            <span class="min-w-0 truncate text-xs text-mono" id="xpanel_move_path">/</span>
+        </div>
+        <div class="max-h-56 min-h-24 overflow-y-auto py-2 text-xs" id="xpanel_move_folders"></div>
+        <div class="mt-3 flex justify-end gap-2">
+            <button class="kt-btn kt-btn-outline" type="button" id="xpanel_move_cancel">Cancelar</button>
+            <button class="kt-btn kt-btn-primary" type="button" id="xpanel_move_confirm">Mover aquí</button>
+        </div>
+    </div>
+</div>
+
     </div>
     </div>
 @endsection
@@ -1432,6 +1449,8 @@
                 selected: null,
                 selectedPaths: new Set(),
                 clipboard: null,
+                moveDestination: null,
+                moveSelectionPaths: [],
                 selectionAnchor: null,
                 ctxEntry: null,
                 ctxDirectory: '/',
@@ -2453,13 +2472,22 @@
                 });
                 finishSelection(entry);
             };
-            const selectAllInCurrentFolder = () => {
-                const directory = state.selected?.is_dir && state.currentPath === state.selected.path
-                    ? state.currentPath
-                    : (state.selected ? dirname(state.selected.path) : (state.currentPath || '/'));
-                const entries = entriesFor(directory).filter((entry) => entry.deletable !== false);
+            const selectAllInCurrentFolder = async () => {
+                let directory = uiState.ui.fileView === 'grid' ? state.currentPath
+                    : (state.selected ? (state.selected.is_dir ? state.selected.path : dirname(state.selected.path)) : (state.currentPath || '/'));
+                if (directory === '/' && isGlobalSitesRoot()) {
+                    const roots = entriesFor('/').filter((entry) => entry.is_dir && entry.available !== false);
+                    const expanded = roots.filter((entry) => state.expanded.has(entry.path));
+                    if (expanded.length === 1) directory = expanded[0].path;
+                    else if (roots.length === 1) directory = roots[0].path;
+                    else return toast('Abre o selecciona una carpeta para seleccionar su contenido.', 'error');
+                }
+                await ensureDirectory(directory);
+                const entries = entriesFor(directory).filter((entry) => entry.deletable !== false && entry.available !== false);
+                if (!entries.length) return toast('Esta carpeta no contiene elementos seleccionables.', 'error');
                 state.selectedPaths = new Set(entries.map((entry) => entry.path));
                 state.selectionAnchor = entries[0]?.path || null;
+                setCurrentPath(directory);
                 finishSelection(entries.at(-1) || null);
             };
             const attachTreeEvents = () => {
@@ -3023,7 +3051,7 @@
 
             const actionableEntries = () => {
                 const entries = deletableSelection();
-                if (!entries.length && state.ctxEntry?.deletable !== false) entries.push(state.ctxEntry);
+                if (!entries.length && state.ctxEntry && state.ctxEntry.deletable !== false) entries.push(state.ctxEntry);
                 return entries.filter((entry, index, all) => !all.some((parent, other) => other !== index && parent.is_dir && entry.path.startsWith(`${parent.path}/`)));
             };
             const clipboardSelection = (mode) => {
@@ -3033,10 +3061,14 @@
                 syncSelectionControls();
                 toast(`${entries.length} elemento(s) ${mode === 'copy' ? 'listos para copiar' : 'listos para mover'}. Abre la carpeta de destino y pulsa Pegar.`);
             };
-            const pasteSelection = async (fromContextMenu = false) => {
+            const pasteSelection = async (fromContextMenu = false, destinationOverride = null) => {
                 const clipboard = state.clipboard;
                 if (!clipboard?.paths?.length) return;
-                const destination = targetDirectory(fromContextMenu);
+                const destination = destinationOverride === null ? targetDirectory(fromContextMenu) : requireConcreteSiteTarget(destinationOverride);
+                if (clipboard.mode === 'cut' && clipboard.paths.some((path) => {
+                    const entry = getEntry(path);
+                    return entry?.is_dir && (destination === path || destination.startsWith(`${path}/`));
+                })) throw new Error('No puedes mover una carpeta dentro de sí misma.');
                 if (clipboard.mode === 'copy') {
                     await api('POST', '/copy', { domain: config.domain, paths: clipboard.paths, destination });
                 } else {
@@ -3068,6 +3100,39 @@
                 await loadDirectory(destination);
                 syncSelectionControls();
                 toast(clipboard.mode === 'copy' ? 'Copia completada' : 'Elementos movidos');
+            };
+            const closeMovePicker = () => {
+                $('#xpanel_move_modal').classList.add('hidden');
+                $('#xpanel_move_modal').classList.remove('flex');
+                state.moveDestination = null;
+                state.moveSelectionPaths = [];
+            };
+            const showMoveFolder = async (path) => {
+                const destination = normalizePath(path);
+                const entries = await ensureDirectory(destination);
+                state.moveDestination = destination;
+                $('#xpanel_move_path').textContent = destination;
+                $('#xpanel_move_up').disabled = destination === '/';
+                const folders = entries.filter((entry) => entry.is_dir && entry.available !== false);
+                $('#xpanel_move_folders').innerHTML = folders.length
+                    ? folders.map((entry) => `<button type="button" class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted" data-move-folder="${escapeHtml(entry.path)}"><i class="ki-filled ki-folder"></i><span class="min-w-0 truncate">${escapeHtml(entry.name)}</span></button>`).join('')
+                    : '<p class="px-2 py-3 text-secondary-foreground">No hay subcarpetas aquí.</p>';
+                const invalid = (isGlobalSitesRoot() && destination === '/') || state.moveSelectionPaths.every((path) => dirname(path) === destination)
+                    || state.moveSelectionPaths.some((path) => {
+                        const entry = getEntry(path);
+                        return entry?.is_dir && (destination === path || destination.startsWith(`${path}/`));
+                    });
+                $('#xpanel_move_confirm').disabled = invalid;
+            };
+            const openMovePicker = async () => {
+                const entries = actionableEntries();
+                if (!entries.length) return toast('Selecciona archivos o carpetas primero.', 'error');
+                state.moveSelectionPaths = entries.map((entry) => entry.path);
+                const initial = isGlobalSitesRoot() ? virtualSiteRoot(entries[0].path) : dirname(entries[0].path);
+                $('#xpanel_move_modal').classList.remove('hidden');
+                $('#xpanel_move_modal').classList.add('flex');
+                try { await showMoveFolder(initial); }
+                catch (error) { closeMovePicker(); throw error; }
             };
             const compressSelection = () => {
                 const entries = actionableEntries();
@@ -3386,13 +3451,14 @@
                     if (name === 'new-file') await newFile(fromContextMenu);
                     if (name === 'new-folder') await newFolder(fromContextMenu);
                     if (name === 'extract') await extractArchive(state.selected || state.ctxEntry);
-                    if (name === 'copy' || name === 'cut') clipboardSelection(name);
+                    if (name === 'copy') clipboardSelection('copy');
+                    if (name === 'cut') await openMovePicker();
                     if (name === 'paste') await pasteSelection(fromContextMenu);
                     if (name === 'compress') compressSelection();
                     if (name === 'trash-list') await loadTrash();
                     if (name === 'refresh') await loadDirectory(state.currentPath);
                     if (name === 'rename') startInlineRename();
-                    if (name === 'select-all') selectAllInCurrentFolder();
+                    if (name === 'select-all') await selectAllInCurrentFolder();
                     if (name === 'delete' || name === 'delete-selected') await remove();
                 } catch (error) {
                     toast(error.message, 'error');
@@ -4014,6 +4080,30 @@
                 $('#xpanel_file_actions_menu').open = false;
                 action(button.dataset.fmAction, Boolean(button.closest('#xpanel_ctx_menu')));
             }));
+            $('#xpanel_move_cancel').addEventListener('click', closeMovePicker);
+            $('#xpanel_move_modal').addEventListener('click', (event) => {
+                if (event.target.id === 'xpanel_move_modal') closeMovePicker();
+            });
+            $('#xpanel_move_up').addEventListener('click', () => {
+                if (state.moveDestination) showMoveFolder(dirname(state.moveDestination)).catch((error) => toast(error.message, 'error'));
+            });
+            $('#xpanel_move_folders').addEventListener('click', (event) => {
+                const folder = event.target.closest('[data-move-folder]');
+                if (folder) showMoveFolder(folder.dataset.moveFolder).catch((error) => toast(error.message, 'error'));
+            });
+            $('#xpanel_move_confirm').addEventListener('click', async () => {
+                if (!state.moveDestination || !state.moveSelectionPaths.length) return;
+                const button = $('#xpanel_move_confirm');
+                button.disabled = true;
+                try {
+                    state.clipboard = { mode: 'cut', paths: [...state.moveSelectionPaths] };
+                    await pasteSelection(false, state.moveDestination);
+                    closeMovePicker();
+                } catch (error) {
+                    toast(error.message, 'error');
+                    await showMoveFolder(state.moveDestination).catch(() => {});
+                }
+            });
             $('#xpanel_file_view_toggle')?.addEventListener('click', () => {
                 uiState.ui.fileView = uiState.ui.fileView === 'grid' ? 'list' : 'grid';
                 persistUiState();
@@ -4181,6 +4271,13 @@
                 if (!event.target.closest('.xpanel-search-wrap')) closeSearchLauncher();
             });
             document.addEventListener('keydown', (event) => {
+                if (!$('#xpanel_move_modal').classList.contains('hidden')) {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeMovePicker();
+                    }
+                    return;
+                }
                 const editing = event.target.closest?.('input, textarea, select, [contenteditable="true"], .monaco-editor, .xterm');
                 if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
                     event.preventDefault();
@@ -4188,7 +4285,7 @@
                 }
                 if (!editing && $('#xpanel_trash_view').hidden && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
                     event.preventDefault();
-                    selectAllInCurrentFolder();
+                    selectAllInCurrentFolder().catch((error) => toast(error.message, 'error'));
                 }
                 if (!editing && $('#xpanel_trash_view').hidden && event.key === 'Delete' && deletableSelection().length) {
                     event.preventDefault();

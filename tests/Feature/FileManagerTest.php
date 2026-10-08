@@ -113,7 +113,7 @@ class FileManagerTest extends TestCase
         $this->assertStringContainsString(".xpanel-editor-group-body').classList.add('ikode_hidden');", $template);
         $this->assertStringContainsString("uiState.ui.consoleTab === 'ssh' ? 'terminal'", $template);
         $this->assertStringContainsString('selectedPaths: new Set()', $template);
-        $this->assertStringContainsString('const selectAllInCurrentFolder = () =>', $template);
+        $this->assertStringContainsString('const selectAllInCurrentFolder = async () =>', $template);
         $this->assertStringContainsString('const bindMarqueeSelection = () =>', $template);
         $this->assertStringContainsString('¿Enviar ${entries.length} elementos y el contenido de sus carpetas a la papelera?', $template);
     }
