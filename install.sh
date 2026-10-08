@@ -915,8 +915,11 @@ if [[ "${XPANEL_ROUNDCUBE_ENABLED:-true}" == "true" ]]; then
   bash "$ROOT/scripts/install-roundcube.sh"
 fi
 
-if ! install_cli || ! "/usr/local/bin/xpanel" status --root="$ROOT" >/dev/null; then
-  echo "The required global xpanel CLI could not be installed or validated." >&2
+if [[ "${XPANEL_INSTALL_CLI:-yes}" != no ]]; then
+  install_cli || { echo "The required global xpanel CLI could not be installed." >&2; exit 1; }
+fi
+if ! "/usr/local/bin/xpanel" status --root="$ROOT" >/dev/null; then
+  echo "The required global xpanel CLI could not be validated." >&2
   exit 1
 fi
 

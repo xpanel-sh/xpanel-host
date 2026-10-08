@@ -601,6 +601,9 @@ node_project_prepare() {
   local domain="$1" document_root="$2" site_user="$3" node_port="$4"
   local state_dir="/var/lib/xpanel-host/node-state/$domain"
   local cache_dir="/var/lib/xpanel-host/npm-cache/$site_user"
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    cache_dir="$ACCOUNT_HOME/.cache/npm/$site_user"
+  fi
   local dependency_source dependency_hash installed_hash="" install_mode build_stamp
   valid_domain "$domain" || fail "Invalid Node.js project domain."
   valid_document_root "$document_root" || fail "Invalid Node.js project root."
@@ -608,7 +611,12 @@ node_project_prepare() {
   [[ -f "$document_root/package.json" && ! -L "$document_root/package.json" ]] || return 0
 
   install -d -o root -g root -m 0755 /var/lib/xpanel-host/node-state "$state_dir"
-  install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    [[ ! -L "$ACCOUNT_HOME/.cache" && ! -L "$ACCOUNT_HOME/.cache/npm" && ! -L "$cache_dir" ]] || fail "Unsafe managed npm cache path."
+    install -d -o root -g "$SITE_GROUP" -m 0750 "$ACCOUNT_HOME/.cache" "$ACCOUNT_HOME/.cache/npm"
+  else
+    install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache
+  fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$cache_dir"
   exec 8>"/run/lock/xpanel-node-project-$domain.lock"
   flock -n 8 || fail "Another Node.js preparation is already running for this site."
@@ -863,6 +871,10 @@ cron_sync() {
   local source="$STATE_ROOT/storage/app/cron/$domain"
   local target="/etc/cron.d/xpanel-$domain"
   local log="/var/log/xpanel-host/$domain-cron.log"
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    log="$ACCOUNT_HOME/logs/$domain/cron.log"
+    [[ ! -L "$ACCOUNT_HOME/logs" && ! -L "$ACCOUNT_HOME/logs/$domain" && ! -L "$log" ]] || fail "Unsafe managed cron log path."
+  fi
   [[ -f "$source" && ! -L "$source" ]] || fail "Staged cron configuration not found."
   valid_site_identity "$site_user" || fail "Invalid site cron user."
   [[ "$(head -n1 "$source")" == "SHELL=/bin/bash" ]] || fail "Invalid staged cron header."
@@ -877,10 +889,14 @@ cron_sync() {
       [[ "$field" =~ ^[0-9*,/-]+$ ]] || fail "Invalid staged cron expression."
     done
     expected_prefix="$site_user cd -- '$document_root' && "
-    expected_suffix=" >> '/var/log/xpanel-host/$domain-cron.log' 2>&1"
+    expected_suffix=" >> '$log' 2>&1"
     [[ "$command" == "$expected_prefix"* && "$command" == *"$expected_suffix" ]] || fail "Invalid staged cron command."
   done < "$source"
-  install -d -o root -g "$site_user" -m 0750 /var/log/xpanel-host
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    install -d -o "$SITE_USER" -g "$SITE_GROUP" -m 0750 "$ACCOUNT_HOME/logs/$domain"
+  else
+    install -d -o root -g "$site_user" -m 0750 /var/log/xpanel-host
+  fi
   touch "$log"
   chown "$site_user:$site_user" "$log"
   chmod 0640 "$log"
@@ -1026,9 +1042,14 @@ malware_quarantine() {
   source="$(realpath -e -- "$document_root/$relative")"
   [[ "$source" == "$root_real/"* && -f "$source" && ! -L "$source" ]] || fail "Quarantine source is outside the site or is not a regular file."
   quarantine_root="/var/lib/xpanel-host/quarantine/$domain/$token"
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    quarantine_root="$ACCOUNT_HOME/.quarantine/$domain/$token"
+    [[ ! -L "$ACCOUNT_HOME/.quarantine" && ! -L "$ACCOUNT_HOME/.quarantine/$domain" && ! -L "$quarantine_root" ]] || fail "Unsafe managed quarantine path."
+    install -d -o root -g "$site_user" -m 0750 "$ACCOUNT_HOME/.quarantine"
+  fi
   fingerprint="$(printf %s "$relative" | sha256sum | cut -d' ' -f1)"
   destination="$quarantine_root/$fingerprint.quarantine"
-  install -d -o root -g "$site_user" -m 0750 "/var/lib/xpanel-host/quarantine/$domain" "$quarantine_root"
+  install -d -o root -g "$site_user" -m 0750 "$(dirname "$quarantine_root")" "$quarantine_root"
   mv -- "$source" "$destination"
   chown root:"$site_user" "$destination"
   chmod 0640 "$destination"
@@ -1061,6 +1082,11 @@ wordpress_install() {
   staging="$(mktemp -d "$(dirname "$document_root")/.xpanel-wordpress.XXXXXX")"
   trap 'rm -rf -- "$staging"' RETURN
   cache_root="/var/lib/xpanel-host/wp-cli-cache/$site_user"
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    cache_root="$ACCOUNT_HOME/.cache/wp-cli/$site_user"
+    [[ ! -L "$ACCOUNT_HOME/.cache" && ! -L "$ACCOUNT_HOME/.cache/wp-cli" && ! -L "$cache_root" ]] || fail "Unsafe managed WordPress cache path."
+    install -d -o root -g "$SITE_GROUP" -m 0750 "$ACCOUNT_HOME/.cache" "$ACCOUNT_HOME/.cache/wp-cli"
+  fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$cache_root"
   chown "$site_user:$site_user" "$staging"
   local -a wp=(runuser -u "$site_user" -- env TERM=dumb WP_CLI_COLOR=0 PAGER=cat WP_CLI_CACHE_DIR="$cache_root" "/usr/bin/php$php_version" /usr/local/bin/wp)
@@ -1166,8 +1192,14 @@ site_migrate() {
 
   if [[ "$application" == wordpress ]]; then
     [[ -x "/usr/bin/php$php_version" && -x /usr/local/bin/wp && -f "$content_root/wp-settings.php" ]] || fail "The archive is not a valid WordPress site."
-    install -d -o "$site_user" -g "$site_user" -m 0750 "/var/lib/xpanel-host/wp-cli-cache/$site_user"
-    local wp=(runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="/var/lib/xpanel-host/wp-cli-cache/$site_user" "/usr/bin/php$php_version" /usr/local/bin/wp --path="$content_root")
+    local wp_cache="/var/lib/xpanel-host/wp-cli-cache/$site_user"
+    if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+      wp_cache="$ACCOUNT_HOME/.cache/wp-cli/$site_user"
+      [[ ! -L "$ACCOUNT_HOME/.cache" && ! -L "$ACCOUNT_HOME/.cache/wp-cli" && ! -L "$wp_cache" ]] || fail "Unsafe managed WordPress cache path."
+      install -d -o root -g "$SITE_GROUP" -m 0750 "$ACCOUNT_HOME/.cache" "$ACCOUNT_HOME/.cache/wp-cli"
+    fi
+    install -d -o "$site_user" -g "$site_user" -m 0750 "$wp_cache"
+    local wp=(runuser -u "$site_user" -- env WP_CLI_CACHE_DIR="$wp_cache" "/usr/bin/php$php_version" /usr/local/bin/wp --path="$content_root")
     if [[ -f "$content_root/wp-config.php" ]]; then
       "${wp[@]}" config set DB_NAME "$database" --type=constant --quiet
       "${wp[@]}" config set DB_USER "$database_user" --type=constant --quiet
@@ -1694,6 +1726,14 @@ ssl_inspect() {
   printf 'issuer=%s\n' "$issuer"
 }
 
+tag_managed_database() {
+  local database="$1"
+  [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]] || return 0
+  [[ "${XPANEL_PROJECT_QUOTA_HELPER:-}" == /opt/xpanel-vps/scripts/xpanel-project-quota.sh ]] || fail "Managed database quota helper is unavailable."
+  [[ -x "$XPANEL_PROJECT_QUOTA_HELPER" && ! -L "$XPANEL_PROJECT_QUOTA_HELPER" ]] || fail "Managed database quota helper is unsafe."
+  "$XPANEL_PROJECT_QUOTA_HELPER" tag-database "$XPANEL_INSTANCE_ID" "$ACCOUNT_USER" "$XPANEL_PROJECT_ID" "$database"
+}
+
 database_action() {
   local database="$2" username="$3"
   valid_identifier "$database" || fail "Invalid database name."
@@ -1721,8 +1761,9 @@ DROP USER IF EXISTS '$username'@'localhost';
 SQL_CLEANUP
     }
     trap cleanup_failed_database ERR
+    mariadb --protocol=socket -e "CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    tag_managed_database "$database"
     mariadb --protocol=socket <<SQL
-CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER '$username'@'localhost' IDENTIFIED BY '$password';
 GRANT ALL PRIVILEGES ON \`$database\`.* TO '$username'@'localhost';
 SQL
@@ -2504,6 +2545,7 @@ backup_restore() {
 
   for database in "${BACKUP_DATABASES[@]}"; do
     mariadb --protocol=socket -e "DROP DATABASE IF EXISTS \`$database\`; CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    tag_managed_database "$database"
     gzip -dc "$temporary/databases/$database.sql.gz" | mariadb --protocol=socket
   done
 }

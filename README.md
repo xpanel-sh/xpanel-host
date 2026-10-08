@@ -393,7 +393,9 @@ xpanel update
 8. actualiza Roundcube conservando sus datos;
 9. vuelve a habilitar el panel incluso si una etapa falla.
 
-Si una versión añade un servicio que todavía no existe en el servidor, el actualizador ejecuta el instalador idempotente. El instalador también proporciona Node.js 22 LTS desde los binarios oficiales y verifica su checksum antes de compilar el panel.
+Tras actualizar, Host independiente verifica también servicios, configuración, permisos, migraciones y acceso local. Si detecta un requisito pendiente, ejecuta una vez el instalador idempotente para repararlo y repite la verificación; si aún falla, la actualización muestra el error en lugar de darla por completada. El instalador también proporciona Node.js 22 LTS desde los binarios oficiales y verifica su checksum antes de compilar el panel. En instancias Host administradas por VPS, esta reconciliación la realiza `xpanel update --force` de VPS sin cambiar la release de Host asignada a cada cliente.
+
+Para que una dependencia futura se aplique también a servidores existentes, añádela tanto al instalador idempotente como a `scripts/verify-host-installation.sh`. Si el cambio exige una operación fuera de línea o destructiva, el verificador debe informar la acción pendiente; la actualización no debe ejecutarla automáticamente.
 
 Los respaldos automáticos de actualización no sustituyen una copia externa de `/home/<cuenta>/public_html`, `/home/<cuenta>/mail`, `/etc/letsencrypt` y las bases MariaDB.
 

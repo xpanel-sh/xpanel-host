@@ -16,8 +16,11 @@ class CronProvisioner
             throw new \RuntimeException('No se pudo preparar la configuración cron.');
         }
 
+        $log = config('xpanel.management_mode') === 'vps-instance'
+            ? rtrim((string) config('xpanel.account_home'), '/').'/logs/'.$site->domain.'/cron.log'
+            : '/var/log/xpanel-host/'.$site->domain.'-cron.log';
         $lines = $site->cronJobs()->where('enabled', true)->get()->map(
-            fn ($job) => $job->expression.' '.$site->systemUser().' cd -- '.escapeshellarg($site->document_root).' && '.$job->command.' >> '.escapeshellarg('/var/log/xpanel-host/'.$site->domain.'-cron.log').' 2>&1'
+            fn ($job) => $job->expression.' '.$site->systemUser().' cd -- '.escapeshellarg($site->document_root).' && '.$job->command.' >> '.escapeshellarg($log).' 2>&1'
         );
         $contents = "SHELL=/bin/bash\nPATH=/usr/local/bin:/usr/bin:/bin\n".$lines->implode("\n")."\n";
         if (file_put_contents($path, $contents, LOCK_EX) === false) {

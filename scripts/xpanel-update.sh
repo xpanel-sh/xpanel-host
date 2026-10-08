@@ -301,6 +301,13 @@ trap - EXIT
 
 chown root:"$site_group" "$ROOT/.env"
 chmod 0640 "$ROOT/.env"
-bash "$ROOT/scripts/verify-host-installation.sh"
+if ! verification_output="$(bash "$ROOT/scripts/verify-host-installation.sh" 2>&1)"; then
+  printf 'La verificación posterior encontró un requisito pendiente: %s\n' "$verification_output" >&2
+  printf 'Reaplicando la instalación idempotente de Host para reparar componentes del sistema...\n' >&2
+  XPANEL_INSTALL_CLI=no bash "$ROOT/install.sh"
+  bash "$ROOT/scripts/verify-host-installation.sh"
+else
+  printf '%s\n' "$verification_output"
+fi
 
 echo "XPanel Host actualizado. Respaldo previo: $backup_root"

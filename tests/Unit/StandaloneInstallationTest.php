@@ -37,7 +37,7 @@ class StandaloneInstallationTest extends TestCase
     public function test_install_only_reports_success_after_the_cli_and_host_are_verified(): void
     {
         $installer = file_get_contents(base_path('install.sh'));
-        $cliPosition = strpos($installer, 'if ! install_cli || !');
+        $cliPosition = strpos($installer, 'install_cli ||');
         $verifyPosition = strpos($installer, 'verify-host-installation.sh');
         $successPosition = strpos($installer, 'XPanel Host instalado correctamente');
 
