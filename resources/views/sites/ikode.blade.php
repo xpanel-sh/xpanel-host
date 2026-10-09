@@ -1768,7 +1768,7 @@
             const isPdf = (name) => ext(name) === 'pdf';
             const isArchive = (name) => /^(zip|jar|zipx|rar|7z|tar|gz|tgz)$/i.test(ext(name));
             const isExtractable = (name) => /^(zip|jar)$/i.test(ext(name));
-            const codeExtensions = new Set(['php', 'js', 'ts', 'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'json', 'yml', 'yaml', 'py', 'sh', 'bash', 'md', 'xml', 'sql', 'txt', 'env', 'gitignore', 'htaccess', 'ini', 'conf', 'log']);
+            const codeExtensions = new Set(['php', 'js', 'ts', 'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'json', 'yml', 'yaml', 'py', 'sh', 'bash', 'md', 'xml', 'sql', 'c', 'h', 'cpp', 'cc', 'cxx', 'hpp', 'hh', 'hxx', 'java', 'cs', 'txt', 'env', 'gitignore', 'htaccess', 'ini', 'conf', 'log']);
             const isCode = (name, entry = null) => {
                 const normalized = String(name || '').toLowerCase();
                 return entry?.editable === true
@@ -1788,7 +1788,8 @@
                 php: 'php', js: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
                 html: 'html', htm: 'html', css: 'css', scss: 'css', json: 'json', yml: 'yaml',
                 yaml: 'yaml', py: 'python', sh: 'shell', bash: 'shell', md: 'markdown', xml: 'xml',
-                sql: 'sql', txt: 'plaintext', env: 'plaintext', gitignore: 'plaintext', htaccess: 'ini',
+                sql: 'sql', c: 'c', h: 'c', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp', hh: 'cpp', hxx: 'cpp',
+                java: 'java', cs: 'csharp', txt: 'plaintext', env: 'plaintext', gitignore: 'plaintext', htaccess: 'ini',
             })[ext(name)] || 'plaintext';
             const escapeHtml = (value = '') => String(value)
                 .replace(/&/g, '&amp;')
@@ -2219,7 +2220,7 @@
                     for (let i = 0; i < text.length; i++) {
                         let end = i;
                         if (text.startsWith('/*', i)) { const close = text.indexOf('*/', i + 2); end = close < 0 ? text.length : close + 2; }
-                        else if ((text.startsWith('//', i) && language !== 'css' && language !== 'less') || ((language === 'python' || language === 'php') && text[i] === '#')) { end = text.indexOf('\n', i); if (end < 0) end = text.length; }
+                        else if ((text.startsWith('//', i) && language !== 'css' && language !== 'less') || (language === 'sql' && text.startsWith('--', i)) || ((language === 'python' || language === 'php' || language === 'sql') && text[i] === '#')) { end = text.indexOf('\n', i); if (end < 0) end = text.length; }
                         else if ('"\'`'.includes(text[i])) {
                             const quote = text[i]; end = i + 1;
                             while (end < text.length) { if (text[end] === '\\') { end += 2; continue; } if (text[end++] === quote) break; }
@@ -2278,7 +2279,7 @@
                         return clean.length;
                     };
                     let match;
-                    const declarations = /\b(class|interface|trait|enum|function)\s+&?\s*([\w$]+)\b/g;
+                    const declarations = /\b(class|interface|trait|enum|function|struct|union|namespace)\s+&?\s*([\w$]+)\b/g;
                     while ((match = declarations.exec(clean))) candidates.push({ name: match[2], kind: match[1], start: match.index, end: blockRange(match.index, declarations.lastIndex, true) });
                     const variables = /\b(const|let|var)\s+([\w$]+)\b/g;
                     while ((match = variables.exec(clean))) {
@@ -2295,6 +2296,14 @@
                         const start = match.index + match[0].indexOf(match[1]);
                         candidates.push({ name: match[1], kind: 'method', start, end: pairs.get(open) ?? clean.length });
                     }
+                    if (['c', 'cpp', 'java', 'csharp'].includes(language)) {
+                        const typedFunctions = /(?:^|[;{}\n])\s*(?:(?:public|private|protected|static|inline|virtual|extern|constexpr|const|final|override|synchronized|abstract)\s+)*(?:[\w:*&<>\[\],]+\s+)+([\w:~]+)\s*\([^;{}]*\)\s*(?:const\s*)?(?:->\s*[^{};\n]+\s*)?\{/g;
+                        while ((match = typedFunctions.exec(clean))) {
+                            if (controls.has(match[1])) continue;
+                            const open = typedFunctions.lastIndex - 1;
+                            candidates.push({ name: match[1], kind: 'function', start: match.index + match[0].indexOf(match[1]), end: pairs.get(open) ?? clean.length });
+                        }
+                    }
                     candidates.sort((a, b) => a.start - b.start || b.end - a.end);
                     const stack = [];
                     const seen = new Set();
@@ -2309,12 +2318,97 @@
                     return roots;
                 };
                 if (lang === 'css' || lang === 'scss' || lang === 'less') return parseCss(source, 0);
-                if (lang === 'html' || lang === 'xml' || lang === 'blade') {
+                if (lang === 'json') {
+                    const roots = [], stack = [];
+                    let pending = null;
+                    for (let i = 0; i < source.length && count < 600; i++) {
+                        if (source[i] === '"') {
+                            const start = i++;
+                            while (i < source.length) {
+                                if (source[i] === '\\') { i += 2; continue; }
+                                if (source[i++] === '"') break;
+                            }
+                            let next = i;
+                            while (/\s/.test(source[next] || '') && next < source.length) next++;
+                            if (source[next] === ':') {
+                                let name;
+                                try { name = JSON.parse(source.slice(start, i)); } catch { name = source.slice(start + 1, i - 1); }
+                                const parent = stack.findLast(node => node !== null);
+                                pending = outlineSymbol(name, 'property', lineAt(start));
+                                append(parent?.children || roots, pending);
+                            }
+                            i--; continue;
+                        }
+                        if (source[i] === '{' || source[i] === '[') { stack.push(pending); pending = null; }
+                        else if (source[i] === '}' || source[i] === ']') { const node = stack.pop(); if (node) node.end = lineAt(i); pending = null; }
+                        else if (source[i] === ',') pending = null;
+                    }
+                    return roots;
+                }
+                if (lang === 'yaml') {
+                    const roots = [], stack = [];
+                    let blockIndent = null;
+                    source.split('\n').forEach((text, index) => {
+                        if (count >= 600 || !text.trim() || /^\s*#/.test(text)) return;
+                        const indent = text.match(/^\s*/)[0].replace(/\t/g, '  ').length;
+                        if (blockIndent !== null) { if (indent > blockIndent) return; blockIndent = null; }
+                        const match = text.match(/^\s*(?:-\s+)?([\w.-]+|"[^"]+"|'[^']+')\s*:\s*(.*)$/);
+                        if (!match) return;
+                        while (stack.length && indent <= stack.at(-1).indent) stack.pop().node.end = index;
+                        const node = outlineSymbol(match[1].replace(/^['"]|['"]$/g, ''), 'property', index + 1, index + 1);
+                        if (append(stack.at(-1)?.node.children || roots, node)) stack.push({ indent, node });
+                        if (/^[|>][-+]?\s*(?:#.*)?$/.test(match[2])) blockIndent = indent;
+                    });
+                    return roots;
+                }
+                if (lang === 'sql') {
+                    const roots = [];
+                    const clean = maskCode(source, 'sql');
+                    const statements = /^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(TABLE|VIEW|FUNCTION|PROCEDURE|TRIGGER|INDEX|DATABASE)\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w."`]+)\b/gim;
+                    let match;
+                    while ((match = statements.exec(clean)) && count < 600) append(roots, outlineSymbol(match[2], match[1].toLowerCase(), lineAt(match.index)));
+                    return roots;
+                }
+                // PHP templates often contain real HTML, CSS and JavaScript. Hide PHP
+                // islands without changing offsets so their markup can share the HTML tree.
+                const maskPhpSections = (text) => {
+                    const output = text.split('');
+                    const openings = /<\?(?!xml\b)/gi;
+                    let opening;
+                    while ((opening = openings.exec(text))) {
+                        let i = openings.lastIndex, quote = null, comment = null;
+                        while (i < text.length) {
+                            if (quote) {
+                                if (text[i] === '\\') { i += 2; continue; }
+                                if (text[i] === quote) quote = null;
+                                i++; continue;
+                            }
+                            if (comment === 'block') {
+                                if (text.startsWith('*/', i)) { comment = null; i += 2; } else i++;
+                                continue;
+                            }
+                            if (text.startsWith('?>', i)) { i += 2; break; }
+                            if (comment === 'line') {
+                                if (text[i] === '\n') comment = null;
+                                i++; continue;
+                            }
+                            if (text.startsWith('/*', i)) { comment = 'block'; i += 2; continue; }
+                            if (text.startsWith('//', i) || text[i] === '#') { comment = 'line'; i += text[i] === '#' ? 1 : 2; continue; }
+                            if (text[i] === '"' || text[i] === "'") { quote = text[i]; i++; continue; }
+                            i++;
+                        }
+                        for (let j = opening.index; j < i; j++) if (output[j] !== '\n' && output[j] !== '\r') output[j] = ' ';
+                        openings.lastIndex = i;
+                    }
+                    return output.join('');
+                };
+                if (lang === 'html' || lang === 'xml' || lang === 'blade' || lang === 'php') {
+                    const markup = lang === 'php' ? maskPhpSections(source) : source;
                     const roots = [], stack = [];
                     const tags = /<!--[\s\S]*?-->|\{\{--[\s\S]*?--\}\}|<\/?([a-zA-Z][\w:-]*)\b(?:"[^"]*"|'[^']*'|[^'">])*>/g;
                     const voidTags = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
                     let match;
-                    while ((match = tags.exec(source)) && count < 600) {
+                    while ((match = tags.exec(markup)) && count < 600) {
                         if (!match[1]) continue;
                         const tag = match[1].toLowerCase();
                         if (match[0].startsWith('</')) {
@@ -2330,16 +2424,16 @@
                         if ((lang !== 'xml' && voidTags.has(tag)) || /\/\s*>$/.test(match[0])) { node.end = lineAt(tags.lastIndex - 1); continue; }
                         if (tag === 'style' || tag === 'script') {
                             const close = new RegExp(`<\\/${tag}\\s*>`, 'gi'); close.lastIndex = tags.lastIndex;
-                            const end = close.exec(source);
+                            const end = close.exec(markup);
                             if (end) {
-                                const base = tags.lastIndex, body = source.slice(base, end.index);
+                                const base = tags.lastIndex, body = markup.slice(base, end.index);
                                 node.children = tag === 'style' ? parseCss(body, base) : parseCode(body, base, 'javascript');
                                 node.end = lineAt(close.lastIndex - 1); tags.lastIndex = close.lastIndex; continue;
                             }
                         }
                         stack.push(node);
                     }
-                    return roots;
+                    if (roots.length || lang !== 'php') return roots;
                 }
                 if (lang === 'markdown' || lang === 'python') {
                     const roots = [], stack = [];

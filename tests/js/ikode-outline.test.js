@@ -71,6 +71,58 @@ test('PHP handles next-line braces, typed methods and nested anonymous callbacks
     assert.equal(nodes[0].children[0].end, 7);
 });
 
+test('PHP templates show the same HTML, CSS and JavaScript hierarchy as HTML files', () => {
+    const html = '<html>\n<head>\n<style>\n:root { color: red; }\n@media screen { .card { color: blue; } }\n</style>\n<script>\nconst saved = true;\nfunction updateButton() {}\n</script>\n</head>\n<body><main>Hola</main></body>\n</html>';
+    const php = '<?php $title = "<fake>not markup</fake>"; ?>\n' + html.replace('<main>Hola</main>', '<main><?= $title ?></main>');
+    const htmlNodes = parseOutline(model('html', html));
+    const phpNodes = parseOutline(model('php', php));
+    const shape = (nodes) => nodes.map(node => ({ name: node.name, children: shape(node.children) }));
+    assert.deepEqual(shape(phpNodes), shape(htmlNodes));
+    const head = phpNodes[0].children[0];
+    assert.deepEqual(head.children.map(node => node.name), ['style', 'script']);
+    assert.deepEqual(head.children[0].children.map(node => node.name), [':root', '@media screen']);
+    assert.deepEqual(head.children[1].children.map(node => node.name), ['saved', 'updateButton']);
+    assert.equal(phpNodes[0].line, 2);
+});
+
+test('PHP-only code keeps its existing code Outline', () => {
+    const nodes = parseOutline(model('php', '<?php\nfunction render() { return "<main>Hi</main>"; }'));
+    assert.deepEqual(nodes.map(node => node.name), ['render']);
+});
+
+test('C and C++ Outline nests typed functions inside structs and namespaces', () => {
+    const c = parseOutline(model('c', 'struct Server {\n int port;\n};\nint main(void) {\n return 0;\n}'));
+    assert.deepEqual(c.map(node => node.name), ['Server', 'main']);
+    assert.equal(c[1].line, 4);
+    assert.equal(c[1].end, 6);
+    const cpp = parseOutline(model('cpp', 'namespace app {\nclass Server {\npublic:\n void start() {}\n};\n}'));
+    assert.equal(cpp[0].name, 'app');
+    assert.equal(cpp[0].children[0].name, 'Server');
+    assert.equal(cpp[0].children[0].children[0].name, 'start');
+    assert.match(blade, /c: 'c', h: 'c', cpp: 'cpp'/);
+});
+
+test('JSON Outline groups nested object properties and keeps source lines', () => {
+    const nodes = parseOutline(model('json', '{\n "app": {\n  "name": "Demo",\n  "options": { "port": 80 }\n },\n "enabled": true\n}'));
+    assert.deepEqual(nodes.map(node => node.name), ['app', 'enabled']);
+    assert.deepEqual(nodes[0].children.map(node => node.name), ['name', 'options']);
+    assert.equal(nodes[0].children[1].children[0].name, 'port');
+    assert.equal(nodes[0].line, 2);
+    assert.equal(nodes[0].end, 5);
+});
+
+test('YAML Outline follows indentation and ignores keys inside block text', () => {
+    const nodes = parseOutline(model('yaml', 'app:\n  name: Demo\n  note: |\n    fake: text\n  settings:\n    port: 80\nother: true'));
+    assert.deepEqual(nodes.map(node => node.name), ['app', 'other']);
+    assert.deepEqual(nodes[0].children.map(node => node.name), ['name', 'note', 'settings']);
+    assert.equal(nodes[0].children[2].children[0].name, 'port');
+});
+
+test('SQL Outline lists created tables and views', () => {
+    const nodes = parseOutline(model('sql', '-- CREATE TABLE fake (id int);\nCREATE TABLE users (id int);\nCREATE OR REPLACE VIEW active_users AS SELECT * FROM users;'));
+    assert.deepEqual(nodes.map(node => node.name), ['users', 'active_users']);
+});
+
 test('arrow functions and class methods remain siblings after closed inline blocks', () => {
     const nodes = parseOutline(model('javascript', 'const first = () => {};\nconst second = async () => { return "{"; };\nclass Store {\n async save(value) { return value; }\n}'));
     assert.deepEqual(nodes.map(node => node.name), ['first', 'second', 'Store']);
