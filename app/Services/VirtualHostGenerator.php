@@ -460,6 +460,7 @@ CONF;
         $serverNames = implode(' ', $domainNames ?? $this->domainNames($site));
         $accessRules = $this->renderAccessRules($site);
         $logDirectory = $this->accountLogDirectory($site);
+        $trafficRate = $this->managedTrafficRateInclude();
 
         if ($site->status !== 'active') {
             return <<<CONF
@@ -469,6 +470,7 @@ server {
     root {$site->webRoot()};
     access_log {$logDirectory}/access.log;
     error_log {$logDirectory}/error.log;
+{$trafficRate}
 {$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
@@ -499,6 +501,7 @@ server {
     root {$site->webRoot()};
     access_log {$logDirectory}/access.log;
     error_log {$logDirectory}/error.log;
+{$trafficRate}
 {$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
@@ -531,6 +534,7 @@ CONF;
         $protected = $this->renderProtectedLocations($site);
         $accessRules = $this->renderAccessRules($site);
         $logDirectory = $this->accountLogDirectory($site);
+        $trafficRate = $this->managedTrafficRateInclude();
         $handler = match ($site->type) {
             'static' => <<<CONF
     location / {
@@ -575,6 +579,7 @@ server {
     index index.php index.html;
     access_log {$logDirectory}/access.log;
     error_log {$logDirectory}/error.log;
+{$trafficRate}
 {$accessRules}
 
     location ^~ /.well-known/acme-challenge/ {
@@ -612,6 +617,17 @@ CONF;
     private function accountLogDirectory(Site $site): string
     {
         return app(HostingAccountWorkspace::class)->systemRoot().'/logs/'.$site->domain;
+    }
+
+    private function managedTrafficRateInclude(): string
+    {
+        $uuid = (string) config('xpanel.instance_id');
+        if (config('xpanel.management_mode') !== 'vps-instance'
+            || ! preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/', $uuid)) {
+            return '';
+        }
+
+        return '    include /etc/nginx/snippets/xpanel-traffic-'.$uuid.'.conf;';
     }
 
     private function apacheAliases(Site $site): string

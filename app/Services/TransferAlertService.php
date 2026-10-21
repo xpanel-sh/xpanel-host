@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 class TransferAlertService
 {
+    public function __construct(private readonly HostBrokerClient $broker) {}
+
     public function check(): void
     {
         if (config('xpanel.management_mode') !== 'vps-instance') {
@@ -16,16 +18,24 @@ class TransferAlertService
         }
 
         $limitGb = max(0, (int) config('xpanel.assigned_bandwidth_gb'));
-        if ($limitGb === 0) {
-            return;
-        }
-
-        $month = now()->format('Y-m');
+        $now = now();
+        $month = $now->format('Y-m');
         $bytes = (int) SiteResourceSample::query()
-            ->where('sampled_at', '>=', now()->startOfMonth())
-            ->where('sampled_at', '<', now()->addMonth()->startOfMonth())
+            ->where('sampled_at', '>=', $now->copy()->startOfMonth())
+            ->where('sampled_at', '<', $now->copy()->addMonth()->startOfMonth())
             ->sum('transfer_bytes');
         $limitBytes = $limitGb * 1024 * 1024 * 1024;
+        $desiredRate = $limitBytes > 0 && $bytes >= $limitBytes ? 'reduced' : 'normal';
+        $currentRate = trim($this->broker->execute('traffic-rate-status', [], null));
+        if (! in_array($currentRate, ['normal', 'reduced'], true)) {
+            throw new \RuntimeException('El broker devolvió un estado de tráfico inválido.');
+        }
+        if ($currentRate !== $desiredRate) {
+            $this->broker->execute('traffic-rate-set', [$desiredRate], null);
+        }
+        if ($limitBytes === 0) {
+            return;
+        }
 
         foreach ([80, 100] as $threshold) {
             if ($bytes * 100 < $limitBytes * $threshold) {
@@ -44,7 +54,7 @@ class TransferAlertService
             }
 
             $message = $threshold === 100
-                ? "Esta cuenta alcanzó el tráfico mensual de referencia ({$limitGb} GB). Los sitios seguirán disponibles; revisa el consumo o cambia de plan."
+                ? "Esta cuenta alcanzó {$limitGb} GB de tráfico mensual. Sus sitios seguirán disponibles con velocidad de respuesta reducida hasta el inicio del mes siguiente; revisa el consumo o cambia de plan."
                 : "Esta cuenta consumió al menos el 80 % del tráfico mensual de referencia ({$limitGb} GB).";
             User::query()->each(fn (User $user) => $user->notify(new PanelActivityNotification(
                 'Tráfico mensual: '.$threshold.' %', $message, '/', 'warning', 'ki-chart-line-up'

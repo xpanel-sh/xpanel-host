@@ -2,7 +2,17 @@
 
 Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones estables seguirán [Versionado Semántico](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [0.2.0-beta.1] - En preparación
+
+Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferiores organizan retrospectivamente el trabajo anterior; no representan etiquetas publicadas.
+
+### Añadido
+
+- Host administrado mide solicitudes y transferencia a través del broker, confinados a la cuenta y a sus sitios registrados. La lectura del access log conserva un cursor separado por instancia; Host independiente mantiene su ruta anterior.
+- Avisos únicos al 80 % y 100 % de transferencia mensual. Al llegar al 100 %, los sitios de esa cuenta siguen disponibles con respuestas Nginx limitadas a 128 KiB/s por petición; la revisión programada restaura la velocidad al comenzar el mes siguiente. No constituye una cuota exacta de red.
+- Los vhosts de Host administrado comparten únicamente la configuración de velocidad de su propia instancia. Los vhosts de Host independiente no incluyen ese ajuste.
+
+## [0.1.0-alpha.2] - Hito de desarrollo retrospectivo
 
 - Ajustes → Actualizaciones muestra las etapas reales tanto en Host administrado como independiente sin recargar la página y actualiza el hash instalado al terminar. La lista de cambios de GitHub usa una caché breve que se invalida al iniciar una actualización.
 
@@ -68,14 +78,6 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Subcarpeta pública opcional por sitio (`public_path`, ej. `public` para Laravel): la raíz del proyecto sigue siendo el límite del gestor de archivos, SSH/SFTP y la terminal real, mientras nginx/Apache/OpenLiteSpeed, el pool PHP-FPM, el desafío ACME de Certbot y las páginas de error personalizadas sirven únicamente desde esa subcarpeta cuando está configurada.
 - IP dedicada opcional por dominio de correo (al estilo del `mailips` de cPanel/Exim, adaptado a Postfix): además de la IP/hostname compartidos del servidor, se puede dar de alta una IP ya asignada al servidor con su propio PTR/HELO y asignarla a uno o varios dominios desde "Correos" — Postfix enruta el correo saliente de esos dominios por esa IP mediante `sender_dependent_default_transport_maps`, sin afectar a los dominios que siguen en modo compartido. La guía de registros DNS por dominio ahora refleja la IP/PTR dedicada cuando aplica.
 - Recuperación local de la contraseña del propietario mediante `php artisan xpanel:admin-password --generate`.
-- Instalación sin variables de entorno, acceso inicial por `IP:80`, propietario automático y resumen final de credenciales.
-- Ajustes para verificar y cambiar el dominio del panel, volver al acceso por IP e instalar SSL posteriormente.
-- Gestión de sitios PHP y estáticos, subdominios y raíces aisladas.
-- Nginx como motor inicial y soporte instalable para Apache y OpenLiteSpeed por sitio.
-- Certificados Let's Encrypt, bases MariaDB y gestor de archivos.
-- Correo con Postfix, Dovecot, OpenDKIM, Roundcube y asistencia de registros DNS.
-- Propietarios, colaboradores, roles y permisos.
-- Instalador, actualizador y operación mediante XPanel CLI.
 - Backups manuales y programados de archivos y bases MariaDB, con retención, descarga y restauración protegida por un punto de seguridad previo.
 - Registro de actividad por sitio sin almacenar contraseñas ni contenido de formularios.
 - Límites PHP por sitio para PHP-FPM y OpenLiteSpeed, junto con una vista segura de información del runtime.
@@ -178,5 +180,15 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 - Las contraseñas del instalador WordPress se entregan por entrada estándar y no se persisten en Host ni aparecen en argumentos de procesos.
 - Los importadores rechazan rutas externas, enlaces y tipos especiales; el SQL usa una identidad limitada y las cargas temporales se eliminan al finalizar.
 - Los tokens DNS se verifican, cifran con `APP_KEY`, se ocultan del modelo y no permiten operar fuera del dominio del sitio.
+
+## [0.1.0-alpha.1] - Hito inicial retrospectivo
+
+### Añadido
+
+- Instalación sin variables de entorno, acceso inicial por `IP:80`, propietario automático y resumen de credenciales.
+- Ajustes para verificar y cambiar el dominio del panel, volver al acceso por IP e instalar SSL posteriormente.
+- Gestión de sitios PHP y estáticos, subdominios y raíces aisladas; Nginx como motor inicial y Apache/OpenLiteSpeed opcionales.
+- Certificados Let's Encrypt, bases MariaDB, gestor de archivos y correo con Postfix, Dovecot, OpenDKIM y Roundcube.
+- Propietarios, colaboradores, roles, permisos, instalador, actualizador y operación mediante XPanel CLI.
 
 [Sin publicar]: https://github.com/xpanel-sh/xpanel-host/commits/main

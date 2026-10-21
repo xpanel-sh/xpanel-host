@@ -34,7 +34,11 @@ class CollectSiteResourceUsage extends Command
 
         if (! is_string($this->option('site')) || $this->option('site') === '') {
             try {
-                $alerts->check();
+                // An incomplete sampling cycle must not restore a throttled
+                // account using stale, artificially low monthly totals.
+                if (! $failed) {
+                    $alerts->check();
+                }
             } catch (\Throwable $exception) {
                 $failed = true;
                 $this->error('Alerta de tráfico: '.$exception->getMessage());

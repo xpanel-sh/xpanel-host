@@ -1368,9 +1368,23 @@ resource_snapshot() {
   local log="$ACCOUNT_HOME/logs/$domain/access.log" request_count=0 transfer_bytes=0
   [[ -f "$log" ]] || log="/var/log/nginx/$domain-access.log"
   [[ -f "$log" && ! -L "$log" ]] || log="/var/log/xpanel-host/$domain-ols-access.log"
-  local metrics_root="/var/lib/xpanel-host/metrics"
+  # Managed cursors belong in a root-owned namespace outside the writable
+  # instance tree. Keep the standalone path so updates do not recount logs.
+  local metrics_root=/var/lib/xpanel-host/metrics
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    [[ "${XPANEL_INSTANCE_ID:-}" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]] || fail "Invalid metrics instance ID."
+    [[ -d /var/lib/xpanel-vps && ! -L /var/lib/xpanel-vps ]] || fail "Invalid VPS state root."
+    [[ ! -L /var/lib/xpanel-vps/metrics ]] || fail "Unsafe metrics root."
+    install -d -o root -g root -m 0700 /var/lib/xpanel-vps/metrics
+    metrics_root="/var/lib/xpanel-vps/metrics/$XPANEL_INSTANCE_ID"
+  fi
   local state="$metrics_root/$domain-access.state"
-  install -d -o root -g "$SITE_GROUP" -m 0750 "$metrics_root"
+  [[ ! -L "$metrics_root" && ! -L "$state" ]] || fail "Unsafe metrics state."
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    install -d -o root -g root -m 0700 "$metrics_root"
+  else
+    install -d -o root -g "$SITE_GROUP" -m 0750 "$metrics_root"
+  fi
   if [[ -f "$log" && ! -L "$log" ]]; then
     local inode size old_inode=0 old_size=0 access_values temporary
     inode="$(stat -c %i -- "$log")"

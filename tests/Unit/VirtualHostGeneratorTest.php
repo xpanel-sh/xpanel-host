@@ -47,6 +47,21 @@ class VirtualHostGeneratorTest extends TestCase
         $this->assertStringNotContainsString('<VirtualHost', $output);
     }
 
+    #[DataProvider('engines')]
+    public function test_only_managed_site_gateways_include_the_account_rate(string $engine): void
+    {
+        $site = $this->site($engine);
+        $uuid = 'da0ae5e1-207b-48ab-a82b-b14d4547963f';
+        config()->set('xpanel.instance_id', $uuid);
+        config()->set('xpanel.management_mode', 'vps-instance');
+        $managed = (new VirtualHostGenerator)->renderGateway($site);
+        $this->assertStringContainsString("include /etc/nginx/snippets/xpanel-traffic-{$uuid}.conf;", $managed);
+
+        config()->set('xpanel.management_mode', 'standalone');
+        $standalone = (new VirtualHostGenerator)->renderGateway($site);
+        $this->assertStringNotContainsString('xpanel-traffic-', $standalone);
+    }
+
     public function test_apache_output_uses_apache_virtualhost_syntax(): void
     {
         $output = (new VirtualHostGenerator)->render($this->site('apache'));
