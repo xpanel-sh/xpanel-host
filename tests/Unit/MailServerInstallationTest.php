@@ -126,6 +126,9 @@ class MailServerInstallationTest extends TestCase
         $this->assertStringContainsString('configure-mail-rate-policy.sh', $updater);
         $this->assertStringContainsString('authorized_submit_users = root, postfix, $site_user', $configurator);
         $this->assertStringContainsString('check_policy_service inet:127.0.0.1:10040', $configurator);
+        $this->assertStringContainsString("postconf -e 'xpanel_submission_recipient_restrictions =", $configurator);
+        $this->assertStringContainsString("postconf -P 'submission/inet/smtpd_recipient_restrictions=\$xpanel_submission_recipient_restrictions'", $configurator);
+        $this->assertStringNotContainsString("postconf -P 'submission/inet/smtpd_recipient_restrictions=reject_non_fqdn_recipient", $configurator);
         $this->assertStringContainsString('User=xpanel-mail-policy', $configurator);
         $this->assertStringContainsString('NoNewPrivileges=true', $configurator);
         $this->assertStringContainsString('table inet xpanel_host_mail_egress', $configurator);

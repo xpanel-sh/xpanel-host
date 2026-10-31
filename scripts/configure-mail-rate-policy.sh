@@ -109,7 +109,11 @@ systemctl is-active --quiet xpanel-host-mail-egress.service
 postconf -e "authorized_submit_users = root, postfix, $site_user"
 postconf -e 'smtpd_policy_service_timeout = 5s'
 postconf -e 'smtpd_policy_service_default_action = 451 4.7.1 XPanel outbound policy unavailable'
-postconf -P 'submission/inet/smtpd_recipient_restrictions=reject_non_fqdn_recipient,reject_unknown_recipient_domain,check_policy_service inet:127.0.0.1:10040'
+# postconf -P edits a master.cf -o override and rejects embedded whitespace.
+# Keep the compound restriction in main.cf and reference it from submission;
+# Postfix expands parameter references in master.cf override values.
+postconf -e 'xpanel_submission_recipient_restrictions = reject_non_fqdn_recipient, reject_unknown_recipient_domain, check_policy_service inet:127.0.0.1:10040'
+postconf -P 'submission/inet/smtpd_recipient_restrictions=$xpanel_submission_recipient_restrictions'
 postconf -P 'submission/inet/smtpd_client_connection_count_limit=10'
 postconf -P 'submission/inet/smtpd_client_connection_rate_limit=30'
 postconf -P 'submission/inet/smtpd_client_auth_rate_limit=20'

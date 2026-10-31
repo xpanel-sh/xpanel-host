@@ -12,6 +12,10 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 - Avisos únicos al 80 % y 100 % de transferencia mensual. Al llegar al 100 %, los sitios de esa cuenta siguen disponibles con respuestas Nginx limitadas a 128 KiB/s por petición; la revisión programada restaura la velocidad al comenzar el mes siguiente. No constituye una cuota exacta de red.
 - Los vhosts de Host administrado comparten únicamente la configuración de velocidad de su propia instancia. Los vhosts de Host independiente no incluyen ese ajuste.
 
+### Corregido
+
+- La instalación y actualización de Host independiente configuran la política de correo saliente mediante una referencia válida de Postfix, evitando que `postconf -P` detenga el proceso al encontrar espacios en la restricción del servicio `submission`.
+
 ## [0.1.0-alpha.2] - Hito de desarrollo retrospectivo
 
 - Ajustes → Actualizaciones muestra las etapas reales tanto en Host administrado como independiente sin recargar la página y actualiza el hash instalado al terminar. La lista de cambios de GitHub usa una caché breve que se invalida al iniciar una actualización.
