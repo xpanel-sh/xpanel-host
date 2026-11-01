@@ -16,7 +16,18 @@ class HostUpdateManager
 
     public function currentRevision(): ?string
     {
-        $process = new Process(['git', '-C', base_path(), 'rev-parse', '--short=12', 'HEAD']);
+        $root = base_path();
+        $process = new Process([
+            'git',
+            '-c',
+            'safe.directory='.$root,
+            '-C',
+            $root,
+            'rev-parse',
+            '--short=12',
+            'HEAD',
+        ]);
+        $process->setTimeout(5);
         $process->run();
         $revision = trim($process->getOutput());
 

@@ -15,6 +15,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 ### Corregido
 
 - La instalación y actualización de Host independiente configuran la política de correo saliente mediante una referencia válida de Postfix, evitando que `postconf -P` detenga el proceso al encontrar espacios en la restricción del servicio `submission`.
+- Ajustes → Actualizaciones detecta la revisión instalada en Host independiente aunque el repositorio pertenezca a `root`; la consulta confía únicamente en la ruta exacta de XPanel y conserva la protección de Git para cualquier otro directorio.
 
 ## [0.1.0-alpha.2] - Hito de desarrollo retrospectivo
 
