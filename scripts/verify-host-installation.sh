@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT/.env"
+export HOME="${HOME:-/root}"
+export COMPOSER_HOME="${COMPOSER_HOME:-/var/lib/xpanel-host/composer}"
+export COMPOSER_ALLOW_SUPERUSER=1
 
 fail() {
   echo "Installation verification failed: $1" >&2

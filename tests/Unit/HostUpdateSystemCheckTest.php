@@ -13,6 +13,7 @@ class HostUpdateSystemCheckTest extends TestCase
 
         $this->assertStringContainsString('export HOME=/root', $update);
         $this->assertStringContainsString('export COMPOSER_HOME=/var/lib/xpanel-host/composer', $update);
+        $this->assertStringContainsString('export COMPOSER_ALLOW_SUPERUSER=1', $update);
         $this->assertStringContainsString('install -d -o root -g root -m 0700 "$COMPOSER_HOME"', $update);
         $normalizer = file_get_contents(base_path('scripts/normalize-source-permissions.sh'));
         $installer = file_get_contents(base_path('install.sh'));
@@ -31,6 +32,7 @@ class HostUpdateSystemCheckTest extends TestCase
         $verifier = file_get_contents(base_path('scripts/verify-host-installation.sh'));
 
         $this->assertStringContainsString('sudo -u "$site_user" test -r "$ROOT/app/Services/HostUpdateManager.php"', $verifier);
+        $this->assertStringContainsString('export COMPOSER_ALLOW_SUPERUSER=1', $verifier);
     }
 
     public function test_revision_detection_trusts_only_the_exact_host_repository(): void
@@ -52,12 +54,17 @@ class HostUpdateSystemCheckTest extends TestCase
         $this->assertStringContainsString('chmod 0644 "$temporary"', $writer);
     }
 
-    public function test_standalone_update_verifies_repairs_and_verifies_again(): void
+    public function test_standalone_update_separates_fast_updates_from_full_repairs(): void
     {
         $update = file_get_contents(base_path('scripts/xpanel-update.sh'));
 
         $this->assertStringContainsString('verify-host-installation.sh', $update);
+        $this->assertStringContainsString('UPDATE_MODE="${XPANEL_UPDATE_MODE:-update}"', $update);
+        $this->assertStringContainsString('Modo actualización rápida', $update);
+        $this->assertStringContainsString('Ejecuta: xpanel repair', $update);
+        $this->assertStringContainsString('if [[ "$UPDATE_MODE" == "repair" ]]', $update);
+        $this->assertStringContainsString('XPANEL_PROGRESS:', $update);
         $this->assertStringContainsString('XPANEL_INSTALL_CLI=no bash "$ROOT/install.sh"', $update);
-        $this->assertSame(2, substr_count($update, 'bash "$ROOT/scripts/verify-host-installation.sh"'));
+        $this->assertSame(3, substr_count($update, 'bash "$ROOT/scripts/verify-host-installation.sh"'));
     }
 }

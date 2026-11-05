@@ -381,19 +381,19 @@ cd /opt/xpanel-host
 xpanel update
 ```
 
-`xpanel update` actualiza primero `xpanel-cli` y luego el clon de Host usando sus ramas remotas configuradas. La actualización de Host:
+`xpanel update` actualiza primero `xpanel-cli` y luego el clon de Host usando sus ramas remotas configuradas. Es incremental: compara la revisión instalada con la nueva y solo reconcilia los componentes afectados. La actualización de Host:
 
 1. se detiene si existen cambios locales rastreados por Git;
 2. crea un respaldo fechado de `.env` y de la base SQLite en `storage/app/backups/updates`;
 3. activa temporalmente el modo mantenimiento;
 4. instala las dependencias de producción de Composer;
-5. ejecuta `npm ci` y compila los recursos con Vite;
+5. ejecuta `npm ci` o Vite únicamente cuando cambiaron sus dependencias o recursos;
 6. aplica migraciones y reconstruye las cachés;
-7. resincroniza sitios, correo y OpenDKIM;
-8. actualiza Roundcube conservando sus datos;
+7. resincroniza sitios, accesos o correo únicamente cuando cambió su configuración;
+8. actualiza Roundcube, phpMyAdmin o WP-CLI solo cuando faltan o cambió su instalador;
 9. vuelve a habilitar el panel incluso si una etapa falla.
 
-Tras actualizar, Host independiente verifica también servicios, configuración, permisos, migraciones y acceso local. Si detecta un requisito pendiente, ejecuta una vez el instalador idempotente para repararlo y repite la verificación; si aún falla, la actualización muestra el error en lugar de darla por completada. El instalador también proporciona Node.js 22 LTS desde los binarios oficiales y verifica su checksum antes de compilar el panel. En instancias Host administradas por VPS, esta reconciliación la realiza `xpanel update --force` de VPS sin cambiar la release de Host asignada a cada cliente.
+Tras actualizar, Host independiente verifica servicios, configuración, permisos, migraciones y acceso local. Si falta infraestructura, la actualización rápida se detiene sin recorrer ni reconfigurar silenciosamente todo el servidor. El administrador puede ejecutar `xpanel repair` (equivalente a `xpanel update --repair`) para actualizar y realizar la reconciliación completa. Esa reparación reaplica espacios, ACL, sitios, accesos, correo, utilidades y el instalador idempotente si aún falta un requisito. El instalador también proporciona Node.js 22 LTS desde los binarios oficiales y verifica su checksum antes de compilar el panel.
 
 Para que una dependencia futura se aplique también a servidores existentes, añádela tanto al instalador idempotente como a `scripts/verify-host-installation.sh`. Si el cambio exige una operación fuera de línea o destructiva, el verificador debe informar la acción pendiente; la actualización no debe ejecutarla automáticamente.
 
@@ -401,7 +401,7 @@ Los respaldos automáticos de actualización no sustituyen una copia externa de 
 
 Los backups por sitio se gestionan desde **Sitio → Archivos → Backups**. En producción se guardan en `/var/lib/xpanel-host/backups`, fuera del document root, con lectura restringida. La restauración exige escribir el dominio y crea primero una copia `pre_restore`. Configura además una copia externa: la retención local no protege frente a una pérdida completa del servidor.
 
-Cuando Roundcube está habilitado, una actualización ejecutada con `sudo` también verifica/reinstala la versión fijada del webmail sin reemplazar su base SQLite, configuración, sesiones temporales ni logs persistentes.
+Cuando Roundcube está habilitado, la reparación o un cambio de su instalador verifica/reinstala la versión fijada del webmail sin reemplazar su base SQLite, configuración, sesiones temporales ni logs persistentes.
 
 `xpanel serve` utiliza el servidor de desarrollo de Laravel y no debe utilizarse para producción. La desinstalación automática permanece deshabilitada para evitar eliminar datos accidentalmente.
 

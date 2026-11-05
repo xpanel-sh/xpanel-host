@@ -62,6 +62,8 @@ class HostUpdateTest extends TestCase
             ->assertSee('data-update-year="2025"', false)
             ->assertSee('data-update-year-panel="2025"', false)
             ->assertSee('id="host-update-form"', false)
+            ->assertSee('Actualización rápida')
+            ->assertSee('xpanel repair')
             ->assertSee('fetch(form.action', false)
             ->assertSee('role="progressbar"', false);
 

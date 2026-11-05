@@ -26,11 +26,17 @@
                     <div class="kt-card"><div class="kt-card-content flex h-full flex-col justify-center gap-2 p-4">
                         <form method="POST" action="{{ route('settings.updates.start') }}" id="host-update-form">
                             @csrf
-                            <button class="kt-btn kt-btn-primary w-full" id="host-update-start" type="submit" @disabled(!config('xpanel.apply_system_changes') || in_array($status['status'], ['pending', 'running']))><i class="ki-filled ki-update-file"></i>Actualizar Host</button>
+                            <button class="kt-btn kt-btn-primary w-full" id="host-update-start" type="submit" @disabled(!config('xpanel.apply_system_changes') || in_array($status['status'], ['pending', 'running']))><i class="ki-filled ki-update-file"></i>Actualización rápida</button>
                         </form>
-                        <p class="text-xs text-secondary-foreground">{{ config('xpanel.management_mode') === 'vps-instance' ? 'Solo esta cuenta; las demás no cambian.' : 'Solo esta instalación independiente.' }}</p>
+                        <p class="text-xs text-secondary-foreground">{{ config('xpanel.management_mode') === 'vps-instance' ? 'Solo esta cuenta; las demás no cambian.' : 'Actualiza este panel sin reconciliar servicios que no cambiaron.' }}</p>
                     </div></div>
                 </div>
+
+                @if(config('xpanel.management_mode') !== 'vps-instance')
+                    <div class="rounded-lg border border-input bg-accent/20 p-3 text-xs text-secondary-foreground">
+                        Si una verificación detecta permisos o servicios dañados, el administrador del servidor puede ejecutar <code class="font-mono text-mono">xpanel repair</code> por SSH. La reparación es más profunda y puede tardar varios minutos.
+                    </div>
+                @endif
 
                 <div class="kt-card" id="host-update-progress" @if(!in_array($status['status'], ['pending', 'running'])) hidden @endif>
                     <div class="kt-card-content p-4">
@@ -170,7 +176,7 @@
         });
         form?.addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (!confirm('¿Preparar la última revisión oficial de XPanel Host y actualizar este panel?')) return;
+            if (!confirm('¿Preparar la última revisión oficial y ejecutar la actualización rápida de este Host?')) return;
 
             clearTimeout(pollTimer);
             const displayedCurrent = current.textContent.trim();

@@ -8,12 +8,14 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- Ajustes → Actualizaciones ejecuta ahora una actualización rápida e incremental: conserva servicios sin cambios, evita recorridos recursivos innecesarios y muestra el tiempo consumido por cada etapa en el registro. La reconciliación completa queda disponible para administradores mediante `xpanel repair`.
 - Host administrado mide solicitudes y transferencia a través del broker, confinados a la cuenta y a sus sitios registrados. La lectura del access log conserva un cursor separado por instancia; Host independiente mantiene su ruta anterior.
 - Avisos únicos al 80 % y 100 % de transferencia mensual. Al llegar al 100 %, los sitios de esa cuenta siguen disponibles con respuestas Nginx limitadas a 128 KiB/s por petición; la revisión programada restaura la velocidad al comenzar el mes siguiente. No constituye una cuota exacta de red.
 - Los vhosts de Host administrado comparten únicamente la configuración de velocidad de su propia instancia. Los vhosts de Host independiente no incluyen ese ajuste.
 
 ### Corregido
 
+- La verificación final autoriza Composer de forma no interactiva cuando se ejecuta como `root`; actualizar desde SSH o desde la web ya no se detiene esperando `Continue as root/super user [yes]?`.
 - La instalación y actualización de Host independiente configuran la política de correo saliente mediante una referencia válida de Postfix, evitando que `postconf -P` detenga el proceso al encontrar espacios en la restricción del servicio `submission`.
 - Ajustes → Actualizaciones detecta la revisión instalada en Host independiente aunque el repositorio pertenezca a `root`; la consulta confía únicamente en la ruta exacta de XPanel y conserva la protección de Git para cualquier otro directorio.
 - La eliminación de un sitio Node.js valida únicamente los datos necesarios para retirar sus servicios y configuraciones; una versión Node heredada o ya no soportada deja de bloquear el borrado después de limpiar bases, backups y demás dependencias.
