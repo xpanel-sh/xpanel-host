@@ -20,6 +20,10 @@ if [[ "$(id -u)" != "0" ]]; then
   exit 1
 fi
 
+# Automated installers can inherit a restrictive umask. Normalize only files
+# tracked by Git; runtime secrets and customer content are not included.
+bash "$ROOT/scripts/normalize-source-permissions.sh"
+
 validate_install_inputs() {
   if [[ -n "${XPANEL_ACME_EMAIL:-}" && ! "${XPANEL_ACME_EMAIL}" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
     echo "XPANEL_ACME_EMAIL must be a real email address (for example, admin@example.com)." >&2

@@ -20,6 +20,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 - Las actualizaciones iniciadas desde Ajustes definen un hogar privado para Composer dentro de su unidad systemd, por lo que ya no fallan al carecer de `HOME`; cuando otro paso falla, el panel descarta la ayuda genérica del comando y conserva el diagnóstico útil.
 - Host independiente registra atómicamente la última revisión aplicada con éxito en un archivo root-owned y Ajustes la usa como fuente principal. La interfaz deja de depender de que PHP-FPM pueda inspeccionar el repositorio Git propiedad de `root`; las instancias VPS conservan la revisión proporcionada por su broker.
 - Ajustes inicia la actualización mediante una solicitud en segundo plano y mantiene cargada la pantalla de progreso mientras Laravel entra temporalmente en mantenimiento. Los 502/503 transitorios se reintentan y la interfaz vuelve sola al estado final, sin quedar atrapada en la página estática de mantenimiento.
+- La actualización normaliza los modos de los archivos versionados antes de cargar el nuevo código, incluso si systemd heredó una `umask` restrictiva, y vuelve a endurecer el helper privilegiado. La verificación final comprueba como `www-data` que la clase de Actualizaciones sea legible, evitando un 500 tardío al abrir esa pantalla.
 
 ## [0.1.0-alpha.2] - Hito de desarrollo retrospectivo
 

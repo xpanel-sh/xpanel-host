@@ -49,6 +49,7 @@ php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
 
 id "$site_user" >/dev/null 2>&1 || fail "panel service user does not exist: $site_user"
 getent group "$site_group" >/dev/null || fail "panel service group does not exist: $site_group"
+sudo -u "$site_user" test -r "$ROOT/app/Services/HostUpdateManager.php" || fail "panel PHP source is not readable by $site_user"
 [[ -x "$helper" && ! -L "$helper" ]] || fail "privileged site helper is unavailable"
 [[ "$(env_value XPANEL_MANAGEMENT_MODE)" =~ ^(standalone|vm|vps-instance)$ ]] || fail "invalid management mode"
 [[ "$(env_value XPANEL_APPLY_SYSTEM_CHANGES)" == "true" ]] || fail "system changes are not enabled"

@@ -16,6 +16,11 @@ export HOME=/root
 export COMPOSER_HOME=/var/lib/xpanel-host/composer
 install -d -o root -g root -m 0700 "$COMPOSER_HOME"
 
+# A panel-triggered update can inherit a restrictive umask from systemd. Git
+# then creates new PHP classes as root-only files. Restore the repository modes
+# before Composer or PHP-FPM attempts to load the freshly pulled code.
+bash "$ROOT/scripts/normalize-source-permissions.sh"
+
 env_value() {
   local key="$1"
   grep -E "^${key}=" "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true
@@ -185,6 +190,8 @@ site_user="${site_user:-www-data}"
 site_group="${site_group:-www-data}"
 getent passwd "$site_user" >/dev/null || { echo "Usuario del panel inválido: $site_user" >&2; exit 1; }
 getent group "$site_group" >/dev/null || { echo "Grupo del panel inválido: $site_group" >&2; exit 1; }
+chown root:"$site_group" "$ROOT/scripts/xpanel-site-helper.sh"
+chmod 0750 "$ROOT/scripts/xpanel-site-helper.sh"
 
 backup_root="$ROOT/storage/app/backups/updates/$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -o "$site_user" -g "$site_group" -m 0700 "$backup_root"
