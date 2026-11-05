@@ -167,6 +167,19 @@ panel_update_start() {
   printf 'started=%s\n' "$unit"
 }
 
+panel_update_failure_detail() {
+  local log="$1" detail
+  # Composer and other CLI tools often finish with a long usage line. Remove
+  # that noise and retain the nearby diagnostic that actually explains the
+  # failure to the user.
+  detail="$(tail -n 80 "$log" \
+    | sed -E '/^[[:space:]]*(install|update)[[:space:]]+\[/d; /^[[:space:]]*$/d' \
+    | tail -n 3 \
+    | tr '\n' ' ' \
+    | cut -c1-300)"
+  printf '%s' "${detail:-La actualización falló sin producir un diagnóstico. Revisa el registro completo.}"
+}
+
 panel_update_run() {
   [[ $# -eq 1 ]] || fail "Invalid update run arguments."
   panel_update_guard
@@ -174,7 +187,7 @@ panel_update_run() {
   if /usr/local/bin/xpanel update --root="$ROOT" > "$log" 2>&1; then
     panel_update_write_status completed
   else
-    panel_update_write_status failed "$(tail -n 2 "$log" | tr '\n' ' ' | cut -c1-300)"
+    panel_update_write_status failed "$(panel_update_failure_detail "$log")"
     exit 1
   fi
 }

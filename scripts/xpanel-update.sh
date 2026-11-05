@@ -9,6 +9,13 @@ if [[ "$(id -u)" != "0" ]]; then
   exit 1
 fi
 
+# Updates started from the panel run in a transient systemd unit, which does
+# not provide HOME. Give Composer a deterministic root-only home instead of
+# depending on the environment of an interactive SSH session.
+export HOME=/root
+export COMPOSER_HOME=/var/lib/xpanel-host/composer
+install -d -o root -g root -m 0700 "$COMPOSER_HOME"
+
 env_value() {
   local key="$1"
   grep -E "^${key}=" "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true
