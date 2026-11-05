@@ -670,15 +670,6 @@ site_action() {
   valid_document_root "$document_root" || fail "Document root must be under the account public_html tree or a supported legacy web root."
   valid_document_root "$web_root" || fail "Web root must be under the account public_html tree or a supported legacy web root."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
-  [[ "$site_status" == "active" || "$site_status" == "suspended" ]] || fail "Invalid site status."
-  valid_php_profile "$php_profile" || fail "Invalid PHP profile."
-  valid_php_extensions "$php_extensions" || fail "Invalid PHP extensions."
-  [[ "$php_profile" != "system" || "$php_extensions" == "-" ]] || fail "System PHP profile cannot receive an extension list."
-  if [[ "$type" == "node" ]]; then
-    [[ "$engine" == "nginx" ]] || fail "Node.js sites currently require Nginx."
-    [[ "$node_version" =~ ^(20|22|24)$ ]] || fail "Invalid Node.js version."
-    [[ "$runtime_port" =~ ^[0-9]{5}$ ]] && (( runtime_port >= 20000 && runtime_port <= 49999 )) || fail "Invalid Node.js runtime port."
-  fi
 
   local vhost_source="$STATE_ROOT/storage/app/vhosts/$domain.conf"
   local gateway_source="$STATE_ROOT/storage/app/gateways/$domain.conf"
@@ -715,6 +706,20 @@ site_action() {
     systemctl daemon-reload
     reload_web_server "$engine"
     return
+  fi
+
+  # Runtime settings are required only while applying a site. Removal must
+  # also clean up legacy Node.js sites whose saved version is no longer in the
+  # supported catalogue; the remove command intentionally does not receive a
+  # Node.js version or port.
+  [[ "$site_status" == "active" || "$site_status" == "suspended" ]] || fail "Invalid site status."
+  valid_php_profile "$php_profile" || fail "Invalid PHP profile."
+  valid_php_extensions "$php_extensions" || fail "Invalid PHP extensions."
+  [[ "$php_profile" != "system" || "$php_extensions" == "-" ]] || fail "System PHP profile cannot receive an extension list."
+  if [[ "$type" == "node" ]]; then
+    [[ "$engine" == "nginx" ]] || fail "Node.js sites currently require Nginx."
+    [[ "$node_version" =~ ^(20|22|24)$ ]] || fail "Invalid Node.js version."
+    [[ "$runtime_port" =~ ^[0-9]{5}$ ]] && (( runtime_port >= 20000 && runtime_port <= 49999 )) || fail "Invalid Node.js runtime port."
   fi
 
   [[ -f "$vhost_source" ]] || fail "Staged virtual host not found."

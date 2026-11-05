@@ -11,6 +11,18 @@ use Tests\TestCase;
 
 class SiteProvisionerTest extends TestCase
 {
+    public function test_remove_finishes_before_apply_only_node_validation(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+        $remove = strpos($helper, 'if [[ "$ACTION" == "remove" ]]');
+        $nodeValidation = strpos($helper, '[[ "$node_version" =~ ^(20|22|24)$ ]]');
+
+        $this->assertNotFalse($remove);
+        $this->assertNotFalse($nodeValidation);
+        $this->assertLessThan($nodeValidation, $remove);
+        $this->assertStringContainsString('the remove command intentionally does not receive a', $helper);
+    }
+
     public function test_system_changes_use_the_narrow_sudo_helper_with_argument_array(): void
     {
         config()->set('xpanel.apply_system_changes', true);
