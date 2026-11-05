@@ -16,6 +16,20 @@ class HostUpdateManager
 
     public function currentRevision(): ?string
     {
+        if ($this->managed()) {
+            return null;
+        }
+
+        $marker = '/var/lib/xpanel-host/installed-revision';
+        if (is_file($marker) && ! is_link($marker)) {
+            $installed = trim((string) @file_get_contents($marker));
+            if (preg_match('/^[a-f0-9]{12}$/', $installed)) {
+                return $installed;
+            }
+        }
+
+        // Compatibility fallback for installations updated before the
+        // root-owned marker existed. A successful future update writes it.
         $root = base_path();
         $process = new Process([
             'git',

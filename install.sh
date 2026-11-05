@@ -937,6 +937,7 @@ if [[ "$(sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:admi
   initial_admin_created=true
 fi
 
+bash "$ROOT/scripts/write-installed-revision.sh"
 panel_url="$(grep '^APP_URL=' "$ROOT/.env" | tail -n1 | cut -d= -f2-)"
 echo
 echo "============================================================"

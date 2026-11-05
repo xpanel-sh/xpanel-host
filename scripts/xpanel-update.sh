@@ -317,4 +317,5 @@ else
   printf '%s\n' "$verification_output"
 fi
 
+bash "$ROOT/scripts/write-installed-revision.sh"
 echo "XPanel Host actualizado. Respaldo previo: $backup_root"

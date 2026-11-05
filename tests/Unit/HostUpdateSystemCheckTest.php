@@ -22,10 +22,20 @@ class HostUpdateSystemCheckTest extends TestCase
     public function test_revision_detection_trusts_only_the_exact_host_repository(): void
     {
         $manager = file_get_contents(base_path('app/Services/HostUpdateManager.php'));
+        $installer = file_get_contents(base_path('install.sh'));
+        $update = file_get_contents(base_path('scripts/xpanel-update.sh'));
+        $writer = file_get_contents(base_path('scripts/write-installed-revision.sh'));
 
+        $this->assertStringContainsString("if (\$this->managed())", $manager);
+        $this->assertStringContainsString("'/var/lib/xpanel-host/installed-revision'", $manager);
+        $this->assertStringContainsString('! is_link($marker)', $manager);
         $this->assertStringContainsString("'safe.directory='.\$root", $manager);
         $this->assertStringNotContainsString("'safe.directory=*'", $manager);
         $this->assertStringContainsString('$process->setTimeout(5)', $manager);
+        $this->assertStringContainsString('write-installed-revision.sh', $installer);
+        $this->assertStringContainsString('write-installed-revision.sh', $update);
+        $this->assertStringContainsString('[[ -d "$ROOT/.git" && ! -L "$ROOT/.git" ]] || exit 0', $writer);
+        $this->assertStringContainsString('chmod 0644 "$temporary"', $writer);
     }
 
     public function test_standalone_update_verifies_repairs_and_verifies_again(): void
