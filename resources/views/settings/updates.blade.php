@@ -24,7 +24,7 @@
                     <div class="kt-card"><div class="kt-card-content flex h-full flex-col justify-center p-4"><div class="text-xs text-secondary-foreground">Última en GitHub</div><div class="mt-1 truncate font-semibold text-mono" id="host-update-latest">{{ $latestCommit ?: 'No disponible' }}</div></div></div>
                     <div class="kt-card"><div class="kt-card-content flex h-full flex-col justify-center p-4"><div class="text-xs text-secondary-foreground">Estado</div><div class="mt-1 font-semibold text-mono" id="host-update-state">{{ match($status['status']) { 'pending' => 'En espera', 'running' => 'Actualizando', 'completed' => 'Completada', 'unchanged' => 'Al día', 'failed' => 'Falló', default => 'Listo' } }}</div></div></div>
                     <div class="kt-card"><div class="kt-card-content flex h-full flex-col justify-center gap-2 p-4">
-                        <form method="POST" action="{{ route('settings.updates.start') }}" onsubmit="return confirm('¿Preparar la última revisión oficial de XPanel Host y actualizar este panel?')">
+                        <form method="POST" action="{{ route('settings.updates.start') }}" id="host-update-form">
                             @csrf
                             <button class="kt-btn kt-btn-primary w-full" id="host-update-start" type="submit" @disabled(!config('xpanel.apply_system_changes') || in_array($status['status'], ['pending', 'running']))><i class="ki-filled ki-update-file"></i>Actualizar Host</button>
                         </form>
@@ -119,6 +119,7 @@
         const fill = document.getElementById('host-update-fill');
         const error = document.getElementById('host-update-error');
         const start = document.getElementById('host-update-start');
+        const form = document.getElementById('host-update-form');
         const render = (data) => {
             const active = ['pending', 'running'].includes(data.status);
             progress.hidden = !active;
@@ -154,6 +155,9 @@
                 } else if (response.ok) {
                     retryDelay = 0;
                     render(await response.json());
+                } else if ([502, 503].includes(response.status) && !progress.hidden) {
+                    retryDelay = 3000;
+                    stage.textContent = 'El panel se está reiniciando; reconectando...';
                 }
             } catch (_) {
                 if (!progress.hidden) stage.textContent = 'Conexión interrumpida; reintentando...';
@@ -163,6 +167,51 @@
         document.addEventListener('visibilitychange', () => {
             clearTimeout(pollTimer);
             if (!document.hidden) check();
+        });
+        form?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!confirm('¿Preparar la última revisión oficial de XPanel Host y actualizar este panel?')) return;
+
+            clearTimeout(pollTimer);
+            const displayedCurrent = current.textContent.trim();
+            render({
+                current: displayedCurrent === 'No detectada' ? null : displayedCurrent,
+                status: 'pending',
+                stage: 'download',
+                message: 'Preparando la actualización local',
+                error: null,
+            });
+            retryDelay = 1000;
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                });
+                if ([502, 503].includes(response.status)) {
+                    stage.textContent = 'El panel se está reiniciando; reconectando...';
+                    retryDelay = 3000;
+                    schedule();
+                    return;
+                }
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(payload.message || 'No se pudo iniciar la actualización.');
+                schedule();
+            } catch (exception) {
+                if (exception instanceof TypeError) {
+                    stage.textContent = 'Conexión interrumpida; comprobando la actualización...';
+                    retryDelay = 3000;
+                    schedule();
+                    return;
+                }
+                progress.hidden = true;
+                state.textContent = 'Falló';
+                error.textContent = exception instanceof Error ? exception.message : 'No se pudo iniciar la actualización.';
+                error.hidden = false;
+                start.disabled = false;
+            }
         });
     })();
 </script>

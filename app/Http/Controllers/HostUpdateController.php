@@ -6,6 +6,7 @@ use App\Services\HostUpdateManager;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class HostUpdateController extends Controller
@@ -43,12 +44,24 @@ class HostUpdateController extends Controller
         return response()->json($updates->status());
     }
 
-    public function start(HostUpdateManager $updates): RedirectResponse
+    public function start(Request $request, HostUpdateManager $updates): RedirectResponse|JsonResponse
     {
         try {
             $updates->start();
         } catch (\Throwable $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $exception->getMessage()], 422);
+            }
+
             return back()->withErrors(['update' => $exception->getMessage()]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'pending',
+                'stage' => 'download',
+                'message' => 'Preparando la actualización local',
+            ], 202);
         }
 
         return back()->with('status', 'La actualización comenzó en segundo plano. Esta página mostrará el resultado.');

@@ -61,6 +61,8 @@ class HostUpdateTest extends TestCase
             ->assertSee('Explicación detallada del cambio.')
             ->assertSee('data-update-year="2025"', false)
             ->assertSee('data-update-year-panel="2025"', false)
+            ->assertSee('id="host-update-form"', false)
+            ->assertSee('fetch(form.action', false)
             ->assertSee('role="progressbar"', false);
 
         Http::assertSent(fn ($request) => $request['per_page'] === 50);
@@ -77,6 +79,24 @@ class HostUpdateTest extends TestCase
 
         $this->actingAs($this->user('owner'))->post(route('settings.updates.start'))
             ->assertRedirect()->assertSessionHasNoErrors();
+    }
+
+    public function test_browser_can_start_an_update_without_navigating_into_maintenance(): void
+    {
+        config()->set('xpanel.apply_system_changes', true);
+        config()->set('xpanel.management_mode', 'standalone');
+        config()->set('xpanel.site_helper', '/opt/xpanel-host/scripts/xpanel-site-helper.sh');
+        $this->mock(ServerCommandRunner::class)->shouldReceive('run')->once()
+            ->with(['sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'panel-update-start'])
+            ->andReturn('started=test');
+
+        $this->actingAs($this->user('owner'))->postJson(route('settings.updates.start'))
+            ->assertAccepted()
+            ->assertJson([
+                'status' => 'pending',
+                'stage' => 'download',
+                'message' => 'Preparando la actualización local',
+            ]);
     }
 
     public function test_managed_host_requests_only_its_signed_broker(): void
