@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Subdominios de '.$site->domain.' - xpanel-host')
+@section('title', 'Subdominios de '.$site->domain.' - '.$panelName)
 
 @section('content')
 <div class="flex min-h-0 grow rounded-xl border border-input bg-background lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">
@@ -42,6 +42,7 @@
                         @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
                             <section class="kt-card">
                                 <div class="kt-card-header"><div><h2 class="kt-card-title">Nuevo subdominio</h2><p class="mt-1 text-xs text-secondary-foreground">XPanel asignará automáticamente una raíz segura y aislada.</p></div></div>
+                                <div class="px-5 pt-5"><x-dns-target-hint /></div>
                                 <div class="kt-card-content p-5">
                                     <form method="POST" action="{{ route('sites.subdomains.store', $site) }}" class="grid max-w-xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                                         @csrf

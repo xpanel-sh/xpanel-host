@@ -675,7 +675,7 @@ node_project_prepare() {
 site_action() {
   local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   local web_root="${8:-$document_root}"
-  local node_version="${9:--}" runtime_port="${10:-0}" site_status="${11:-active}" php_profile="${12:-system}" php_extensions="${13:--}" node_exec=""
+  local node_version="${9:--}" runtime_port="${10:-0}" site_status="${11:-active}" php_profile="${12:-system}" php_extensions="${13:--}" display_name="${14:-XPanel Host}" node_exec=""
   valid_domain "$domain" || fail "Invalid site domain."
   [[ "$engine" == "nginx" || "$engine" == "apache" || "$engine" == "openlitespeed" ]] || fail "Invalid web server."
   [[ "$type" == "php" || "$type" == "static" || "$type" == "node" ]] || fail "Invalid site type."
@@ -683,6 +683,7 @@ site_action() {
   valid_document_root "$document_root" || fail "Document root must be under the account public_html tree or a supported legacy web root."
   valid_document_root "$web_root" || fail "Web root must be under the account public_html tree or a supported legacy web root."
   valid_site_identity "$site_user" || fail "Invalid site Unix identity."
+  [[ "$display_name" != *$'\n'* && "$display_name" != *$'\r'* && ${#display_name} -ge 1 && ${#display_name} -le 80 ]] || fail "Invalid hosting display name."
 
   local vhost_source="$STATE_ROOT/storage/app/vhosts/$domain.conf"
   local gateway_source="$STATE_ROOT/storage/app/gateways/$domain.conf"
@@ -778,14 +779,18 @@ site_action() {
       local welcome_template="$ROOT/resources/site-templates/welcome.php" welcome_temp=""
       [[ -f "$welcome_template" && ! -L "$welcome_template" ]] || fail "Default site page is unavailable."
       welcome_temp="$(mktemp /tmp/xpanel-welcome.XXXXXX)"
-      install -o "$site_user" -g "$site_user" -m 0644 "$welcome_template" "$welcome_temp"
+      php -r '$template = file_get_contents($argv[1]); if ($template === false) { exit(1); } file_put_contents($argv[2], str_replace("__XPANEL_DISPLAY_NAME__", htmlspecialchars($argv[3], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8"), $template));' "$welcome_template" "$welcome_temp" "$display_name"
+      chown "$site_user:$site_user" "$welcome_temp"
+      chmod 0644 "$welcome_temp"
       mv -n -- "$welcome_temp" "$web_root/index.php"
       [[ ! -e "$welcome_temp" ]] || rm -f -- "$welcome_temp"
     fi
   elif [[ "$type" == "static" ]]; then
     remove_php_pool "$php_version" "$pool"
     if [[ ! -e "$web_root/index.html" ]]; then
-      printf '%s\n' '<!doctype html><html lang="es"><meta charset="utf-8"><title>Sitio listo</title><h1>XPanel Host: sitio listo</h1></html>' > "$web_root/index.html"
+      local escaped_display_name=""
+      escaped_display_name="$(php -r 'echo htmlspecialchars($argv[1], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8");' "$display_name")"
+      printf '<!doctype html><html lang="es"><meta charset="utf-8"><title>Sitio listo</title><h1>%s: sitio listo</h1></html>\n' "$escaped_display_name" > "$web_root/index.html"
       chown "$site_user:$site_user" "$web_root/index.html"
     fi
   else

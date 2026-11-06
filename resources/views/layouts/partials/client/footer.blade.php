@@ -8,7 +8,7 @@
            2026©
           </span>
           <a class="text-secondary-foreground hover:text-primary" href="https://xpanel.sh">
-           xPanel.sh
+           {{ $panelName }}
           </a>
          </div>
          <nav class="flex order-1 md:order-2 gap-4 font-normal text-sm text-secondary-foreground">

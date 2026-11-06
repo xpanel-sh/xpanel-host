@@ -1,5 +1,10 @@
 <div class="kt-card">
     <div class="kt-card-content p-3 flex flex-wrap items-center gap-2">
+        <a href="{{ route('settings.general.index') }}"
+           class="kt-btn {{ request()->routeIs('settings.general.*') ? 'kt-btn-primary' : 'kt-btn-ghost' }}">
+            <i class="ki-filled ki-setting-2"></i>
+            General
+        </a>
         <a href="{{ route('settings.panel-access.index') }}"
            class="kt-btn {{ request()->routeIs('settings.panel-access.*') ? 'kt-btn-primary' : 'kt-btn-ghost' }}">
             <i class="ki-filled ki-setting-2"></i>

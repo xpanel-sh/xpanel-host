@@ -19,5 +19,7 @@ class DefaultSiteTemplateTest extends TestCase
         $this->assertStringContainsString('const domain = location.host;', $template);
         $this->assertStringContainsString('name="robots" content="noindex, nofollow"', $template);
         $this->assertStringContainsString('hosting-welcome-theme', $template);
+        $this->assertStringContainsString('__XPANEL_DISPLAY_NAME__', $template);
+        $this->assertStringContainsString('str_replace("__XPANEL_DISPLAY_NAME__"', $helper);
     }
 }

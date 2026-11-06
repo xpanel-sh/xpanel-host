@@ -222,10 +222,10 @@
     </section>
     
   </main>
-<footer><span>Gestionado con <strong data-brand>XPanel</strong></span><span>Un espacio para tus ideas.</span></footer>  <script>
+<footer><span>Gestionado con <strong data-brand>__XPANEL_DISPLAY_NAME__</strong></span><span>Un espacio para tus ideas.</span></footer>  <script>
     // Personalización del hosting. No requiere librerías ni archivos externos.
     const CONFIG = {
-      brand: 'xPanel',
+      brand: document.querySelector('[data-brand]').textContent,
       // La URL se obtiene automáticamente del navegador.
     };
     document.querySelectorAll('[data-brand]').forEach(el => el.textContent = CONFIG.brand);

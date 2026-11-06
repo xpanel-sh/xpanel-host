@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', "Editar {$role->name} - xpanel-host")
+@section('title', "Editar {$role->name} - {$panelName}")
 
 @section('content')
 <div class="flex grow items-center justify-center lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">

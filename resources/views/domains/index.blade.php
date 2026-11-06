@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Dominios - xpanel-host')
+@section('title', 'Dominios - '.$panelName)
 
 @php
     $canManage = auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE);

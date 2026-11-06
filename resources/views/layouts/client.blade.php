@@ -3,7 +3,7 @@
 
 <head>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'xpanel-host')</title>
+    <title>@yield('title', $panelName)</title>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1, shrink-to-fit=no" name="viewport" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
@@ -51,7 +51,7 @@
                         </button>
                     </div>
                     <div class="flex min-w-0 items-center gap-2 @if($selectedSiteDomain) mx-5 @endif">
-                        <h3 class="text-secondary-foreground text-base hidden md:block">xpanel-host</h3>
+                        <h3 class="max-w-44 truncate text-secondary-foreground text-base hidden md:block" title="{{ $panelName }}">{{ $panelName }}</h3>
                         <span class="text-sm text-muted-foreground font-medium px-2.5 hidden md:inline">/</span>
                         <div class="kt-menu kt-menu-default" data-kt-menu="true">
                             <div class="kt-menu-item kt-menu-item-dropdown" data-kt-menu-item-offset="0, 10px"

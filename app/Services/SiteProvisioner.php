@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\SystemSetting;
 use App\Models\Site;
 
 class SiteProvisioner
@@ -87,6 +88,7 @@ class SiteProvisioner
             $site->status,
             $site->phpProfile?->runtimeKey() ?? 'system',
             $site->phpProfile?->extensionArgument() ?? '-',
+            SystemSetting::get('display_name', (string) config('app.name', 'XPanel Host')) ?: 'XPanel Host',
         ], timeout: 1800);
     }
 

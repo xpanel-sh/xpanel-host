@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Correos - xpanel-host')
+@section('title', 'Correos - '.$panelName)
 
 @php
     $canManage = auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE);

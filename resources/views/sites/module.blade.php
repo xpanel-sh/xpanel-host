@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', "{$definition['label']} - {$site->domain} - xpanel-host")
+@section('title', "{$definition['label']} - {$site->domain} - {$panelName}")
 
 @section('content')
 <div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">

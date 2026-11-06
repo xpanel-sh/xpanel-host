@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Acceso al panel - XPanel Host')
+@section('title', 'Acceso al panel - '.$panelName)
 
 @section('content')
 <div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">

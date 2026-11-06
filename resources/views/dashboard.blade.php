@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Resumen - xpanel-host')
+@section('title', 'Resumen - '.$panelName)
 
 @php
     $diskPercent = min(100, max(0, (int) $server['disk_used_percent']));

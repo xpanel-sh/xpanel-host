@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1, shrink-to-fit=no" name="viewport"/>
-    <title>Configuracion inicial - xpanel-host</title>
+    <title>Configuración inicial - {{ $panelName }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="{{ asset('assets/vendors/keenicons/styles.bundle.css') }}" rel="stylesheet"/>
     <link href="{{ asset('assets/css/styles.css') }}" rel="stylesheet"/>
@@ -13,7 +13,7 @@
         <div class="kt-card max-w-[420px] w-full">
             <div class="kt-card-content flex flex-col gap-5 p-10">
                 <div class="text-center mb-2.5">
-                    <div class="text-2xl font-bold text-mono mb-1">xpanel-host</div>
+                    <div class="text-2xl font-bold text-mono mb-1">{{ $panelName }}</div>
                     <h3 class="text-lg font-medium text-mono leading-none mb-2.5">Configuracion inicial</h3>
                     <span class="text-sm text-secondary-foreground">Crea la cuenta Owner de este hosting. Es la unica vez que se pide.</span>
                 </div>

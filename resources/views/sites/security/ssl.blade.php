@@ -37,6 +37,7 @@
         </section>
 
         <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Let's Encrypt / ACME</h2></div><div class="kt-card-content p-5">
+          <x-dns-target-hint class="mb-5" />
           @if($site->wildcard_domain)
             <p class="mb-5 text-sm text-secondary-foreground">Se emitirá un certificado para {{ $site->domain }} y *.{{ $site->domain }} mediante DNS-01. Conecta primero una zona Cloudflare verificada en Avanzado → Editor DNS; el token se transmite cifrado y sólo por stdin al helper.</p>
           @else

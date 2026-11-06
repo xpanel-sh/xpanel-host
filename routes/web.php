@@ -66,6 +66,7 @@ use App\Models\User;
 use App\Services\ServerContext;
 use App\Support\Permissions;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\GeneralSettingsController;
 
 Route::get('/setup', [SetupController::class, 'create'])->name('setup');
 Route::post('/setup', [SetupController::class, 'store']);
@@ -373,6 +374,8 @@ Route::middleware('setup.complete')->group(function () {
         });
         Route::middleware('permission:'.Permissions::SERVER_MANAGE)->group(function () {
             Route::put('/sites/{site}/performance/page-speed/api-key', [PageSpeedController::class, 'updateApiKey'])->name('sites.pagespeed.api-key');
+            Route::get('/settings/general', [GeneralSettingsController::class, 'index'])->name('settings.general.index');
+            Route::put('/settings/general', [GeneralSettingsController::class, 'update'])->name('settings.general.update');
             Route::get('/settings/panel-access', [PanelAccessController::class, 'index'])->name('settings.panel-access.index');
             Route::put('/settings/panel-access/domain', [PanelAccessController::class, 'domain'])->name('settings.panel-access.domain');
             Route::put('/settings/panel-access/ip', [PanelAccessController::class, 'ip'])->name('settings.panel-access.ip');

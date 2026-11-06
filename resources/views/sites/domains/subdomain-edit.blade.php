@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', "Configurar {$subdomain->domain} - xpanel-host")
+@section('title', "Configurar {$subdomain->domain} - {$panelName}")
 
 @section('content')
 @php($environmentMode = true)

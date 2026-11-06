@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Agregar dominio - xpanel-host')
+@section('title', 'Agregar dominio - '.$panelName)
 
 @section('content')
 <div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">
@@ -27,6 +27,7 @@
                                 <h3 class="kt-card-title">Dominio</h3>
                             </div>
                             <div class="kt-card-content grid gap-5">
+                                <x-dns-target-hint />
                                 <div class="flex items-baseline flex-wrap lg:flex-nowrap gap-2.5">
                                     <label class="kt-form-label max-w-56">Dominio</label>
                                     <div class="grow grid gap-1.5">

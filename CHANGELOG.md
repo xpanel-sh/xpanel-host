@@ -8,6 +8,9 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- Ajustes → General permite definir la identidad visual de cada Host. Una instancia administrada recibe el nombre inicial de VPS, pero guarda su propia modificación y Host independiente conserva control total de su entorno.
+- La creación de sitios PHP y estáticos aplica el nombre efectivo del hosting a su página de bienvenida sin permitir inyección HTML. Títulos, cabecera, pie y correo visual dejan de fijar `xpanel-host` como marca comercial.
+- Los formularios de sitios, dominios, subdominios y SSL muestran la IP pública detectada y explican el registro A y el modo Solo DNS de Cloudflare durante la validación.
 - Ajustes → Actualizaciones ejecuta ahora una actualización rápida e incremental: conserva servicios sin cambios, evita recorridos recursivos innecesarios y muestra el tiempo consumido por cada etapa en el registro. La reconciliación completa queda disponible para administradores mediante `xpanel repair`.
 - Host administrado mide solicitudes y transferencia a través del broker, confinados a la cuenta y a sus sitios registrados. La lectura del access log conserva un cursor separado por instancia; Host independiente mantiene su ruta anterior.
 - Avisos únicos al 80 % y 100 % de transferencia mensual. Al llegar al 100 %, los sitios de esa cuenta siguen disponibles con respuestas Nginx limitadas a 128 KiB/s por petición; la revisión programada restaura la velocidad al comenzar el mes siguiente. No constituye una cuota exacta de red.

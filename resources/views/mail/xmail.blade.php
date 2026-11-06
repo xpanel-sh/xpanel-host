@@ -161,7 +161,7 @@
 
         <div class="mb-4 flex items-center gap-3 border-b border-border px-1 pb-4">
             <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><i class="ki-filled ki-sms text-lg"></i></span>
-            <div class="xmail-sidebar-text"><div class="text-lg font-semibold text-mono">XMail</div><div class="text-xs text-secondary-foreground">Correo de XPanel</div></div>
+            <div class="xmail-sidebar-text"><div class="text-lg font-semibold text-mono">XMail</div><div class="text-xs text-secondary-foreground">Correo de {{ $panelName }}</div></div>
         </div>
 
         <div class="xmail-sidebar-profile flex items-center rounded-xl bg-muted/50">

@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Transferencias - xpanel-host')
+@section('title', 'Transferencias - '.$panelName)
 
 @section('content')
 <div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">

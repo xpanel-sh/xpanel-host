@@ -55,6 +55,7 @@ class SiteProvisionerTest extends TestCase
             'active',
             'system',
             '-',
+            'XPanel Host',
         ], null, 1800);
 
         $generator = new VirtualHostGenerator;

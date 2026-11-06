@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Actualizaciones - XPanel Host')
+@section('title', 'Actualizaciones - '.$panelName)
 
 @section('content')
 <div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">
@@ -9,8 +9,8 @@
             <div class="max-w-6xl mx-auto flex flex-col gap-5">
                 <div>
                     <div class="text-sm text-secondary-foreground">Ajustes / Actualizaciones</div>
-                    <h1 class="text-2xl font-semibold text-mono">XPanel Host</h1>
-                    <p class="mt-1 text-sm text-secondary-foreground">Estado de este panel e historial de cambios de XPanel Host.</p>
+                    <h1 class="text-2xl font-semibold text-mono">{{ $panelName }}</h1>
+                    <p class="mt-1 text-sm text-secondary-foreground">Estado de este panel e historial de actualizaciones del sistema Host.</p>
                 </div>
 
                 @include('settings._navigation')

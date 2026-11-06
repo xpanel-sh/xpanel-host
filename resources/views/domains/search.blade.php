@@ -1,6 +1,6 @@
 @extends('layouts.client')
 
-@section('title', 'Conectar dominio - xpanel-host')
+@section('title', 'Conectar dominio - '.$panelName)
 
 @section('content')
 <div class="flex grow rounded-xl bg-background border border-input lg:ms-(--sidebar-width) mt-0 lg:mt-(--header-height) m-5">

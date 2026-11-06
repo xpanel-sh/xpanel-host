@@ -55,6 +55,7 @@
                 <span class="kt-form-description">Dominios registrados sin sitio: {{ $unclaimedDomains->implode(', ') }}.</span>
             @endif
         </label>
+        <x-dns-target-hint class="md:col-span-2" />
         <label class="flex flex-col gap-2 md:col-span-2">
             <span class="kt-form-label font-normal text-mono">Raíz del proyecto</span>
             <input class="kt-input font-mono" type="text" name="document_root" value="{{ old('document_root', $site->document_root ?? '') }}" placeholder="{{ app(\App\Services\HostingAccountWorkspace::class)->siteRoot('cliente.example.com') }}"/>
