@@ -20,6 +20,19 @@ if [[ "$(id -u)" != "0" ]]; then
   exit 1
 fi
 
+if [[ "$ROOT" == /root/* && "$ROOT" != /opt/xpanel-host ]]; then
+  target=/opt/xpanel-host
+  [[ ! -e "$target" ]] || { echo "$target already exists; run its install.sh or remove the incomplete installation explicitly." >&2; exit 1; }
+  install -d -o root -g root -m 0755 /opt
+  if [[ -d "$ROOT/.git" ]]; then
+    git clone --local --no-hardlinks "$ROOT" "$target"
+  else
+    cp -a -- "$ROOT" "$target"
+  fi
+  echo "Source moved to $target so PHP-FPM can traverse the application path safely."
+  exec bash "$target/install.sh" "$@"
+fi
+
 # Automated installers can inherit a restrictive umask. Normalize only files
 # tracked by Git; runtime secrets and customer content are not included.
 bash "$ROOT/scripts/normalize-source-permissions.sh"
@@ -203,15 +216,6 @@ ensure_go_runtime() {
   ln -sfn /usr/local/go-xpanel/bin/go /usr/local/bin/go
   ln -sfn /usr/local/go-xpanel/bin/gofmt /usr/local/bin/gofmt
   rm -rf -- "$tempdir"
-}
-
-write_marker() {
-  cat > "$ROOT/xpanel" <<EOF
-SYSTEM="$SYSTEM"
-REPO="$REPO"
-VERSION="$VERSION"
-XPANEL_FILE_LANGUAGE="${XPANEL_LANG:-$XPANEL_FILE_LANGUAGE}"
-EOF
 }
 
 install_cli() {
@@ -854,7 +858,9 @@ configure_web_server() {
 
 echo "Installing $SYSTEM in $INSTALL_DIR"
 validate_install_inputs
-write_marker
+install -d -o root -g root -m 0755 /var/lib/xpanel-host
+printf '%s\n' "${XPANEL_LANG:-$XPANEL_FILE_LANGUAGE}" > /var/lib/xpanel-host/language
+chmod 0644 /var/lib/xpanel-host/language
 
 install_base_dependencies
 ensure_node_runtime
