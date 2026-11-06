@@ -21,7 +21,7 @@ class MailServerInstallationTest extends TestCase
     {
         $installer = file_get_contents(base_path('install.sh'));
 
-        $validationPosition = strpos($installer, "validate_install_inputs\nwrite_marker");
+        $validationPosition = strpos($installer, "validate_install_inputs\ninstall -d -o root -g root -m 0755 /var/lib/xpanel-host");
         $dependenciesPosition = strpos($installer, 'install_base_dependencies', $validationPosition);
 
         $this->assertNotFalse($validationPosition);

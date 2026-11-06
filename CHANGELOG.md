@@ -20,6 +20,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- El instalador independiente guarda el idioma fuera del árbol Git, conserva limpio el repositorio y traslada automáticamente un checkout nuevo bajo `/root` a `/opt/xpanel-host`; el script vuelve a publicarse como ejecutable.
 - La verificación final autoriza Composer de forma no interactiva cuando se ejecuta como `root`; actualizar desde SSH o desde la web ya no se detiene esperando `Continue as root/super user [yes]?`.
 - La instalación y actualización de Host independiente configuran la política de correo saliente mediante una referencia válida de Postfix, evitando que `postconf -P` detenga el proceso al encontrar espacios en la restricción del servicio `submission`.
 - Ajustes → Actualizaciones detecta la revisión instalada en Host independiente aunque el repositorio pertenezca a `root`; la consulta confía únicamente en la ruta exacta de XPanel y conserva la protección de Git para cualquier otro directorio.

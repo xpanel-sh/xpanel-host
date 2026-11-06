@@ -24,11 +24,7 @@ if [[ "$ROOT" == /root/* && "$ROOT" != /opt/xpanel-host ]]; then
   target=/opt/xpanel-host
   [[ ! -e "$target" ]] || { echo "$target already exists; run its install.sh or remove the incomplete installation explicitly." >&2; exit 1; }
   install -d -o root -g root -m 0755 /opt
-  if [[ -d "$ROOT/.git" ]]; then
-    git clone --local --no-hardlinks "$ROOT" "$target"
-  else
-    cp -a -- "$ROOT" "$target"
-  fi
+  cp -a -- "$ROOT" "$target"
   echo "Source moved to $target so PHP-FPM can traverse the application path safely."
   exec bash "$target/install.sh" "$@"
 fi
