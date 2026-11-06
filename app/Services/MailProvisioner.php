@@ -12,6 +12,12 @@ class MailProvisioner
 {
     public function __construct(private readonly ServerCommandRunner $commands) {}
 
+    public function stageOnly(): void
+    {
+        $this->stage(MailAccount::with('domain')->orderBy('domain_id')->orderBy('local_part')->get());
+        $this->stageOutboundRouting();
+    }
+
     public function apply(MailAccount $account): void
     {
         $this->sync();

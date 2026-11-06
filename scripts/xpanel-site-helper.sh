@@ -2314,7 +2314,8 @@ access_remove() {
 }
 
 mail_sync() {
-  local source="$STATE_ROOT/storage/app/mail"
+  local source="${XPANEL_MAIL_STAGE_ROOT:-$STATE_ROOT/storage/app/mail}"
+  local managed_sync="${XPANEL_MANAGED_MAIL_SYNC:-0}" roots_file=""
   for name in domains mailboxes users sender-login aliases send-limits dkim-selector; do
     [[ -f "$source/$name" ]] || fail "Missing staged mail file: $name"
   done
@@ -2362,10 +2363,16 @@ mail_sync() {
   chown opendkim:opendkim /etc/xpanel-host/dkim/key.table /etc/xpanel-host/dkim/signing.table /etc/xpanel-host/dkim/trusted.hosts
   chmod 0640 /etc/xpanel-host/dkim/key.table /etc/xpanel-host/dkim/signing.table /etc/xpanel-host/dkim/trusted.hosts
 
+  if [[ "$managed_sync" == "1" ]]; then roots_file="$(mktemp)"; fi
   while IFS=: read -r email _ _ _ _ home _; do
     [[ -z "$email" ]] && continue
     [[ "$email" =~ ^[A-Za-z0-9._-]+@[a-z0-9.-]+$ ]] || fail "Invalid staged mailbox."
-    [[ -n "$ACCOUNT_HOME" && "$MAIL_ROOT" == "$ACCOUNT_HOME/mail" && "$home" == "$MAIL_ROOT/"* ]] || fail "Invalid mailbox path."
+    if [[ "$managed_sync" == "1" ]]; then
+      [[ "$home" =~ ^/home/(xhi[a-f0-9]{12})/mail/([a-z0-9]([a-z0-9.-]*[a-z0-9])?)/[A-Za-z0-9._-]{1,64}$ ]] || fail "Invalid managed mailbox path."
+      printf '/home/%s/mail:%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[1]}" >> "$roots_file"
+    else
+      [[ -n "$ACCOUNT_HOME" && "$MAIL_ROOT" == "$ACCOUNT_HOME/mail" && "$home" == "$MAIL_ROOT/"* ]] || fail "Invalid mailbox path."
+    fi
     # Dovecot owns the mailbox, while the account owner and the panel must be
     # able to traverse it from the account-level file manager. `install -m
     # 0700` used to mask the inherited ACL and made Maildir return HTTP 500.
@@ -2375,14 +2382,26 @@ mail_sync() {
   # Repair existing cur/new/tmp trees and install inheritable ACLs for folders
   # Dovecot creates later. Keep vmail as owner; this grants access only to the
   # hosting account and its panel service user.
-  chown -R vmail:vmail "$MAIL_ROOT"
-  find -P "$MAIL_ROOT" -xdev -type d -exec chmod 2770 {} +
-  find -P "$MAIL_ROOT" -xdev -type f -exec chmod 0660 {} +
-  setfacl -R -m "u:$SITE_USER:rwX" "$MAIL_ROOT"
-  find -P "$MAIL_ROOT" -xdev -type d -exec setfacl -m "m::rwx,d:u:$SITE_USER:rwx,d:m::rwx" {} +
-  if [[ -n "$ACCOUNT_USER" ]]; then
-    setfacl -R -m "u:$ACCOUNT_USER:rwX" "$MAIL_ROOT"
-    find -P "$MAIL_ROOT" -xdev -type d -exec setfacl -m "d:u:$ACCOUNT_USER:rwx" {} +
+  if [[ "$managed_sync" == "1" ]]; then
+    sort -u "$roots_file" | while IFS=: read -r managed_root managed_user; do
+      [[ -d "$managed_root" && ! -L "$managed_root" ]] || fail "Managed mail root is unavailable."
+      chown -R vmail:vmail "$managed_root"
+      find -P "$managed_root" -xdev -type d -exec chmod 2770 {} +
+      find -P "$managed_root" -xdev -type f -exec chmod 0660 {} +
+      setfacl -R -m "u:$managed_user:rwX" "$managed_root"
+      find -P "$managed_root" -xdev -type d -exec setfacl -m "m::rwx,d:u:$managed_user:rwx,d:m::rwx" {} +
+    done
+    rm -f -- "$roots_file"
+  else
+    chown -R vmail:vmail "$MAIL_ROOT"
+    find -P "$MAIL_ROOT" -xdev -type d -exec chmod 2770 {} +
+    find -P "$MAIL_ROOT" -xdev -type f -exec chmod 0660 {} +
+    setfacl -R -m "u:$SITE_USER:rwX" "$MAIL_ROOT"
+    find -P "$MAIL_ROOT" -xdev -type d -exec setfacl -m "m::rwx,d:u:$SITE_USER:rwx,d:m::rwx" {} +
+    if [[ -n "$ACCOUNT_USER" ]]; then
+      setfacl -R -m "u:$ACCOUNT_USER:rwX" "$MAIL_ROOT"
+      find -P "$MAIL_ROOT" -xdev -type d -exec setfacl -m "d:u:$ACCOUNT_USER:rwx" {} +
+    fi
   fi
 
   doveconf -n >/dev/null
@@ -2404,7 +2423,7 @@ mail_sync() {
 # at install time, but not for a set that changes every time an admin flips a
 # domain's mode). IPv4 only for now (smtp_bind_address, not the IPv6 variant).
 mail_outbound_sync() {
-  local source="$STATE_ROOT/storage/app/mail"
+  local source="${XPANEL_MAIL_STAGE_ROOT:-$STATE_ROOT/storage/app/mail}"
   [[ -f "$source/sender-transport" ]] || fail "Missing staged sender-transport map."
   [[ -f "$source/dedicated-ips" ]] || fail "Missing staged dedicated IPs list."
   if grep -Ev '^(@[a-z0-9.-]+ xpanelout-[a-z0-9-]+:)?$' "$source/sender-transport" | grep -q .; then

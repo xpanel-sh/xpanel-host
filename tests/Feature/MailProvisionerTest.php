@@ -90,4 +90,25 @@ class MailProvisionerTest extends TestCase
         );
         $this->assertSame("admin@restore.example.com 100 500\n", file_get_contents(storage_path('app/mail/send-limits')));
     }
+
+    public function test_stage_only_rebuilds_recovery_maps_without_applying_the_server(): void
+    {
+        config()->set('xpanel.apply_system_changes', true);
+        $domain = Domain::create(['domain' => 'recovered.example.com']);
+        $account = MailAccount::create([
+            'domain_id' => $domain->id, 'local_part' => 'admin',
+            'password' => 'Recovered-Mail-Password', 'quota_mb' => 512,
+            'status' => 'provisioning',
+        ]);
+        $this->mock(ServerCommandRunner::class)->shouldNotReceive('run');
+
+        $this->artisan('xpanel:mail-sync', ['--stage-only' => true])->assertSuccessful();
+
+        $this->assertSame('staged', $account->fresh()->status);
+        $this->assertStringContainsString('admin@recovered.example.com', file_get_contents(storage_path('app/mail/users')));
+        $this->assertFileExists(storage_path('app/mail/sender-transport'));
+
+        $this->artisan('xpanel:mail-sync', ['--mark-active' => true])->assertSuccessful();
+        $this->assertSame('active', $account->fresh()->status);
+    }
 }

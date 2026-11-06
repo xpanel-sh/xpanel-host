@@ -8,6 +8,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- Preparación de mapas de correo sin aplicar cambios durante una recuperación administrada y soporte para que VPS consolide el catálogo global sin mezclar los Maildir de cada cuenta.
 - Métricas anónimas configurables por categoría para Host independiente. Las instancias administradas no duplican el heartbeat informado por VPS y el envío nunca bloquea el panel.
 - Ajustes → General permite definir la identidad visual de cada Host. Una instancia administrada recibe el nombre inicial de VPS, pero guarda su propia modificación y Host independiente conserva control total de su entorno.
 - La creación de sitios PHP y estáticos aplica el nombre efectivo del hosting a su página de bienvenida sin permitir inyección HTML. Títulos, cabecera, pie y correo visual dejan de fijar `xpanel-host` como marca comercial.
