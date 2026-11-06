@@ -13,6 +13,7 @@ return [
      * link back to VM for infrastructure operations.
      */
     'management_mode' => env('XPANEL_MANAGEMENT_MODE', 'standalone'),
+    'telemetry_endpoint' => env('XPANEL_TELEMETRY_ENDPOINT', 'https://xpanel.sh/get/v1/heartbeats'),
     'instance_id' => env('XPANEL_INSTANCE_ID'),
     'instance_root' => env('XPANEL_INSTANCE_ROOT'),
     'control_plane_url' => env('XPANEL_CONTROL_PLANE_URL'),
