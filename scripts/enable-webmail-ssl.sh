@@ -2,14 +2,16 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STATE_ROOT="${XPANEL_INSTANCE_ROOT:-$ROOT}"
+ENV_FILE="$STATE_ROOT/.env"
 email="${1:-${XPANEL_ACME_EMAIL:-}}"
 hostname="${2:-${XPANEL_WEBMAIL_HOSTNAME:-${XPANEL_MAIL_HOSTNAME:-}}}"
 
-if [[ -z "$hostname" && -f "$ROOT/.env" ]]; then
-  hostname="$(grep -E '^XPANEL_WEBMAIL_HOSTNAME=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
+if [[ -z "$hostname" && -f "$ENV_FILE" ]]; then
+  hostname="$(grep -E '^XPANEL_WEBMAIL_HOSTNAME=' "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
 fi
-if [[ -z "$email" && -f "$ROOT/.env" ]]; then
-  email="$(grep -E '^XPANEL_ACME_EMAIL=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
+if [[ -z "$email" && -f "$ENV_FILE" ]]; then
+  email="$(grep -E '^XPANEL_ACME_EMAIL=' "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
 fi
 
 [[ "$(id -u)" == "0" ]] || { echo "Run as root." >&2; exit 1; }
@@ -34,7 +36,7 @@ if [[ -f /etc/vsftpd.conf ]] && grep -q '^rsa_cert_file=/etc/ssl/certs/ssl-cert-
   systemctl restart vsftpd
 fi
 
-mail_hostname="$(grep -E '^XPANEL_MAIL_HOSTNAME=' "$ROOT/.env" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
+mail_hostname="${XPANEL_MAIL_HOSTNAME:-$(grep -E '^XPANEL_MAIL_HOSTNAME=' "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '"' || true)}"
 if [[ "$hostname" == "$mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.conf ]]; then
   sed -i "s|^ssl_cert = .*|ssl_cert = </etc/letsencrypt/live/$hostname/fullchain.pem|" /etc/dovecot/conf.d/99-xpanel-host.conf
   sed -i "s|^ssl_key = .*|ssl_key = </etc/letsencrypt/live/$hostname/privkey.pem|" /etc/dovecot/conf.d/99-xpanel-host.conf
@@ -45,10 +47,10 @@ if [[ "$hostname" == "$mail_hostname" && -f /etc/dovecot/conf.d/99-xpanel-host.c
   systemctl reload dovecot postfix
 fi
 
-if grep -q '^XPANEL_WEBMAIL_URL=' "$ROOT/.env" 2>/dev/null; then
-  sed -i "s|^XPANEL_WEBMAIL_URL=.*|XPANEL_WEBMAIL_URL=https://$hostname|" "$ROOT/.env"
+if grep -q '^XPANEL_WEBMAIL_URL=' "$ENV_FILE" 2>/dev/null; then
+  sed -i "s|^XPANEL_WEBMAIL_URL=.*|XPANEL_WEBMAIL_URL=https://$hostname|" "$ENV_FILE"
 else
-  printf 'XPANEL_WEBMAIL_URL=https://%s\n' "$hostname" >> "$ROOT/.env"
+  printf 'XPANEL_WEBMAIL_URL=https://%s\n' "$hostname" >> "$ENV_FILE"
 fi
 
 nginx -t

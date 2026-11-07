@@ -7,6 +7,7 @@ use App\Models\MailAccount;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\SystemDnsResolver;
+use App\Services\ServerCommandRunner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -128,9 +129,14 @@ class MailManagementTest extends TestCase
         $this->actingAs($user)->get('/mail')
             ->assertOk()
             ->assertSee('DNS del correo')
+            ->assertSee('data-kt-modal="true"', false)
+            ->assertSee('mail.example.com')
+            ->assertSee('prioridad 10')
             ->assertSee('xpanel._domainkey')
             ->assertSee($dkim)
-            ->assertSee('DNS only');
+            ->assertSee('DNS only')
+            ->assertSee('Configurar SSL')
+            ->assertDontSee('enable-webmail-ssl.sh');
 
         $this->actingAs($user)->getJson(route('mail.dns-status', $domain))
             ->assertOk()
@@ -142,6 +148,22 @@ class MailManagementTest extends TestCase
             ->assertJsonPath('checks.dmarc.ok', true)
             ->assertJsonPath('checks.ptr.ok', true)
             ->assertJsonPath('checks.ssl.ok', true);
+    }
+
+    public function test_owner_can_request_mail_ssl_through_the_server_helper(): void
+    {
+        config()->set('xpanel.mail_hostname', 'mail.example.com');
+        config()->set('xpanel.site_helper', '/usr/local/libexec/xpanel-site-helper');
+        $commands = Mockery::mock(ServerCommandRunner::class);
+        $commands->shouldReceive('run')->once()->with([
+            'sudo', '-n', '/usr/local/libexec/xpanel-site-helper', 'mail-ssl-issue',
+        ], null, 600)->andReturn('SSL enabled');
+        $this->app->instance(ServerCommandRunner::class, $commands);
+
+        $this->actingAs($this->userWithRole('owner'))
+            ->post(route('mail.ssl.enable'))
+            ->assertRedirect()
+            ->assertSessionHas('status');
     }
 
     public function test_dns_status_is_unavailable_for_a_domain_without_mailboxes(): void

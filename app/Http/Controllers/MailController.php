@@ -8,6 +8,7 @@ use App\Models\ServerIpAddress;
 use App\Services\MailDnsService;
 use App\Services\HostingPlanQuota;
 use App\Services\MailProvisioner;
+use App\Services\ServerCommandRunner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -160,5 +161,22 @@ class MailController extends Controller
         }
 
         return redirect()->route('mail.index')->with('status', "Límites de {$mailAccount->email} actualizados.");
+    }
+
+    public function enableSsl(ServerCommandRunner $commands): RedirectResponse
+    {
+        if (blank(config('xpanel.mail_hostname'))) {
+            return back()->withErrors(['server' => 'El servidor de correo todavía no tiene un hostname configurado.']);
+        }
+
+        try {
+            $commands->run([
+                'sudo', '-n', (string) config('xpanel.site_helper'), 'mail-ssl-issue',
+            ], null, 600);
+        } catch (\Throwable $exception) {
+            return back()->withErrors(['server' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', 'SSL del correo y webmail configurado correctamente.');
     }
 }

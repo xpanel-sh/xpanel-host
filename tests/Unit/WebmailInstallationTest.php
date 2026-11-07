@@ -25,6 +25,17 @@ class WebmailInstallationTest extends TestCase
         $this->assertStringContainsString('xpanel-host-webmail.conf', $script);
         $this->assertStringContainsString('public_html', $script);
         $this->assertStringContainsString("enable_installer'] = false", $script);
+        $this->assertStringContainsString('XPANEL_SKIP_PACKAGES', $script);
+    }
+
+    public function test_mail_ssl_uses_the_instance_environment_and_is_available_through_the_helper(): void
+    {
+        $ssl = file_get_contents(base_path('scripts/enable-webmail-ssl.sh'));
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('XPANEL_INSTANCE_ROOT', $ssl);
+        $this->assertStringContainsString('XPANEL_MAIL_HOSTNAME', $ssl);
+        $this->assertStringContainsString('mail-ssl-issue', $helper);
     }
 
     public function test_xmail_template_cannot_select_another_managed_account(): void

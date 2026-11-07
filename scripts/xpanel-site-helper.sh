@@ -2550,6 +2550,12 @@ mail_outbound_sync() {
   rm -rf -- "$backup_dir"
 }
 
+mail_ssl_issue() {
+  [[ $# -eq 1 ]] || fail "Invalid mail SSL arguments."
+  [[ -n "${XPANEL_MAIL_HOSTNAME:-}" ]] || fail "Mail hostname is not configured."
+  bash "$ROOT/scripts/enable-webmail-ssl.sh"
+}
+
 mail_remove() {
   local domain="$2" local_part="$3"
   valid_domain "$domain" || fail "Invalid mail domain."
@@ -2714,6 +2720,7 @@ case "$ACTION" in
   access-remove) access_remove "$@" ;;
   mail-sync) mail_sync ;;
   mail-outbound-sync) mail_outbound_sync ;;
+  mail-ssl-issue) mail_ssl_issue "$@" ;;
   mail-remove) mail_remove "$@" ;;
   mail-remove-domain) mail_remove_domain "$@" ;;
   backup-create) backup_create "$@" ;;

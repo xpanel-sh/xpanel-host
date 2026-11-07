@@ -20,6 +20,8 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- El asistente DNS de correo usa un modal centrado y compacto, muestra el destino y la prioridad MX reales sin duplicar filas, y permite solicitar desde el panel el certificado compartido de Roundcube, SMTP e IMAP. XMail presenta un error controlado si IMAP no está disponible y su acceso recupera el ancho del diseño de autenticación.
+- Roundcube se instala y configura automáticamente sobre el hostname canónico de correo en instalaciones administradas; las actualizaciones rápidas reutilizan sus paquetes existentes y no repiten la instalación del sistema.
 - La transición de PHP a Node.js prepara una aplicación inicial funcional para sitios vacíos, evita el 502 transitorio del panel administrado y conserva los archivos existentes del cliente.
 - La raíz pública `public` para Laravel y el flujo de activación de la terminal iKode quedan explicados con claridad; la consola muestra un error visible si su componente no pudo cargarse.
 - El gestor de archivos traduce los rechazos 413 y otros errores de carga a mensajes legibles, sin imprimir páginas HTML internas de Nginx.

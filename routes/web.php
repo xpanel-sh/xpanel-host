@@ -182,6 +182,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/mail/{mailAccount}/password', [MailController::class, 'resetPassword'])->name('mail.reset-password');
             Route::put('/mail/{mailAccount}/limits', [MailController::class, 'updateLimits'])->name('mail.update-limits');
             Route::put('/mail/domains/{domain}/settings', [DomainMailSettingsController::class, 'update'])->name('mail.domains.settings');
+            Route::post('/mail/ssl', [MailController::class, 'enableSsl'])->middleware('throttle:3,1')->name('mail.ssl.enable');
 
             Route::post('/server-ip-addresses', [ServerIpAddressController::class, 'store'])->name('server-ip-addresses.store');
             Route::delete('/server-ip-addresses/{serverIpAddress}', [ServerIpAddressController::class, 'destroy'])->name('server-ip-addresses.destroy');

@@ -65,6 +65,20 @@ class XMailTest extends TestCase
         ])->assertRedirect(route('xmail.login'))->assertSessionHasErrors(['email']);
     }
 
+    public function test_imap_runtime_failure_returns_a_useful_error_instead_of_a_500(): void
+    {
+        $account = $this->account('alice');
+        $mail = Mockery::mock(XMailService::class);
+        $mail->shouldReceive('authenticate')->once()->andThrow(new \RuntimeException('imap_open is unavailable'));
+        $this->app->instance(XMailService::class, $mail);
+
+        $this->from(route('xmail.login'))->post(route('xmail.authenticate'), [
+            'email' => $account->email,
+            'password' => 'mailbox-secret-123',
+        ])->assertRedirect(route('xmail.login'))
+            ->assertSessionHasErrors(['email']);
+    }
+
     public function test_api_requires_a_mailbox_session(): void
     {
         $this->getJson(route('xmail.api.folders'))->assertUnauthorized();

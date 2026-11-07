@@ -25,7 +25,7 @@ DATABASE="$DATA_ROOT/roundcube.sqlite"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid Roundcube version." >&2; exit 1; }
 [[ "$WEBMAIL_HOSTNAME" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])$ ]] || { echo "XPANEL_WEBMAIL_HOSTNAME must be a valid hostname." >&2; exit 1; }
 
-if command -v apt-get >/dev/null 2>&1; then
+if command -v apt-get >/dev/null 2>&1 && [[ "${XPANEL_SKIP_PACKAGES:-false}" != "true" ]]; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     ca-certificates curl tar php-intl php-gd php-imap php-sqlite3 php-mbstring php-xml php-curl php-zip
 fi

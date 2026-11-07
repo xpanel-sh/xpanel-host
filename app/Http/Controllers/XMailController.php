@@ -41,7 +41,17 @@ class XMailController extends Controller
             ->whereHas('domain', fn ($query) => $query->whereRaw('LOWER(domain) = ?', [$domain]))
             ->first();
 
-        if ($account === null || ! $mail->authenticate($email, $data['password'])) {
+        try {
+            $authenticated = $account !== null && $mail->authenticate($email, $data['password']);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->withInput(['email' => $email])->withErrors([
+                'email' => 'XMail no pudo conectar con IMAP. Actualiza o repara los servicios de correo e inténtalo nuevamente.',
+            ]);
+        }
+
+        if (! $authenticated) {
             return back()->withInput(['email' => $email])->withErrors(['email' => 'Correo o contraseña incorrectos.']);
         }
 
