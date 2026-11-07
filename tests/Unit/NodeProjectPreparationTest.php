@@ -17,6 +17,11 @@ class NodeProjectPreparationTest extends TestCase
         $this->assertStringContainsString('runuser -u "$site_user" -- env', $helper);
         $this->assertStringContainsString('install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache', $helper);
         $this->assertStringContainsString('chown_site_content "$cache_dir" "$site_user"', $helper);
+        $this->assertStringContainsString('setfacl -m "u:$site_user:--x" "$ACCOUNT_HOME/.cache" "$ACCOUNT_HOME/.cache/npm"', $helper);
+        $this->assertLessThan(
+            strpos($helper, 'chown_site_content "$cache_dir" "$site_user"'),
+            strpos($helper, 'flock -n 8 || fail "Another Node.js preparation is already running for this site."'),
+        );
         $this->assertStringContainsString('node_project_prepare "$domain" "$document_root" "$site_user" "$runtime_port"', $helper);
     }
 

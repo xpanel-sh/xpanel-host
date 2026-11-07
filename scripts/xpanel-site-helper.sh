@@ -626,10 +626,18 @@ node_project_prepare() {
   valid_site_identity "$site_user" || fail "Invalid Node.js project identity."
   [[ -f "$document_root/package.json" && ! -L "$document_root/package.json" ]] || return 0
 
+  exec 8>"/run/lock/xpanel-node-project-$domain.lock"
+  flock -n 8 || fail "Another Node.js preparation is already running for this site."
+
   install -d -o root -g root -m 0755 /var/lib/xpanel-host/node-state "$state_dir"
   if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
     [[ ! -L "$ACCOUNT_HOME/.cache" && ! -L "$ACCOUNT_HOME/.cache/npm" && ! -L "$cache_dir" ]] || fail "Unsafe managed npm cache path."
     install -d -o root -g "$SITE_GROUP" -m 0750 "$ACCOUNT_HOME/.cache" "$ACCOUNT_HOME/.cache/npm"
+    # Each website has a distinct Unix identity. Its private cache may be
+    # owned correctly while npm still receives EACCES traversing the root-owned
+    # parent directories. Grant only traversal to this site identity; the
+    # account and other sites do not gain access to the cache contents.
+    setfacl -m "u:$site_user:--x" "$ACCOUNT_HOME/.cache" "$ACCOUNT_HOME/.cache/npm"
   else
     install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache
   fi
@@ -638,8 +646,6 @@ node_project_prepare() {
   # recreating the top directory does not repair those entries and npm then
   # aborts with EACCES. This cache is private to the validated site identity.
   chown_site_content "$cache_dir" "$site_user"
-  exec 8>"/run/lock/xpanel-node-project-$domain.lock"
-  flock -n 8 || fail "Another Node.js preparation is already running for this site."
 
   dependency_source="$document_root/package.json"
   install_mode=install
