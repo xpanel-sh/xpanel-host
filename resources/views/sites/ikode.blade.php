@@ -1243,7 +1243,7 @@
                                     @if($webTerminalEnabled)
                                         <div id="xpanel_terminal_mounts" class="xpanel-terminal-mounts"></div>
                                     @else
-                                        <div class="xpanel-terminal-disabled">{{ config('xpanel.management_mode') === 'vps-instance' ? 'La terminal de esta instancia aún no está habilitada por XPanel VPS. Los archivos sí permanecen limitados a este hosting.' : ($site ? 'Terminal desactivada. Actívala en Avanzado → Acceso SSH después de instalar el agente Linux.' : 'La terminal requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.') }}</div>
+                                        <div class="xpanel-terminal-disabled">{{ $site ? 'Terminal desactivada. Actívala en Avanzado → Acceso SSH → Terminal iKode y vuelve a cargar esta página.' : 'La terminal requiere la instalación nativa del agente en Linux; no se conecta durante la vista local.' }}</div>
                                     @endif
                                 </section>
                                 <aside class="xpanel-terminal-sidebar ikode_hidden" id="xpanel_terminal_sidebar" aria-label="Sesiones de terminal"><div class="xpanel-terminal-list" id="xpanel_terminal_list"></div></aside>
@@ -3585,7 +3585,16 @@
                         resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {});
                         return;
                     }
-                    reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
+                    if (xhr.status === 413) {
+                        reject(new Error('El archivo supera el límite de carga del panel. Actualiza o repara la instancia para aplicar el límite administrado de 2 GB.'));
+                        return;
+                    }
+                    let message = `No se pudo subir el archivo (HTTP ${xhr.status}).`;
+                    try {
+                        const payload = JSON.parse(xhr.responseText || '{}');
+                        message = payload.message || Object.values(payload.errors || {}).flat()[0] || message;
+                    } catch { /* Nginx may return an HTML error page; do not expose it in the UI. */ }
+                    reject(new Error(message));
                 };
                 xhr.onerror = () => reject(new Error('Error de red al subir archivo'));
                 xhr.send(form);
@@ -4111,7 +4120,11 @@
             const ensureRealTerminal = (terminal) => {
                 if (!terminal || terminal.disposed || terminal.term) return;
                 const mounts = $('#xpanel_terminal_mounts');
-                if (!mounts || typeof Terminal === 'undefined' || typeof FitAddon === 'undefined') return;
+                if (!mounts) return;
+                if (typeof Terminal === 'undefined' || typeof FitAddon === 'undefined') {
+                    mounts.innerHTML = '<div class="xpanel-terminal-disabled text-destructive">No se pudo cargar el componente de terminal. Comprueba el acceso a cdn.jsdelivr.net y recarga iKode.</div>';
+                    return;
+                }
 
                 const mount = document.createElement('div');
                 mount.className = 'xpanel-terminal-mount';
@@ -4184,8 +4197,22 @@
                     const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const socket = new WebSocket(`${scheme}//${location.host}${path}?token=${encodeURIComponent(token)}&user=${encodeURIComponent(systemUser)}`);
                     terminal.socket = socket;
+                    let socketOpened = false;
+                    let socketErrorShown = false;
+                    const showSocketError = (message) => {
+                        if (socketErrorShown || terminal.socket !== socket) return;
+                        socketErrorShown = true;
+                        terminal.term.write(`\r\n\x1b[31m${message}\x1b[0m\r\n`);
+                    };
+                    const connectionTimeout = window.setTimeout(() => {
+                        if (terminal.socket !== socket || socket.readyState !== WebSocket.CONNECTING) return;
+                        showSocketError('La terminal no respondió en 12 segundos. Revisa el agente y vuelve a conectar.');
+                        socket.close();
+                    }, 12000);
                     socket.onopen = () => {
                         if (terminal.socket !== socket) return;
+                        socketOpened = true;
+                        window.clearTimeout(connectionTimeout);
                         setTerminalStatus(terminal, 'Conectado');
                         requestAnimationFrame(() => {
                             terminal.fitAddon?.fit();
@@ -4201,12 +4228,17 @@
                     };
                     socket.onclose = () => {
                         if (terminal.socket !== socket) return;
+                        window.clearTimeout(connectionTimeout);
+                        if (!socketOpened) showSocketError('No se pudo abrir la sesión SSH. Comprueba Acceso SSH → Terminal iKode y vuelve a conectar.');
                         terminal.socket = null;
                         terminal.connecting = false;
                         setTerminalStatus(terminal, 'Desconectado');
                     };
                     socket.onerror = () => {
-                        if (terminal.socket === socket) setTerminalStatus(terminal, 'Error de conexión');
+                        if (terminal.socket !== socket) return;
+                        window.clearTimeout(connectionTimeout);
+                        showSocketError('No se pudo conectar con el agente de terminal de esta instancia.');
+                        setTerminalStatus(terminal, 'Error de conexión');
                     };
                 } catch (error) {
                     if (terminal.disposed) return;

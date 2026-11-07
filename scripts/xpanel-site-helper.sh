@@ -237,7 +237,10 @@ remove_legacy_managed_apache_vhost() {
 # graceful reload outside the request instead.
 defer_service_reload() {
   local service="$1"
-  systemd-run --quiet --collect --on-active=2s /bin/systemctl reload "$service"
+  # A managed Host panel shares this FPM master with its site pools. Give the
+  # response and the following redirect enough time to finish before the
+  # graceful reload, otherwise the browser can land on a short-lived 502.
+  systemd-run --quiet --collect --on-active=8s /bin/systemctl reload "$service"
 }
 
 fpm_pool_path() {
@@ -672,6 +675,58 @@ node_project_prepare() {
   fi
 }
 
+node_starter_prepare() {
+  local document_root="$1" site_user="$2" display_name="$3"
+  local welcome_template="$ROOT/resources/site-templates/welcome.php" welcome_temp=""
+  valid_document_root "$document_root" || fail "Invalid Node.js starter root."
+  valid_site_identity "$site_user" || fail "Invalid Node.js starter identity."
+
+  # Never replace an application supplied by the customer. An empty project
+  # (including a site that only has XPanel's former index.php welcome page)
+  # receives a dependency-free Node starter so switching runtimes cannot leave
+  # Nginx proxying to a process that does not exist.
+  if [[ ! -f "$document_root/package.json" && ! -e "$document_root/server.js" ]]; then
+    cat > "$document_root/package.json" <<'JSON'
+{
+  "private": true,
+  "scripts": { "start": "node server.js" }
+}
+JSON
+    cat > "$document_root/server.js" <<'JS'
+'use strict';
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = fs.realpathSync(__dirname);
+const types = { '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' };
+http.createServer((request, response) => {
+  let pathname;
+  try { pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname); } catch { response.writeHead(400).end('Bad request'); return; }
+  const requested = pathname.endsWith('/') ? pathname + 'index.html' : pathname;
+  const file = path.resolve(root, '.' + requested);
+  if (file !== root && !file.startsWith(root + path.sep)) { response.writeHead(403).end('Forbidden'); return; }
+  fs.stat(file, (error, stat) => {
+    if (error || !stat.isFile()) { response.writeHead(404).end('Not found'); return; }
+    response.writeHead(200, { 'Content-Type': types[path.extname(file).toLowerCase()] || 'application/octet-stream', 'X-Content-Type-Options': 'nosniff' });
+    fs.createReadStream(file).pipe(response);
+  });
+}).listen(Number(process.env.PORT || 3000), '127.0.0.1');
+JS
+    chown "$site_user:$site_user" "$document_root/package.json" "$document_root/server.js"
+    chmod 0644 "$document_root/package.json" "$document_root/server.js"
+  fi
+
+  if [[ ! -e "$document_root/index.html" ]]; then
+    [[ -f "$welcome_template" && ! -L "$welcome_template" ]] || fail "Default site page is unavailable."
+    welcome_temp="$(mktemp /tmp/xpanel-node-welcome.XXXXXX)"
+    php -r '$template = file_get_contents($argv[1]); if ($template === false) { exit(1); } file_put_contents($argv[2], str_replace("__XPANEL_DISPLAY_NAME__", htmlspecialchars($argv[3], ENT_QUOTES | ENT_SUBSTITUTE, "UTF-8"), $template));' "$welcome_template" "$welcome_temp" "$display_name"
+    chown "$site_user:$site_user" "$welcome_temp"
+    chmod 0644 "$welcome_temp"
+    mv -n -- "$welcome_temp" "$document_root/index.html"
+    [[ ! -e "$welcome_temp" ]] || rm -f -- "$welcome_temp"
+  fi
+}
+
 site_action() {
   local domain="$2" engine="$3" type="$4" php_version="$5" document_root="$6" site_user="$7"
   local web_root="${8:-$document_root}"
@@ -808,6 +863,9 @@ site_action() {
     if [[ "$site_status" == "active" ]]; then
       systemctl enable "$node_unit" >/dev/null
       node_exec="$(grep '^ExecStart=' "$node_source" | cut -d= -f2-)"
+      if [[ "$node_exec" == "/usr/local/bin/npm start" ]]; then
+        node_starter_prepare "$document_root" "$site_user" "$display_name"
+      fi
       if [[ "$node_exec" == "/usr/local/bin/npm "* && ! -f "$document_root/package.json" ]]; then
         systemctl stop "$node_unit" >/dev/null 2>&1 || true
         printf 'runtime_status=pending-files\n'

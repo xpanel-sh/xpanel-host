@@ -20,6 +20,9 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- La transición de PHP a Node.js prepara una aplicación inicial funcional para sitios vacíos, evita el 502 transitorio del panel administrado y conserva los archivos existentes del cliente.
+- La raíz pública `public` para Laravel y el flujo de activación de la terminal iKode quedan explicados con claridad; la consola muestra un error visible si su componente no pudo cargarse.
+- El gestor de archivos traduce los rechazos 413 y otros errores de carga a mensajes legibles, sin imprimir páginas HTML internas de Nginx.
 - Las operaciones privilegiadas de una instancia aceptan una CA fallback explícita únicamente cuando el broker usa la IP configurada del VPS; al cambiar a un dominio público se conserva la verificación TLS normal del sistema.
 - El instalador independiente guarda el idioma fuera del árbol Git, conserva limpio el repositorio y traslada automáticamente un checkout nuevo bajo `/root` a `/opt/xpanel-host`; el script vuelve a publicarse como ejecutable.
 - La verificación final autoriza Composer de forma no interactiva cuando se ejecuta como `root`; actualizar desde SSH o desde la web ya no se detiene esperando `Continue as root/super user [yes]?`.

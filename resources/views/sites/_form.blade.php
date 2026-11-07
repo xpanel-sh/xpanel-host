@@ -64,7 +64,7 @@
         <label class="flex flex-col gap-2 md:col-span-2" data-site-public-path @if ($selectedType === 'node') hidden @endif>
             <span class="kt-form-label font-normal text-mono">Subcarpeta pública <span class="text-secondary-foreground">(opcional)</span></span>
             <input class="kt-input font-mono" type="text" name="public_path" value="{{ old('public_path', $site->public_path ?? '') }}" placeholder="public"/>
-            <span class="kt-form-description">Úsala cuando el servidor web deba publicar sólo una carpeta, como <code>public</code> en Laravel.</span>
+            <span class="kt-form-description">Úsala cuando el servidor web deba publicar sólo una carpeta. En Laravel escribe <code>public</code>: Archivos seguirá mostrando el proyecto completo, pero la web servirá únicamente esa carpeta.</span>
         </label>
     </div>
     @else
@@ -80,7 +80,7 @@
         <label class="flex flex-col gap-2 md:col-span-2" data-site-public-path @if ($selectedType === 'node') hidden @endif>
             <span class="kt-form-label font-normal text-mono">Subcarpeta pública <span class="text-secondary-foreground">(opcional)</span></span>
             <input class="kt-input max-w-xl font-mono" type="text" name="public_path" value="{{ old('public_path', $site->public_path ?? '') }}" placeholder="public"/>
-            <span class="kt-form-description">Solo cambia qué carpeta publica el servidor web; la raíz protegida del entorno permanece fija.</span>
+            <span class="kt-form-description">Solo cambia qué carpeta publica el servidor web. En Laravel escribe <code>public</code>; Archivos seguirá abriendo el proyecto completo.</span>
         </label>
     </div>
     @endif

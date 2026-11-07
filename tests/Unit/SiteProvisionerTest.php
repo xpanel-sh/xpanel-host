@@ -23,6 +23,16 @@ class SiteProvisionerTest extends TestCase
         $this->assertStringContainsString('the remove command intentionally does not receive a', $helper);
     }
 
+    public function test_node_runtime_prepares_a_safe_default_application_for_an_empty_site(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+
+        $this->assertStringContainsString('node_starter_prepare()', $helper);
+        $this->assertStringContainsString('"start": "node server.js"', $helper);
+        $this->assertStringContainsString("listen(Number(process.env.PORT || 3000), '127.0.0.1')", $helper);
+        $this->assertStringContainsString('mv -n -- "$welcome_temp" "$document_root/index.html"', $helper);
+    }
+
     public function test_system_changes_use_the_narrow_sudo_helper_with_argument_array(): void
     {
         config()->set('xpanel.apply_system_changes', true);
