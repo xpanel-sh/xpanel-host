@@ -28,11 +28,21 @@ class HostBrokerClient
         $canonical = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $signature = hash_hmac('sha256', $canonical, $secret);
 
-        $response = Http::asJson()
+        $request = Http::asJson()
             ->acceptJson()
             ->timeout(300)
-            ->withHeaders(['X-XPanel-Signature' => $signature])
-            ->post($url, $payload);
+            ->withHeaders(['X-XPanel-Signature' => $signature]);
+
+        $ca = (string) config('xpanel.broker_ca');
+        $caHost = strtolower((string) config('xpanel.broker_ca_host'));
+        $urlHost = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($ca !== '' && $caHost !== '' && hash_equals($caHost, $urlHost) && is_file($ca) && is_readable($ca)) {
+            // Trust only XPanel's explicit fallback CA and only for the server
+            // IP it was generated for. Custom domains retain normal Web PKI.
+            $request = $request->withOptions(['verify' => $ca]);
+        }
+
+        $response = $request->post($url, $payload);
 
         if (! $response->successful()) {
             throw new RuntimeException((string) ($response->json('message') ?: 'XPanel VPS rechazó la operación privilegiada.'));
