@@ -103,10 +103,22 @@ chmod 0640 "$config_file"
 ln -sfn "$config_file" "$RELEASE_DIR/config/config.inc.php"
 
 php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
+certificate_dir="/etc/letsencrypt/live/$WEBMAIL_HOSTNAME"
+if [[ -f "$certificate_dir/fullchain.pem" && -f "$certificate_dir/privkey.pem" ]]; then
 cat > /etc/nginx/sites-available/xpanel-host-webmail.conf <<NGINX
 server {
     listen 80;
     server_name $WEBMAIL_HOSTNAME;
+    location ^~ /.well-known/acme-challenge/ { root /var/lib/letsencrypt; }
+    location / { return 301 https://\$host\$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    server_name $WEBMAIL_HOSTNAME;
+    ssl_certificate $certificate_dir/fullchain.pem;
+    ssl_certificate_key $certificate_dir/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
     root $INSTALL_ROOT/current/public_html;
     index index.php;
     client_max_body_size 25m;
@@ -127,6 +139,34 @@ server {
     }
 }
 NGINX
+else
+cat > /etc/nginx/sites-available/xpanel-host-webmail.conf <<NGINX
+server {
+    listen 80;
+    server_name $WEBMAIL_HOSTNAME;
+    root $INSTALL_ROOT/current/public_html;
+    index index.php;
+    client_max_body_size 25m;
+
+    location ^~ /.well-known/acme-challenge/ { root /var/lib/letsencrypt; }
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php(?:/|\$) {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php$php_version-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_read_timeout 300s;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}
+NGINX
+fi
 
 ln -sfn /etc/nginx/sites-available/xpanel-host-webmail.conf /etc/nginx/sites-enabled/xpanel-host-webmail.conf
 nginx -t

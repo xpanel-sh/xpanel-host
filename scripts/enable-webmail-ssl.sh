@@ -21,14 +21,35 @@ if [[ -n "$email" && ! "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]
   exit 1
 fi
 [[ -f /etc/nginx/sites-enabled/xpanel-host-webmail.conf ]] || { echo "Install Roundcube first." >&2; exit 1; }
+install -d -o root -g root -m 0755 /var/lib/letsencrypt/.well-known/acme-challenge
 
-certbot_args=(--nginx --non-interactive --agree-tos --no-eff-email --redirect --cert-name "$hostname" -d "$hostname")
+certbot_args=(certonly --webroot -w /var/lib/letsencrypt --non-interactive --agree-tos --no-eff-email --cert-name "$hostname" -d "$hostname")
 if [[ -n "$email" ]]; then
   certbot_args+=(-m "$email")
 else
   certbot_args+=(--register-unsafely-without-email)
 fi
 certbot "${certbot_args[@]}"
+
+# Certbot renews the files behind /etc/letsencrypt/live in place. Reload every
+# consumer after future renewals so the new certificate becomes effective
+# without requiring an administrator to revisit the panel.
+install -d -o root -g root -m 0755 /etc/letsencrypt/renewal-hooks/deploy
+cat > /etc/letsencrypt/renewal-hooks/deploy/xpanel-webmail-reload <<'HOOK'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+nginx -t
+postfix check
+doveconf -n >/dev/null
+systemctl reload nginx postfix dovecot
+HOOK
+chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/xpanel-webmail-reload
+
+# Rebuild the dedicated vhost with the newly issued certificate. This uses the
+# same HTTP-01 webroot method as managed sites and does not require Certbot's
+# optional Nginx plugin.
+XPANEL_SKIP_PACKAGES=true XPANEL_WEBMAIL_HOSTNAME="$hostname" \
+  bash "$ROOT/scripts/install-roundcube.sh"
 
 if [[ -f /etc/vsftpd.conf ]] && grep -q '^rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem$' /etc/vsftpd.conf; then
   sed -i "s|^rsa_cert_file=.*|rsa_cert_file=/etc/letsencrypt/live/$hostname/fullchain.pem|" /etc/vsftpd.conf

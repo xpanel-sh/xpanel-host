@@ -13,7 +13,7 @@ class MailDnsService
     {
         $name = strtolower($domain->domain);
         $dedicatedIp = $domain->mailSettings?->outbound_mode === 'dedicated' ? $domain->mailSettings->serverIpAddress : null;
-        $mailHostname = strtolower($dedicatedIp?->ptr_hostname ?? (string) config('xpanel.mail_hostname'));
+        $mailHostname = strtolower(rtrim($dedicatedIp?->ptr_hostname ?? (string) config('xpanel.mail_hostname'), '.'));
         $serverIpv4 = $dedicatedIp?->ip_address ?? (string) config('xpanel.server_ipv4');
         $selector = (string) config('xpanel.dkim_selector', 'xpanel');
         $dkimPath = storage_path("app/mail/dkim/{$name}.txt");

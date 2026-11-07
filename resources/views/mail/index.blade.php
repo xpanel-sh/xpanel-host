@@ -296,8 +296,8 @@
         ]));
     @endphp
     <div class="kt-modal" data-kt-modal="true" id="mail-dns-{{ $dnsDomain->id }}">
-      <div class="kt-modal-content max-w-[920px] max-h-[calc(100vh-2rem)]">
-        <div class="kt-modal-header px-5 py-4">
+      <div class="kt-modal-content max-w-[760px] max-h-[85vh]">
+        <div class="kt-modal-header px-4 py-3">
             <div>
                 <h2 class="text-lg font-semibold text-mono">DNS del correo · {{ $dnsDomain->domain }}</h2>
                 <p class="mt-0.5 text-xs text-secondary-foreground">Configura estos registros en Cloudflare o en el proveedor DNS del dominio.</p>
@@ -305,17 +305,17 @@
             <button type="button" class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim" data-kt-modal-dismiss="true" title="Cerrar"><i class="ki-filled ki-cross"></i></button>
         </div>
 
-        <div class="kt-modal-body grid gap-5 overflow-y-auto px-5 py-4">
-            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" data-dns-summary="{{ $dnsDomain->id }}">
+        <div class="kt-modal-body grid gap-3 overflow-y-auto px-4 py-3">
+            <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4" data-dns-summary="{{ $dnsDomain->id }}">
                 @foreach (['mx' => 'MX', 'a' => 'A', 'spf' => 'SPF', 'dkim' => 'DKIM', 'dmarc' => 'DMARC', 'ptr' => 'PTR', 'ssl' => 'SSL'] as $key => $label)
-                    <div class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-center">
+                    <div class="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
                         <div class="text-xs font-semibold text-mono">{{ $label }}</div>
                         <div class="mt-1 text-xs text-secondary-foreground" data-dns-status="{{ $dnsDomain->id }}:{{ $key }}"><i class="ki-filled ki-time"></i> Sin verificar</div>
                     </div>
                 @endforeach
             </div>
 
-            <div class="rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-sm text-warning">
+            <div class="rounded-xl border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">
                 <strong>Cloudflare:</strong> el registro de <code>{{ $records['mail_hostname'] }}</code> debe estar en <strong>DNS only</strong> (nube gris). El proxy naranja no transporta SMTP ni IMAP.
             </div>
 
@@ -351,7 +351,7 @@
                 </section>
             @endif
 
-            <section class="grid gap-3 rounded-xl border border-border p-4">
+            <section class="grid gap-2 rounded-xl border border-border p-3">
                 <div>
                     <h3 class="font-semibold text-mono">Paso 1: servidor y recepción</h3>
                     <p class="mt-1 text-sm text-secondary-foreground">El hostname de correo debe apuntar al servidor y el MX del dominio debe dirigir los mensajes hacia él.</p>
@@ -376,7 +376,7 @@
                 @endif
             </section>
 
-            <section class="grid gap-3 rounded-xl border border-border p-4">
+            <section class="grid gap-2 rounded-xl border border-border p-3">
                 <div>
                     <h3 class="font-semibold text-mono">Paso 2: autenticación y reputación</h3>
                     <p class="mt-1 text-sm text-secondary-foreground">Agrega los TXT exactamente como aparecen. DKIM firma realmente los mensajes mediante OpenDKIM.</p>
@@ -401,7 +401,7 @@
                 @endif
             </section>
 
-            <section class="grid gap-3 rounded-xl border border-border p-4">
+            <section class="grid gap-2 rounded-xl border border-border p-3">
                 <div>
                     <h3 class="font-semibold text-mono">Paso 3: PTR y certificado</h3>
                     <p class="mt-1 text-sm text-secondary-foreground">Solicita al proveedor del VDS que la IP <code>{{ $records['server_ipv4'] ?: 'IP_DEL_SERVIDOR' }}</code> tenga PTR hacia <code>{{ $records['mail_hostname'] }}</code>. El PTR no se configura en Cloudflare.</p>
@@ -415,7 +415,7 @@
             </section>
         </div>
 
-        <div class="kt-modal-footer flex items-center justify-between gap-3 px-5 py-4">
+        <div class="kt-modal-footer flex items-center justify-between gap-3 px-4 py-3">
             <span class="text-xs text-secondary-foreground" data-dns-result="{{ $dnsDomain->id }}">Los cambios DNS pueden tardar en propagarse.</span>
             <button type="button" class="kt-btn kt-btn-primary" data-verify-dns="{{ route('mail.dns-status', $dnsDomain) }}" data-domain-id="{{ $dnsDomain->id }}"><i class="ki-filled ki-arrows-circle"></i> Verificar registros</button>
         </div>

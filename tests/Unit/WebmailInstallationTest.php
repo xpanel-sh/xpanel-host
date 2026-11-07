@@ -26,6 +26,8 @@ class WebmailInstallationTest extends TestCase
         $this->assertStringContainsString('public_html', $script);
         $this->assertStringContainsString("enable_installer'] = false", $script);
         $this->assertStringContainsString('XPANEL_SKIP_PACKAGES', $script);
+        $this->assertStringContainsString('listen 443 ssl;', $script);
+        $this->assertStringContainsString('/.well-known/acme-challenge/', $script);
     }
 
     public function test_mail_ssl_uses_the_instance_environment_and_is_available_through_the_helper(): void
@@ -35,6 +37,10 @@ class WebmailInstallationTest extends TestCase
 
         $this->assertStringContainsString('XPANEL_INSTANCE_ROOT', $ssl);
         $this->assertStringContainsString('XPANEL_MAIL_HOSTNAME', $ssl);
+        $this->assertStringContainsString('certonly --webroot', $ssl);
+        $this->assertStringNotContainsString('--nginx', $ssl);
+        $this->assertStringContainsString('renewal-hooks/deploy/xpanel-webmail-reload', $ssl);
+        $this->assertStringContainsString('systemctl reload nginx postfix dovecot', $ssl);
         $this->assertStringContainsString('mail-ssl-issue', $helper);
     }
 

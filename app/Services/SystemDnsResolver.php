@@ -2,14 +2,51 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
+
 class SystemDnsResolver
 {
     /** @return array<int, array<string, mixed>> */
     public function records(string $hostname, int $type): array
     {
+        // MX changes are especially prone to stale caches in the VPS resolver.
+        // The verifier is explicitly checking public DNS, so prefer a public
+        // recursive answer and retain the native resolver as an offline fallback.
+        if ($type === DNS_MX && ($public = $this->publicMxRecords($hostname)) !== null) {
+            return $public;
+        }
+
         $records = @dns_get_record($hostname, $type);
 
         return is_array($records) ? $records : [];
+    }
+
+    /** @return array<int, array{target: string, pri: int}>|null */
+    private function publicMxRecords(string $hostname): ?array
+    {
+        try {
+            $response = Http::withHeaders(['Accept' => 'application/dns-json'])->timeout(4)->get('https://cloudflare-dns.com/dns-query', [
+                'name' => $hostname,
+                'type' => 'MX',
+            ]);
+            if (! $response->successful() || (int) $response->json('Status', -1) !== 0) {
+                return null;
+            }
+
+            return collect($response->json('Answer', []))->map(function (mixed $answer): ?array {
+                $data = is_array($answer) ? trim((string) ($answer['data'] ?? '')) : '';
+                if (! preg_match('/^(\d+)\s+(.+)$/', $data, $matches)) {
+                    return null;
+                }
+
+                return [
+                    'target' => strtolower(rtrim($matches[2], '.')),
+                    'pri' => (int) $matches[1],
+                ];
+            })->filter()->values()->all();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function reverse(string $ip): ?string
