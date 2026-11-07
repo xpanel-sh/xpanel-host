@@ -166,6 +166,23 @@ class MailManagementTest extends TestCase
             ->assertSessionHas('status');
     }
 
+    public function test_mail_ssl_retries_are_not_blocked_by_an_http_rate_limiter(): void
+    {
+        config()->set('xpanel.mail_hostname', 'mail.example.com');
+        config()->set('xpanel.site_helper', '/usr/local/libexec/xpanel-site-helper');
+        $commands = Mockery::mock(ServerCommandRunner::class);
+        $commands->shouldReceive('run')->times(4)->andReturn('SSL enabled');
+        $this->app->instance(ServerCommandRunner::class, $commands);
+        $user = $this->userWithRole('owner');
+
+        foreach (range(1, 4) as $_) {
+            $this->actingAs($user)
+                ->post(route('mail.ssl.enable'))
+                ->assertRedirect()
+                ->assertSessionHas('status');
+        }
+    }
+
     public function test_dns_status_is_unavailable_for_a_domain_without_mailboxes(): void
     {
         $domain = $this->domain();

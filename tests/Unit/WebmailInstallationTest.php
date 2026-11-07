@@ -41,6 +41,7 @@ class WebmailInstallationTest extends TestCase
         $this->assertStringNotContainsString('--nginx', $ssl);
         $this->assertStringContainsString('renewal-hooks/deploy/xpanel-webmail-reload', $ssl);
         $this->assertStringContainsString('systemctl reload nginx postfix dovecot', $ssl);
+        $this->assertStringContainsString('flock -n 9', $ssl);
         $this->assertStringContainsString('mail-ssl-issue', $helper);
     }
 

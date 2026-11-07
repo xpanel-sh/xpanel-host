@@ -296,8 +296,8 @@
         ]));
     @endphp
     <div class="kt-modal" data-kt-modal="true" id="mail-dns-{{ $dnsDomain->id }}">
-      <div class="kt-modal-content max-w-[760px] max-h-[85vh]">
-        <div class="kt-modal-header px-4 py-3">
+      <div class="kt-modal-content flex h-[68vh] max-h-[560px] min-h-0 w-[calc(100%_-_1.5rem)] max-w-[560px] flex-col overflow-hidden">
+        <div class="kt-modal-header shrink-0 px-4 py-3">
             <div>
                 <h2 class="text-lg font-semibold text-mono">DNS del correo · {{ $dnsDomain->domain }}</h2>
                 <p class="mt-0.5 text-xs text-secondary-foreground">Configura estos registros en Cloudflare o en el proveedor DNS del dominio.</p>
@@ -305,7 +305,7 @@
             <button type="button" class="kt-btn kt-btn-sm kt-btn-icon kt-btn-dim" data-kt-modal-dismiss="true" title="Cerrar"><i class="ki-filled ki-cross"></i></button>
         </div>
 
-        <div class="kt-modal-body grid gap-3 overflow-y-auto px-4 py-3">
+        <div class="kt-modal-body grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 py-3">
             <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4" data-dns-summary="{{ $dnsDomain->id }}">
                 @foreach (['mx' => 'MX', 'a' => 'A', 'spf' => 'SPF', 'dkim' => 'DKIM', 'dmarc' => 'DMARC', 'ptr' => 'PTR', 'ssl' => 'SSL'] as $key => $label)
                     <div class="rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
@@ -409,13 +409,13 @@
                 <div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-secondary-foreground sm:flex-row sm:items-center sm:justify-between">
                     <span>Certificado esperado: <strong>Let's Encrypt para {{ $records['mail_hostname'] }}</strong>. XPanel lo instalará en Nginx, SMTP e IMAP.</span>
                     @if ($canManage)
-                        <form method="POST" action="{{ route('mail.ssl.enable') }}" class="shrink-0">@csrf<button type="submit" class="kt-btn kt-btn-primary kt-btn-sm"><i class="ki-filled ki-security-check"></i> Configurar SSL</button></form>
+                        <form method="POST" action="{{ route('mail.ssl.enable') }}" class="shrink-0" data-mail-ssl-form>@csrf<button type="submit" class="kt-btn kt-btn-primary kt-btn-sm"><i class="ki-filled ki-security-check"></i> <span>Configurar SSL</span></button></form>
                     @endif
                 </div>
             </section>
         </div>
 
-        <div class="kt-modal-footer flex items-center justify-between gap-3 px-4 py-3">
+        <div class="kt-modal-footer shrink-0 flex items-center justify-between gap-3 px-4 py-3">
             <span class="text-xs text-secondary-foreground" data-dns-result="{{ $dnsDomain->id }}">Los cambios DNS pueden tardar en propagarse.</span>
             <button type="button" class="kt-btn kt-btn-primary" data-verify-dns="{{ route('mail.dns-status', $dnsDomain) }}" data-domain-id="{{ $dnsDomain->id }}"><i class="ki-filled ki-arrows-circle"></i> Verificar registros</button>
         </div>
@@ -432,6 +432,16 @@ document.querySelectorAll('[data-copy]').forEach((button) => {
         const label = button.textContent;
         button.textContent = 'Copiado';
         setTimeout(() => button.textContent = label, 1200);
+    });
+});
+
+document.querySelectorAll('[data-mail-ssl-form]').forEach((form) => {
+    form.addEventListener('submit', () => {
+        const button = form.querySelector('button[type="submit"]');
+        if (!button) return;
+        button.disabled = true;
+        const label = button.querySelector('span');
+        if (label) label.textContent = 'Configurando…';
     });
 });
 

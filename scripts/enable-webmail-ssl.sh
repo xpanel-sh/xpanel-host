@@ -21,6 +21,8 @@ if [[ -n "$email" && ! "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]
   exit 1
 fi
 [[ -f /etc/nginx/sites-enabled/xpanel-host-webmail.conf ]] || { echo "Install Roundcube first." >&2; exit 1; }
+exec 9>/run/lock/xpanel-webmail-ssl.lock
+flock -n 9 || { echo "Another webmail SSL operation is already running." >&2; exit 1; }
 install -d -o root -g root -m 0755 /var/lib/letsencrypt/.well-known/acme-challenge
 
 certbot_args=(certonly --webroot -w /var/lib/letsencrypt --non-interactive --agree-tos --no-eff-email --cert-name "$hostname" -d "$hostname")
