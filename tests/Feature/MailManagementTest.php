@@ -130,6 +130,8 @@ class MailManagementTest extends TestCase
             ->assertOk()
             ->assertSee('DNS del correo')
             ->assertSee('data-kt-modal="true"', false)
+            ->assertSee('kt-modal-content max-w-[500px]', false)
+            ->assertSee('kt-modal-body max-h-[400px]', false)
             ->assertSee('mail.example.com')
             ->assertSee('prioridad 10')
             ->assertSee('xpanel._domainkey')
