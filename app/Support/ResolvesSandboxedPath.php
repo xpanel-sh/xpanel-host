@@ -175,7 +175,7 @@ trait ResolvesSandboxedPath
         abort_unless($zip->open($path) === true, 422, 'No se pudo abrir el archivo comprimido.');
 
         $count = $zip->numFiles;
-        abort_if($count > 5000, 422, 'El archivo comprimido contiene demasiados elementos.');
+        abort_if($count > 100000, 422, 'El archivo comprimido supera el límite seguro de 100 000 elementos.');
 
         $destination = dirname($path);
         $totalBytes = 0;
@@ -201,7 +201,7 @@ trait ResolvesSandboxedPath
             }
 
             $totalBytes += (int) ($stat['size'] ?? 0);
-            abort_if($totalBytes > 512 * 1024 * 1024, 422, 'El contenido descomprimido supera el limite de 512 MB.');
+            abort_if($totalBytes > 2 * 1024 * 1024 * 1024, 422, 'El contenido descomprimido supera el límite seguro de 2 GB.');
 
             if (! str_ends_with($entry, '/') && file_exists($destination.'/'.$entry)) {
                 $conflicts[] = $entry;

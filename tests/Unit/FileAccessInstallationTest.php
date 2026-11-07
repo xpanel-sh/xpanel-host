@@ -69,6 +69,7 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('"d:u:$SITE_USER:rwx"', $helper);
         $this->assertStringContainsString('grant_panel_file_access "$document_root"', $helper);
         $this->assertStringContainsString('ownership_sync_path()', $helper);
+        $this->assertStringContainsString('grant_panel_file_access "$web_root"', $helper);
         $this->assertStringContainsString('ownership-sync-path) ownership_sync_path "$@"', $helper);
     }
 

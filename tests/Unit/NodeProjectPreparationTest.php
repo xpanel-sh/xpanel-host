@@ -16,6 +16,7 @@ class NodeProjectPreparationTest extends TestCase
         $this->assertStringContainsString('/usr/local/bin/npm --prefix "$document_root" run build', $helper);
         $this->assertStringContainsString('runuser -u "$site_user" -- env', $helper);
         $this->assertStringContainsString('install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache', $helper);
+        $this->assertStringContainsString('chown_site_content "$cache_dir" "$site_user"', $helper);
         $this->assertStringContainsString('node_project_prepare "$domain" "$document_root" "$site_user" "$runtime_port"', $helper);
     }
 

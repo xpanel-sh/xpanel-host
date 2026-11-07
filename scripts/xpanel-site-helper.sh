@@ -634,6 +634,10 @@ node_project_prepare() {
     install -d -o root -g root -m 0755 /var/lib/xpanel-host/npm-cache
   fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$cache_dir"
+  # Older releases could leave nested npm cache objects owned by root. Merely
+  # recreating the top directory does not repair those entries and npm then
+  # aborts with EACCES. This cache is private to the validated site identity.
+  chown_site_content "$cache_dir" "$site_user"
   exec 8>"/run/lock/xpanel-node-project-$domain.lock"
   flock -n 8 || fail "Another Node.js preparation is already running for this site."
 
@@ -811,6 +815,9 @@ site_action() {
     setfacl -m "u:$ACCOUNT_USER:r" "$account_log_dir/access.log" "$account_log_dir/error.log"
   fi
   install -d -o "$site_user" -g "$site_user" -m 0750 "$web_root"
+  # public_path can be created only now (for example when changing a Node site
+  # to Laravel). Grant the account terminal and iKode access after it exists.
+  grant_panel_file_access "$web_root"
   if [[ "$type" == "php" ]]; then
     if [[ "$engine" != "openlitespeed" ]]; then
       [[ -f "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
