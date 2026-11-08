@@ -37,4 +37,17 @@ class DatabaseEngineManagerTest extends TestCase
         (new DatabaseEngineManager($runner))->setDbGateEnabled(false);
         $this->addToAssertionCount(1);
     }
+
+    public function test_install_rejects_a_false_success_status(): void
+    {
+        config()->set('xpanel.apply_system_changes', true);
+        config()->set('xpanel.management_mode', 'standalone');
+        config()->set('xpanel.site_helper', '/opt/xpanel-host/scripts/xpanel-site-helper.sh');
+        $runner = Mockery::mock(ServerCommandRunner::class);
+        $runner->shouldReceive('run')->once()->andReturn("installed=false\nenabled=true\nversion=");
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('no quedó disponible');
+        (new DatabaseEngineManager($runner))->install('dbgate');
+    }
 }

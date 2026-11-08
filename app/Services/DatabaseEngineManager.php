@@ -64,9 +64,15 @@ class DatabaseEngineManager
         if (! config('xpanel.apply_system_changes')) {
             throw new RuntimeException('La instalación solo está disponible en el servidor Linux.');
         }
-        $this->commands->run([
+        $output = $this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'database-engine-install', $engine,
         ], null, 1800);
+        $metadata = $this->metadata($output);
+        if (($metadata['installed'] ?? 'false') !== 'true') {
+            throw new RuntimeException($engine === 'dbgate'
+                ? 'npm terminó, pero DbGate no quedó disponible en /usr/local/bin/dbgate-serve.'
+                : 'La instalación terminó, pero el motor no quedó disponible.');
+        }
     }
 
     public function setDbGateEnabled(bool $enabled): void

@@ -1949,8 +1949,11 @@ database_engine_status() {
       if command -v mongosh >/dev/null 2>&1 && systemctl is-active --quiet mongod; then installed=true; version="$(mongosh --version | head -n1)"; fi ;;
     dbgate)
       if dbgate_executable >/dev/null; then
+        local executable prefix
         installed=true
-        version="$(npm list -g dbgate-serve --depth=0 2>/dev/null | sed -nE 's/.*dbgate-serve@([^ ]+).*/\1/p' | head -n1 || true)"
+        executable="$(dbgate_executable)"
+        prefix="$(dirname "$(dirname "$executable")")"
+        version="$(npm list --global --prefix "$prefix" dbgate-serve --depth=0 2>/dev/null | sed -nE 's/.*dbgate-serve@([^ ]+).*/\1/p' | head -n1 || true)"
       fi ;;
     *) fail "Unsupported database engine." ;;
   esac
@@ -2006,7 +2009,8 @@ database_engine_install() {
       ;;
     dbgate)
       command -v npm >/dev/null 2>&1 || { apt-get update -y; apt-get install -y nodejs npm; }
-      npm install --global dbgate-serve
+      npm install --global --prefix /usr/local --omit=dev dbgate-serve@latest
+      [[ -x /usr/local/bin/dbgate-serve ]] || fail "DbGate installation finished without creating /usr/local/bin/dbgate-serve."
       ;;
     *) fail "Unsupported database engine." ;;
   esac
