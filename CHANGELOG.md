@@ -26,6 +26,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- DbGate instalado globalmente queda accesible para los usuarios aislados de Host incluso cuando la instalación heredó `umask 027`; al iniciar se reparan los permisos del paquete y se comprueba su ejecución con la identidad de la cuenta antes de activar el servicio.
 - La reparación de DbGate fija el prefijo npm en `/usr/local`, comprueba que exista el ejecutable y deja de mostrar un éxito falso cuando npm termina sin una instalación detectable.
 - Cada sesión DbGate usa ahora un directorio de datos escribible y aislado dentro de su Host, recupera el puerto de instancias antiguas y espera una respuesta HTTP real antes de habilitar el enlace, evitando el `502` de Nginx.
 - La actualización retira la configuración y el paquete phpMyAdmin únicamente cuando reconoce una instalación anterior administrada por XPanel; las bases y sus usuarios no se modifican.

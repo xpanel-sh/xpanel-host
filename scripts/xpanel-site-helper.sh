@@ -2009,8 +2009,8 @@ database_engine_install() {
       ;;
     dbgate)
       command -v npm >/dev/null 2>&1 || { apt-get update -y; apt-get install -y nodejs npm; }
-      npm install --global --prefix /usr/local --omit=dev dbgate-serve@latest
-      [[ -x /usr/local/bin/dbgate-serve ]] || fail "DbGate installation finished without creating /usr/local/bin/dbgate-serve."
+      (umask 022; npm_config_umask=022 npm install --global --prefix /usr/local --omit=dev dbgate-serve@latest)
+      bash "$ROOT/scripts/install-dbgate.sh"
       ;;
     *) fail "Unsupported database engine." ;;
   esac
@@ -2037,6 +2037,11 @@ dbgate_sync() {
   [[ "$port" =~ ^[0-9]{4,5}$ ]] && (( 10#$port >= 1024 && 10#$port <= 65535 )) || fail "Invalid DbGate port. Repair this Host instance from XPanel VPS."
   working="$STATE_ROOT/storage/app/dbgate/data"
   executable="$(dbgate_executable)"
+  if [[ "$executable" == /usr/local/bin/dbgate-serve ]]; then
+    bash "$ROOT/scripts/install-dbgate.sh" >/dev/null
+  fi
+  runuser -u "$user" -- test -x "$executable" \
+    || fail "DbGate executable is not accessible to the Host user $user. Repair DbGate from XPanel VPS."
   install -d -o "$user" -g "$user" -m 0700 "$working"
   chown "$user:$user" "$source"
   chmod 0600 "$source"
@@ -2098,7 +2103,7 @@ EOF
     sleep 0.25
   done
   if [[ "$ready" != true ]]; then
-    journalctl -u "$unit.service" --no-pager -n 30 >&2 || true
+    journalctl -u "$unit.service" --no-pager -n 8 --output=cat >&2 || true
     fail "DbGate did not become ready on 127.0.0.1:$port."
   fi
   nginx -t && systemctl reload nginx
