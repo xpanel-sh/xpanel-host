@@ -792,7 +792,6 @@ server {
     server_name $panel_host;
     root $ROOT/public;
     index index.php;
-    include /etc/nginx/snippets/xpanel-phpmyadmin.conf;
 
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
@@ -907,9 +906,6 @@ configure_malware_scanner
 bash "$ROOT/scripts/install-wp-cli.sh"
 configure_terminal_agent
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:access-sync
-if [[ "${XPANEL_PHPMYADMIN_ENABLED:-true}" == "true" ]]; then
-  bash "$ROOT/scripts/install-phpmyadmin.sh"
-fi
 configure_mail_server
 bash "$ROOT/scripts/configure-mail-rate-policy.sh"
 sudo -u "${XPANEL_SITE_USER:-www-data}" php "$ROOT/artisan" xpanel:mail-sync

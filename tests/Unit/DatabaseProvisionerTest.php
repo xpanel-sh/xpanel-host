@@ -21,7 +21,7 @@ class DatabaseProvisionerTest extends TestCase
         $runner = Mockery::mock(ServerCommandRunner::class);
         $runner->shouldReceive('run')->once()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh',
-            'database-create', 'xp_test_app', 'xp_test_user',
+            'database-create', 'mariadb', 'xp_test_app', 'xp_test_user',
         ], "Strong-Database_2026!\n")->andReturn('');
 
         (new DatabaseProvisioner($runner))->create($database, 'Strong-Database_2026!');

@@ -20,14 +20,14 @@ class RemoteMysqlProvisioner
         $database = $remoteHost->database;
         $this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'database-remote-create',
-            $database->name, $database->username, $remoteHost->address,
+            $database->engine ?: 'mariadb', $database->name, $database->username, $remoteHost->address,
         ], $password."\n");
         try {
             $this->commands->run($this->syncCommand());
         } catch (\Throwable $exception) {
             $this->commands->run([
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'database-remote-remove',
-                $database->name, $database->username, $remoteHost->address,
+                $database->engine ?: 'mariadb', $database->name, $database->username, $remoteHost->address,
             ]);
             throw $exception;
         }
@@ -40,7 +40,7 @@ class RemoteMysqlProvisioner
         if (config('xpanel.apply_system_changes')) {
             $this->commands->run([
                 'sudo', '-n', (string) config('xpanel.site_helper'), 'database-remote-remove',
-                $database->name, $database->username, $remoteHost->address,
+                $database->engine ?: 'mariadb', $database->name, $database->username, $remoteHost->address,
             ]);
         }
         $remoteHost->delete();
@@ -52,14 +52,17 @@ class RemoteMysqlProvisioner
 
     public function stageAllowlist(): string
     {
-        $path = storage_path('app/mysql/remote-hosts');
+        $path = storage_path('app/databases/remote-hosts');
         $directory = dirname($path);
         if (! is_dir($directory)) {
             mkdir($directory, 0750, true);
         }
-        $addresses = SiteDatabaseRemoteHost::query()->orderBy('address')->pluck('address')->unique()->values();
+        $entries = SiteDatabaseRemoteHost::query()->with('database')->orderBy('address')->get()
+            ->map(fn (SiteDatabaseRemoteHost $host): string => implode("\t", [
+                $host->database->engine ?: 'mariadb', $host->database->name, $host->database->username, $host->address,
+            ]))->unique()->values();
         $temporary = $path.'.tmp-'.bin2hex(random_bytes(6));
-        file_put_contents($temporary, $addresses->implode("\n").($addresses->isEmpty() ? '' : "\n"), LOCK_EX);
+        file_put_contents($temporary, $entries->implode("\n").($entries->isEmpty() ? '' : "\n"), LOCK_EX);
         chmod($temporary, 0640);
         rename($temporary, $path);
 

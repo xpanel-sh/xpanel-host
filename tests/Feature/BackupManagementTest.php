@@ -151,7 +151,7 @@ class BackupManagementTest extends TestCase
             $mock->shouldReceive('run')->once()->withArgs(function (array $command, ?string $input, int $timeout): bool {
                 return $command[3] === 'backup-create'
                     && ! in_array('xp_site_app', $command, true)
-                    && $input === "xp_site_app\n"
+                    && $input === "mariadb\txp_site_app\txp_site_user\n"
                     && $timeout === 1800;
             })->andReturn('size=1234');
         });

@@ -52,6 +52,7 @@ use App\Http\Controllers\TeamChatController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TerminalRuntimeController;
 use App\Http\Controllers\WebServerEngineController;
+use App\Http\Controllers\DatabaseEngineController;
 use App\Http\Controllers\WordPressController;
 use App\Http\Controllers\XflowController;
 use App\Http\Controllers\XflowWebhookController;
@@ -219,8 +220,11 @@ Route::middleware('setup.complete')->group(function () {
             Route::get('/sites/{site}/advanced/git', [GitDeploymentController::class, 'index'])->name('sites.git.index');
             Route::get('/sites/{site}/advanced/password-protect-directories', [ProtectedDirectoryController::class, 'index'])->name('sites.protected-directories.index');
             Route::get('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'index'])->name('sites.databases.index');
+            Route::get('/sites/{site}/database/databases', [DatabaseController::class, 'index'])->name('sites.databases.general');
             Route::get('/sites/{site}/database/phpmyadmin', PhpMyAdminController::class)->name('sites.phpmyadmin');
+            Route::get('/sites/{site}/database/manager', PhpMyAdminController::class)->name('sites.database-manager');
             Route::get('/sites/{site}/database/remote-mysql', [RemoteMysqlController::class, 'index'])->name('sites.remote-mysql.index');
+            Route::get('/sites/{site}/database/remote-access', [RemoteMysqlController::class, 'index'])->name('sites.remote-access.index');
             Route::get('/sites/{site}/domains/subdomains', [SubdomainController::class, 'index'])->name('sites.subdomains.index');
             Route::get('/sites/{site}/domains/parked-domains', [ParkedDomainController::class, 'index'])->name('sites.parked-domains.index');
             Route::get('/sites/{site}/domains/redirects', [RedirectController::class, 'index'])->name('sites.redirects.index');
@@ -318,6 +322,9 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/sites/{site}/security/malware-scanner/{malwareScan}/findings/{finding}/quarantine', [MalwareScanController::class, 'quarantine'])->whereNumber('finding')->name('sites.malware.quarantine');
             Route::delete('/sites/{site}/security/ssl', [CertificateController::class, 'destroy'])->name('sites.ssl.destroy');
             Route::post('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'store'])->name('sites.databases.store');
+            Route::post('/sites/{site}/database/databases', [DatabaseController::class, 'store'])->name('sites.databases.general.store');
+            Route::post('/sites/{site}/database/databases/{siteDatabase}/password', [DatabaseController::class, 'password'])->name('sites.databases.general.password');
+            Route::delete('/sites/{site}/database/databases/{siteDatabase}', [DatabaseController::class, 'destroy'])->name('sites.databases.general.destroy');
             Route::post('/sites/{site}/domains/subdomains', [SubdomainController::class, 'store'])->name('sites.subdomains.store');
             Route::put('/sites/{site}/domains/{subdomainLabel}', [SubdomainController::class, 'update'])
                 ->where('subdomainLabel', '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?')
@@ -327,6 +334,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::delete('/sites/{site}/database/mysql-databases/{siteDatabase}', [DatabaseController::class, 'destroy'])->name('sites.databases.destroy');
             Route::post('/sites/{site}/database/remote-mysql', [RemoteMysqlController::class, 'store'])->name('sites.remote-mysql.store');
             Route::delete('/sites/{site}/database/remote-mysql/{remoteHost}', [RemoteMysqlController::class, 'destroy'])->name('sites.remote-mysql.destroy');
+            Route::post('/sites/{site}/database/remote-access', [RemoteMysqlController::class, 'store'])->name('sites.remote-access.store');
+            Route::delete('/sites/{site}/database/remote-access/{remoteHost}', [RemoteMysqlController::class, 'destroy'])->name('sites.remote-access.destroy');
             Route::prefix('/sites/ikode/api')->name('sites.ikode.api.')->group(function () {
                 Route::post('/write', [GlobalFileManagerController::class, 'write'])->name('write');
                 Route::post('/create', [GlobalFileManagerController::class, 'create'])->name('create');
@@ -383,6 +392,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/settings/panel-access/ssl', [PanelAccessController::class, 'ssl'])->name('settings.panel-access.ssl');
             Route::get('/settings/web-servers', [WebServerEngineController::class, 'index'])->name('settings.web-servers.index');
             Route::post('/settings/web-servers/{engine}/install', [WebServerEngineController::class, 'install'])->name('settings.web-servers.install');
+            Route::get('/settings/database-engines', [DatabaseEngineController::class, 'index'])->name('settings.database-engines.index');
+            Route::post('/settings/database-engines/{engine}/install', [DatabaseEngineController::class, 'install'])->name('settings.database-engines.install');
             Route::get('/settings/updates', [HostUpdateController::class, 'index'])->name('settings.updates.index');
             Route::get('/settings/updates/status', [HostUpdateController::class, 'status'])->middleware('throttle:120,1')->name('settings.updates.status');
             Route::post('/settings/updates', [HostUpdateController::class, 'start'])->name('settings.updates.start');

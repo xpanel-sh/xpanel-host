@@ -393,11 +393,6 @@ if [[ "${roundcube_enabled:-true}" == "true" ]] \
   bash "$ROOT/scripts/install-roundcube.sh"
 fi
 
-phpmyadmin_enabled="$(env_value XPANEL_PHPMYADMIN_ENABLED)"
-if { [[ -z "$phpmyadmin_enabled" || "$phpmyadmin_enabled" == "true" ]]; } \
-  && { [[ "$UPDATE_MODE" == "repair" || ! -f /usr/share/phpmyadmin/index.php ]] || changed_matches '^scripts/install-phpmyadmin\.sh$'; }; then
-  bash "$ROOT/scripts/install-phpmyadmin.sh"
-fi
 
 if [[ "$UPDATE_MODE" == "repair" || ! -x /usr/local/bin/wp ]] || changed_matches '^scripts/install-wp-cli\.sh$'; then
   bash "$ROOT/scripts/install-wp-cli.sh"

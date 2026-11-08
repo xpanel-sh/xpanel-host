@@ -62,7 +62,7 @@ return [
     'roundcube_enabled' => env('XPANEL_ROUNDCUBE_ENABLED', true),
     'xmail_enabled' => env('XPANEL_XMAIL_ENABLED', true),
     'xmail_attachment_max_bytes' => (int) env('XPANEL_XMAIL_ATTACHMENT_MAX_BYTES', 52428800),
-    'phpmyadmin_enabled' => env('XPANEL_PHPMYADMIN_ENABLED', true),
+    'dbgate_port' => (int) env('XPANEL_DBGATE_PORT', 3000),
     'mail_uid' => (int) env('XPANEL_MAIL_UID', 5000),
     'mail_gid' => (int) env('XPANEL_MAIL_GID', 5000),
     'server_ipv4' => env('XPANEL_SERVER_IPV4'),

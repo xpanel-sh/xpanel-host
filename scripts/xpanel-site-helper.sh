@@ -35,6 +35,14 @@ if [[ "${XPANEL_MANAGEMENT_MODE:-}" == "vps-instance" ]]; then
 fi
 
 fail() { echo "$1" >&2; exit 1; }
+MONGO_ADMIN_SECRET=/etc/xpanel-host/mongodb-admin.secret
+mongo_admin_password() {
+  [[ -f "$MONGO_ADMIN_SECRET" && ! -L "$MONGO_ADMIN_SECRET" ]] || fail "MongoDB management credentials are unavailable."
+  cat "$MONGO_ADMIN_SECRET"
+}
+mongo_admin_eval() {
+  mongosh --quiet --host 127.0.0.1 --username xpanel_system --password "$(mongo_admin_password)" --authenticationDatabase admin "$@"
+}
 valid_domain() { [[ "$1" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && "$1" == *.* && "$1" != *..* ]]; }
 valid_document_root() {
   [[ "$1" != *".."* ]] && {
@@ -525,7 +533,6 @@ server {
     server_name $panel_host;
     root $ROOT/public;
     index index.php;
-    include /etc/nginx/snippets/xpanel-phpmyadmin.conf;
 
     location / { try_files \$uri \$uri/ /index.php?\$query_string; }
     location ~ \.php\$ {
@@ -1435,15 +1442,21 @@ resource_snapshot() {
   [[ -d "$document_root" && ! -L "$document_root" ]] || fail "Site document root does not exist or is a symlink."
   getent passwd "$site_user" >/dev/null || fail "Site Unix identity does not exist."
 
-  local disk_bytes filesystem_bytes inode_count filesystem_inodes database_bytes=0 database value
+  local disk_bytes filesystem_bytes inode_count filesystem_inodes database_bytes=0 database engine descriptor value
   disk_bytes="$(du -sbx -- "$document_root" | awk '{print $1}')"
   filesystem_bytes="$(df -PB1 -- "$document_root" | awk 'NR == 2 {print $2}')"
   inode_count="$(find -P "$document_root" -xdev -printf . | wc -c)"
   filesystem_inodes="$(df -Pi -- "$document_root" | awk 'NR == 2 {print $2}')"
   shift 5
-  for database in "$@"; do
+  for descriptor in "$@"; do
+    if [[ "$descriptor" == *:* ]]; then engine="${descriptor%%:*}"; database="${descriptor#*:}"; else engine="mariadb"; database="$descriptor"; fi
+    [[ "$engine" == "mariadb" || "$engine" == "postgresql" || "$engine" == "mongodb" ]] || fail "Invalid resource database engine."
     valid_identifier "$database" || fail "Invalid resource database name."
-    value="$(mariadb --batch --skip-column-names --protocol=socket information_schema -e "SELECT COALESCE(SUM(data_length + index_length), 0) FROM tables WHERE table_schema = '$database';")"
+    case "$engine" in
+      mariadb) value="$(mariadb --batch --skip-column-names --protocol=socket information_schema -e "SELECT COALESCE(SUM(data_length + index_length), 0) FROM tables WHERE table_schema = '$database';")" ;;
+      postgresql) value="$(runuser -u postgres -- psql -Atqc "SELECT pg_database_size('$database')")" ;;
+      mongodb) value="$(mongo_admin_eval --eval "db.getSiblingDB('$database').stats().storageSize" | tail -n1)" ;;
+    esac
     [[ "$value" =~ ^[0-9]+$ ]] || fail "Could not measure a site database."
     database_bytes=$((database_bytes + value))
   done
@@ -1843,22 +1856,36 @@ tag_managed_database() {
 }
 
 database_action() {
-  local database="$2" username="$3"
+  local engine="$2" database="$3" username="$4"
+  [[ "$engine" == "mariadb" || "$engine" == "postgresql" || "$engine" == "mongodb" ]] || fail "Invalid database engine."
   valid_identifier "$database" || fail "Invalid database name."
   [[ "$username" =~ ^[a-z0-9_]{1,32}$ ]] || fail "Invalid database username."
 
   if [[ "$ACTION" == "database-remove" ]]; then
-    mariadb --protocol=socket <<SQL
+    case "$engine" in
+      mariadb) mariadb --protocol=socket <<SQL
 DROP DATABASE IF EXISTS \`$database\`;
 DROP USER IF EXISTS '$username'@'localhost';
 SQL
+        ;;
+      postgresql)
+        runuser -u postgres -- psql --set=ON_ERROR_STOP=1 --dbname=postgres <<SQL
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$database' AND pid <> pg_backend_pid();
+DROP DATABASE IF EXISTS "$database";
+DROP ROLE IF EXISTS "$username";
+SQL
+        ;;
+      mongodb)
+        mongo_admin_eval --eval "db.getSiblingDB('$database').dropUser('$username'); db.getSiblingDB('$database').dropDatabase();" >/dev/null
+        ;;
+    esac
     return
   fi
 
   local password=""
   IFS= read -r password || true
   [[ "$password" =~ ^[A-Za-z0-9!@#%\^*_=+.,:-]{16,128}$ ]] || fail "Database password contains unsupported characters or is too short."
-  if [[ "$ACTION" == "database-create" ]]; then
+  if [[ "$engine" == "mariadb" && "$ACTION" == "database-create" ]]; then
     [[ "$(mariadb --protocol=socket --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$database'")" == "0" ]] || fail "Database already exists."
     [[ "$(mariadb --protocol=socket --batch --skip-column-names -e "SELECT COUNT(*) FROM mysql.user WHERE User='$username' AND Host='localhost'")" == "0" ]] || fail "Database user already exists."
     cleanup_failed_database() {
@@ -1876,48 +1903,239 @@ CREATE USER '$username'@'localhost' IDENTIFIED BY '$password';
 GRANT ALL PRIVILEGES ON \`$database\`.* TO '$username'@'localhost';
 SQL
     trap - ERR
-  else
+  elif [[ "$engine" == "mariadb" ]]; then
     mariadb --protocol=socket <<SQL
 ALTER USER '$username'@'localhost' IDENTIFIED BY '$password';
 SQL
+  elif [[ "$engine" == "postgresql" && "$ACTION" == "database-create" ]]; then
+    [[ "$(runuser -u postgres -- psql -Atqc "SELECT count(*) FROM pg_database WHERE datname='$database'")" == "0" ]] || fail "Database already exists."
+    [[ "$(runuser -u postgres -- psql -Atqc "SELECT count(*) FROM pg_roles WHERE rolname='$username'")" == "0" ]] || fail "Database user already exists."
+    runuser -u postgres -- psql --set=ON_ERROR_STOP=1 --dbname=postgres <<SQL
+CREATE ROLE "$username" LOGIN PASSWORD '$password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE DATABASE "$database" OWNER "$username" ENCODING 'UTF8';
+SQL
+  elif [[ "$engine" == "postgresql" ]]; then
+    runuser -u postgres -- psql --set=ON_ERROR_STOP=1 --dbname=postgres -c "ALTER ROLE \"$username\" PASSWORD '$password';"
+  elif [[ "$engine" == "mongodb" && "$ACTION" == "database-create" ]]; then
+    local password_json
+    password_json="$(printf '%s' "$password" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+    [[ "$(mongo_admin_eval --eval "db.getSiblingDB('$database').getUser('$username') ? '1' : '0'")" == "0" ]] || fail "Database user already exists."
+    mongo_admin_eval --eval "db.getSiblingDB('$database').createUser({user:'$username',pwd:$password_json,roles:[{role:'readWrite',db:'$database'}]})" >/dev/null
+  else
+    local password_json
+    password_json="$(printf '%s' "$password" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+    mongo_admin_eval --eval "db.getSiblingDB('$database').updateUser('$username',{pwd:$password_json})" >/dev/null
   fi
 }
 
+database_engine_status() {
+  local engine="$2" installed=false version=""
+  case "$engine" in
+    mariadb)
+      if command -v mariadb >/dev/null 2>&1 && systemctl is-active --quiet mariadb; then installed=true; version="$(mariadb --version | sed -E 's/^.*Distrib ([^, ]+).*$/\1/')"; fi ;;
+    postgresql)
+      if command -v psql >/dev/null 2>&1 && systemctl is-active --quiet postgresql; then installed=true; version="$(psql --version | awk '{print $3}')"; fi ;;
+    mongodb)
+      if command -v mongosh >/dev/null 2>&1 && systemctl is-active --quiet mongod; then installed=true; version="$(mongosh --version | head -n1)"; fi ;;
+    dbgate)
+      if command -v dbgate-serve >/dev/null 2>&1; then installed=true; version="$(npm list -g dbgate-serve --depth=0 2>/dev/null | sed -nE 's/.*dbgate-serve@([^ ]+).*/\1/p' | head -n1)"; fi ;;
+    *) fail "Unsupported database engine." ;;
+  esac
+  printf 'installed=%s\nversion=%s\n' "$installed" "$version"
+}
+
+database_engine_install() {
+  local engine="$2"
+  export DEBIAN_FRONTEND=noninteractive
+  case "$engine" in
+    mariadb)
+      apt-get update -y
+      apt-get install -y mariadb-server
+      systemctl enable --now mariadb ;;
+    postgresql)
+      apt-get update -y
+      apt-get install -y postgresql postgresql-client php-pgsql
+      systemctl enable --now postgresql ;;
+    mongodb)
+      . /etc/os-release
+      [[ "${ID:-}" == ubuntu && "${VERSION_CODENAME:-}" =~ ^(focal|jammy|noble)$ ]] || fail "MongoDB 8.0 requires a supported Ubuntu LTS release."
+      apt-get update -y
+      apt-get install -y curl gnupg
+      curl -fsSL https://pgp.mongodb.com/server-8.0.asc | gpg --batch --yes -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+      printf 'deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu %s/mongodb-org/8.0 multiverse\n' "$VERSION_CODENAME" > /etc/apt/sources.list.d/mongodb-org-8.0.list
+      apt-get update -y
+      apt-get install -y mongodb-org
+      systemctl enable --now mongod
+      install -d -o root -g root -m 0700 /etc/xpanel-host
+      if [[ ! -f "$MONGO_ADMIN_SECRET" ]]; then
+        local mongo_password mongo_password_json temporary_secret
+        mongo_password="$(openssl rand -hex 32)"
+        mongo_password_json="$(printf '%s' "$mongo_password" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+        mongosh --quiet --eval "db.getSiblingDB('admin').createUser({user:'xpanel_system',pwd:$mongo_password_json,roles:[{role:'root',db:'admin'}]})" >/dev/null
+        temporary_secret="$(mktemp /etc/xpanel-host/.mongodb-admin.XXXXXX)"
+        printf '%s' "$mongo_password" > "$temporary_secret"
+        chmod 0600 "$temporary_secret"
+        mv "$temporary_secret" "$MONGO_ADMIN_SECRET"
+      fi
+      if ! grep -q '^[[:space:]]*authorization:[[:space:]]*enabled' /etc/mongod.conf; then
+        grep -q '^security:' /etc/mongod.conf || printf '\nsecurity:\n' >> /etc/mongod.conf
+        sed -i '/^security:/,/^[^[:space:]]/ { /^[[:space:]]*authorization:/d; }' /etc/mongod.conf
+        sed -i '/^security:/a\  authorization: enabled' /etc/mongod.conf
+      fi
+      systemctl restart mongod
+      mongo_admin_eval --eval 'db.runCommand({ping:1}).ok' | grep -qx '1' || fail "MongoDB management authentication failed."
+      ;;
+    dbgate)
+      command -v npm >/dev/null 2>&1 || { apt-get update -y; apt-get install -y nodejs npm; }
+      npm install --global dbgate-serve
+      ;;
+    *) fail "Unsupported database engine." ;;
+  esac
+  database_engine_status database-engine-status "$engine"
+}
+
+dbgate_sync() {
+  command -v dbgate-serve >/dev/null 2>&1 || fail "DbGate is not installed."
+  local source="$STATE_ROOT/storage/app/dbgate/runtime.env" port="${XPANEL_DBGATE_PORT:-3000}" unit user working executable
+  [[ -f "$source" && ! -L "$source" ]] || fail "DbGate staged configuration is unavailable."
+  [[ "$port" =~ ^[0-9]{4,5}$ ]] && (( port >= 1024 && port <= 65535 )) || fail "Invalid DbGate port."
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    [[ "${XPANEL_INSTANCE_ID:-}" =~ ^[a-f0-9-]{36}$ ]] || fail "Invalid managed DbGate instance."
+    unit="xpanel-dbgate-${XPANEL_INSTANCE_ID}"
+    user="$ACCOUNT_USER"
+  else
+    unit="xpanel-dbgate"
+    user="${ACCOUNT_USER:-$SITE_USER}"
+  fi
+  working="$STATE_ROOT/storage/app/dbgate/data"
+  executable="$(command -v dbgate-serve)"
+  [[ "$executable" == /usr/bin/dbgate-serve || "$executable" == /usr/local/bin/dbgate-serve ]] || fail "DbGate executable is outside an approved system path."
+  install -d -o "$user" -g "$user" -m 0700 "$working"
+  chown "$user:$user" "$source"
+  chmod 0600 "$source"
+  cat > "/etc/systemd/system/$unit.service" <<EOF
+[Unit]
+Description=XPanel DbGate database manager ($unit)
+After=network.target mariadb.service postgresql.service mongod.service
+
+[Service]
+Type=simple
+User=$user
+Group=$user
+EnvironmentFile=$source
+Environment=PORT=$port
+Environment=LISTEN=127.0.0.1
+WorkingDirectory=$working
+ExecStart=$executable
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=$working
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+      local managed_vhost="/etc/nginx/sites-available/xpanel-instance-${XPANEL_INSTANCE_ID}.conf"
+      [[ -f "$managed_vhost" && ! -L "$managed_vhost" ]] || fail "Managed panel vhost is unavailable."
+  else
+      cat > /etc/nginx/snippets/xpanel-dbgate.conf <<EOF
+location = /dbgate { return 302 /dbgate/; }
+location /dbgate/ {
+    proxy_pass http://127.0.0.1:$port;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+}
+EOF
+      chmod 0644 /etc/nginx/snippets/xpanel-dbgate.conf
+      if [[ -f /etc/nginx/sites-available/xpanel-host.conf ]] && ! grep -qF 'xpanel-dbgate.conf' /etc/nginx/sites-available/xpanel-host.conf; then
+        sed -i '/^[[:space:]]*server[[:space:]]*{/a\    include /etc/nginx/snippets/xpanel-dbgate.conf;' /etc/nginx/sites-available/xpanel-host.conf
+      fi
+  fi
+  systemctl daemon-reload
+  systemctl enable --now "$unit.service"
+  systemctl restart "$unit.service"
+  nginx -t && systemctl reload nginx
+  printf 'port=%s\nunit=%s\n' "$port" "$unit"
+}
+
 database_remote_action() {
-  local database="$2" username="$3" address="$4"
+  local engine="$2" database="$3" username="$4" address="$5"
+  [[ "$engine" == "mariadb" || "$engine" == "postgresql" || "$engine" == "mongodb" ]] || fail "Invalid database engine."
   valid_identifier "$database" || fail "Invalid database name."
   [[ "$username" =~ ^[a-z0-9_]{1,32}$ ]] || fail "Invalid database username."
   valid_ipv4 "$address" || fail "Remote database access requires an exact IPv4 address."
 
   if [[ "$ACTION" == "database-remote-remove" ]]; then
-    mariadb --protocol=socket -e "DROP USER IF EXISTS '$username'@'$address';"
+    [[ "$engine" != "mariadb" ]] || mariadb --protocol=socket -e "DROP USER IF EXISTS '$username'@'$address';"
     return
   fi
 
   local password=""
   IFS= read -r password || true
   [[ "$password" =~ ^[A-Za-z0-9!@#%\^*_=+.,:-]{16,128}$ ]] || fail "Database password contains unsupported characters or is too short."
-  [[ "$(mariadb --protocol=socket --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$database'")" == "1" ]] || fail "Database does not exist."
-  mariadb --protocol=socket <<SQL
+  if [[ "$engine" == "mariadb" ]]; then
+    [[ "$(mariadb --protocol=socket --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$database'")" == "1" ]] || fail "Database does not exist."
+    mariadb --protocol=socket <<SQL
 CREATE USER IF NOT EXISTS '$username'@'$address' IDENTIFIED BY '$password';
 ALTER USER '$username'@'$address' IDENTIFIED BY '$password';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM '$username'@'$address';
 GRANT ALL PRIVILEGES ON \`$database\`.* TO '$username'@'$address';
 SQL
+  elif [[ "$engine" == "postgresql" ]]; then
+    [[ "$(runuser -u postgres -- psql -Atqc "SELECT count(*) FROM pg_database WHERE datname='$database'")" == "1" ]] || fail "Database does not exist."
+    PGPASSWORD="$password" psql --host=127.0.0.1 --username="$username" --dbname="$database" --no-password --set=ON_ERROR_STOP=1 -Atqc 'SELECT 1' >/dev/null \
+      || fail "The PostgreSQL credentials are not valid."
+  else
+    mongosh --quiet --host 127.0.0.1 --username "$username" --password "$password" --authenticationDatabase "$database" \
+      --eval "db.getSiblingDB('$database').runCommand({ping:1}).ok" | grep -qx '1' \
+      || fail "The MongoDB credentials are not valid."
+  fi
 }
 
 database_remote_sync() {
-  local source="$STATE_ROOT/storage/app/mysql/remote-hosts"
-  [[ -f "$source" && ! -L "$source" ]] || fail "Staged remote MySQL allowlist not found."
-  local addresses=()
-  while IFS= read -r address; do
-    [[ -z "$address" ]] && continue
+  local source="$STATE_ROOT/storage/app/databases/remote-hosts"
+  [[ -f "$source" && ! -L "$source" ]] || fail "Staged remote database allowlist not found."
+  local engine database username address managed_prefix="" scope=standalone
+  if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
+    managed_prefix="xp_$(printf '%s' "$XPANEL_INSTANCE_ID" | tr -d '-' | cut -c1-6)_"
+    scope="$XPANEL_INSTANCE_ID"
+  fi
+  # Validate the caller-owned staging file before publishing it into the
+  # root-owned aggregate. One instance can never inject another prefix.
+  while IFS=$'\t' read -r engine database username address; do
+    [[ -z "$engine" ]] && continue
+    [[ "$engine" == "mariadb" || "$engine" == "postgresql" || "$engine" == "mongodb" ]] || fail "Invalid engine in remote database allowlist."
+    valid_identifier "$database" || fail "Invalid database in remote allowlist."
+    [[ "$username" =~ ^[a-z0-9_]{1,32}$ ]] || fail "Invalid user in remote allowlist."
+    if [[ -n "$managed_prefix" ]]; then
+      [[ "$database" == "$managed_prefix"* && "$username" == "$managed_prefix"* ]] || fail "Remote database entry does not belong to this instance."
+    fi
     valid_ipv4 "$address" || fail "Invalid IPv4 in staged remote MySQL allowlist."
-    addresses+=("$address")
   done < "$source"
 
+  install -d -o root -g root -m 0700 /etc/xpanel-host/remote-databases
+  install -o root -g root -m 0600 "$source" "/etc/xpanel-host/remote-databases/$scope.tsv"
+
+  local addresses=() postgres_rules=() engines=()
+  while IFS=$'\t' read -r engine database username address; do
+    [[ -z "$engine" ]] && continue
+    [[ "$engine" == "mariadb" || "$engine" == "postgresql" || "$engine" == "mongodb" ]] || fail "Invalid engine in published remote database allowlist."
+    valid_identifier "$database" || fail "Invalid published database."
+    [[ "$username" =~ ^[a-z0-9_]{1,32}$ ]] || fail "Invalid published database user."
+    valid_ipv4 "$address" || fail "Invalid published IPv4."
+    addresses+=("$address")
+    engines+=("$engine")
+    [[ "$engine" != "postgresql" ]] || postgres_rules+=("hostssl $database $username $address/32 scram-sha-256")
+  done < <(cat /etc/xpanel-host/remote-databases/*.tsv 2>/dev/null || true)
+
   install -d -o root -g root -m 0755 /etc/mysql/mariadb.conf.d /etc/xpanel-host
-  if (( ${#addresses[@]} == 0 )); then
+  if ! printf '%s\n' "${engines[@]}" | grep -qx mariadb; then
     cat > /etc/mysql/mariadb.conf.d/60-xpanel-remote.cnf <<'EOF'
 [mysqld]
 bind-address = 127.0.0.1
@@ -1936,10 +2154,12 @@ EOF
     printf '    type filter hook input priority -10; policy accept;\n'
     printf '    ct state established,related accept\n'
     local address
-    for address in "${addresses[@]}"; do
-      printf '    ip saddr %s tcp dport 3306 accept\n' "$address"
+    local index port
+    for index in "${!addresses[@]}"; do
+      case "${engines[$index]}" in mariadb) port=3306;; postgresql) port=5432;; mongodb) port=27017;; esac
+      printf '    ip saddr %s tcp dport %s accept\n' "${addresses[$index]}" "$port"
     done
-    printf '    tcp dport 3306 reject\n'
+    printf '    tcp dport { 3306, 5432, 27017 } reject\n'
     printf '  }\n}\n'
   } > "$rules"
   chmod 0600 "$rules"
@@ -1970,6 +2190,30 @@ EOF
   mariadbd --verbose --help >/dev/null
   systemctl restart mariadb
   mariadb-admin --protocol=socket ping >/dev/null
+
+  if command -v psql >/dev/null 2>&1; then
+    local pg_hba pg_conf
+    pg_hba="$(runuser -u postgres -- psql -Atqc 'show hba_file')"
+    pg_conf="$(runuser -u postgres -- psql -Atqc 'show config_file')"
+    sed -i '/^# XPanel remote databases$/,/^# End XPanel remote databases$/d' "$pg_hba"
+    {
+      printf '\n# XPanel remote databases\n'
+      printf '%s\n' "${postgres_rules[@]}"
+      printf '# End XPanel remote databases\n'
+    } >> "$pg_hba"
+    if (( ${#postgres_rules[@]} > 0 )); then sed -i -E "s/^[#[:space:]]*listen_addresses[[:space:]]*=.*/listen_addresses = '*'/" "$pg_conf"; else sed -i -E "s/^[#[:space:]]*listen_addresses[[:space:]]*=.*/listen_addresses = 'localhost'/" "$pg_conf"; fi
+    systemctl restart postgresql
+  fi
+
+  if command -v mongosh >/dev/null 2>&1; then
+    if printf '%s\n' "${engines[@]}" | grep -qx mongodb; then
+      sed -i -E 's/^([[:space:]]*)bindIp:.*/\1bindIp: 0.0.0.0/' /etc/mongod.conf
+      grep -q '^security:' /etc/mongod.conf || printf '\nsecurity:\n  authorization: enabled\n' >> /etc/mongod.conf
+    else
+      sed -i -E 's/^([[:space:]]*)bindIp:.*/\1bindIp: 127.0.0.1/' /etc/mongod.conf
+    fi
+    systemctl restart mongod
+  fi
 }
 
 access_sync() {
@@ -2590,11 +2834,20 @@ mail_remove_domain() {
 }
 
 read_backup_databases() {
+  BACKUP_DATABASE_ENGINES=()
   BACKUP_DATABASES=()
-  while IFS= read -r database; do
-    [[ -z "$database" ]] && continue
+  BACKUP_DATABASE_USERS=()
+  local engine database username
+  while IFS=$'\t' read -r engine database username; do
+    [[ -z "$engine" ]] && continue
+    # Backward compatibility with packages requested before engine metadata existed.
+    if [[ -z "$database" ]]; then database="$engine"; engine="mariadb"; username="legacy"; fi
+    [[ "$engine" == "mariadb" || "$engine" == "postgresql" || "$engine" == "mongodb" ]] || fail "Invalid database engine in backup request."
     valid_identifier "$database" || fail "Invalid database in backup request."
+    [[ "$username" =~ ^[a-z0-9_]{1,32}$ ]] || fail "Invalid database user in backup request."
+    BACKUP_DATABASE_ENGINES+=("$engine")
     BACKUP_DATABASES+=("$database")
+    BACKUP_DATABASE_USERS+=("$username")
   done
 }
 
@@ -2625,10 +2878,23 @@ backup_create() {
   install -d -o root -g "$SITE_GROUP" -m 0750 "$temporary/databases"
 
   tar --one-file-system --numeric-owner -C "$document_root" -czf "$temporary/files.tar.gz" .
-  local database
-  for database in "${BACKUP_DATABASES[@]}"; do
-    mariadb-dump --protocol=socket --single-transaction --quick --skip-lock-tables --databases "$database" \
-      | gzip -9 > "$temporary/databases/$database.sql.gz"
+  local index engine database
+  for index in "${!BACKUP_DATABASES[@]}"; do
+    engine="${BACKUP_DATABASE_ENGINES[$index]}"
+    database="${BACKUP_DATABASES[$index]}"
+    case "$engine" in
+      mariadb)
+        mariadb-dump --protocol=socket --single-transaction --quick --skip-lock-tables --databases "$database" \
+          | gzip -9 > "$temporary/databases/mariadb--$database.sql.gz"
+        ;;
+      postgresql)
+        runuser -u postgres -- pg_dump --format=custom "$database" > "$temporary/databases/postgresql--$database.dump"
+        ;;
+      mongodb)
+        mongodump --quiet --host 127.0.0.1 --username xpanel_system --password "$(mongo_admin_password)" --authenticationDatabase admin \
+          --db "$database" --archive="$temporary/databases/mongodb--$database.archive" --gzip
+        ;;
+    esac
   done
   {
     printf 'format=1\n'
@@ -2662,11 +2928,21 @@ backup_restore() {
   [[ -f "$temporary/files.tar.gz" && ! -L "$temporary/files.tar.gz" ]] || fail "Backup does not contain site files."
   archive_is_safe "$temporary/files.tar.gz" || fail "Site archive contains unsafe paths."
 
-  local database
-  for database in "${BACKUP_DATABASES[@]}"; do
-    [[ -f "$temporary/databases/$database.sql.gz" && ! -L "$temporary/databases/$database.sql.gz" ]] \
-      || fail "Backup does not contain database $database."
-    gzip -t "$temporary/databases/$database.sql.gz"
+  local index engine database username database_file
+  for index in "${!BACKUP_DATABASES[@]}"; do
+    engine="${BACKUP_DATABASE_ENGINES[$index]}"
+    database="${BACKUP_DATABASES[$index]}"
+    case "$engine" in
+      mariadb) database_file="$temporary/databases/mariadb--$database.sql.gz" ;;
+      postgresql) database_file="$temporary/databases/postgresql--$database.dump" ;;
+      mongodb) database_file="$temporary/databases/mongodb--$database.archive" ;;
+    esac
+    # Accept the old MariaDB package layout when restoring an earlier backup.
+    if [[ "$engine" == "mariadb" && ! -f "$database_file" && -f "$temporary/databases/$database.sql.gz" ]]; then
+      database_file="$temporary/databases/$database.sql.gz"
+    fi
+    [[ -f "$database_file" && ! -L "$database_file" ]] || fail "Backup does not contain $engine database $database."
+    [[ "$engine" != "mariadb" ]] || gzip -t "$database_file"
   done
 
   tar --no-same-owner -C "$staging" -xzf "$temporary/files.tar.gz"
@@ -2676,10 +2952,29 @@ backup_restore() {
   chown_site_content "$document_root" "$site_user"
   grant_panel_file_access "$document_root"
 
-  for database in "${BACKUP_DATABASES[@]}"; do
-    mariadb --protocol=socket -e "DROP DATABASE IF EXISTS \`$database\`; CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    tag_managed_database "$database"
-    gzip -dc "$temporary/databases/$database.sql.gz" | mariadb --protocol=socket
+  for index in "${!BACKUP_DATABASES[@]}"; do
+    engine="${BACKUP_DATABASE_ENGINES[$index]}"
+    database="${BACKUP_DATABASES[$index]}"
+    username="${BACKUP_DATABASE_USERS[$index]}"
+    case "$engine" in
+      mariadb)
+        database_file="$temporary/databases/mariadb--$database.sql.gz"
+        [[ -f "$database_file" ]] || database_file="$temporary/databases/$database.sql.gz"
+        mariadb --protocol=socket -e "DROP DATABASE IF EXISTS \`$database\`; CREATE DATABASE \`$database\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        tag_managed_database "$database"
+        gzip -dc "$database_file" | mariadb --protocol=socket
+        ;;
+      postgresql)
+        runuser -u postgres -- psql --dbname=postgres --set=ON_ERROR_STOP=1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$database' AND pid <> pg_backend_pid();"
+        runuser -u postgres -- dropdb --if-exists "$database"
+        runuser -u postgres -- createdb --owner="$username" "$database"
+        runuser -u postgres -- pg_restore --exit-on-error --no-owner --role="$username" --dbname="$database" < "$temporary/databases/postgresql--$database.dump"
+        ;;
+      mongodb)
+        mongorestore --quiet --host 127.0.0.1 --username xpanel_system --password "$(mongo_admin_password)" --authenticationDatabase admin \
+          --drop --gzip --archive="$temporary/databases/mongodb--$database.archive" --nsInclude="$database.*"
+        ;;
+    esac
   done
 }
 
@@ -2726,6 +3021,9 @@ case "$ACTION" in
   ssl-inspect) ssl_inspect "$@" ;;
   engine-status) engine_status "$@" ;;
   engine-install) engine_install "$@" ;;
+  database-engine-status) database_engine_status "$@" ;;
+  database-engine-install) database_engine_install "$@" ;;
+  dbgate-sync) dbgate_sync ;;
   database-create|database-password|database-remove) database_action "$@" ;;
   database-remote-create|database-remote-remove) database_remote_action "$@" ;;
   database-remote-sync) database_remote_sync ;;

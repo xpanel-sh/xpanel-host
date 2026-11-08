@@ -44,14 +44,17 @@ class SiteBackupManager
 
         try {
             $relativePath = $site->domain.'/'.$backup->token.'/backup.tar.gz';
-            $databaseNames = $site->databases()->orderBy('name')->pluck('name')->all();
+            $databases = $site->databases()->orderBy('engine')->orderBy('name')->get(['engine', 'name', 'username']);
+            $databaseInput = $databases->map(fn ($database): string => implode("\t", [
+                $database->engine ?: 'mariadb', $database->name, $database->username,
+            ]))->implode("\n");
             if (config('xpanel.apply_system_changes')) {
                 $output = $this->commands->run([
                     'sudo', '-n', (string) config('xpanel.site_helper'), 'backup-create',
                     $site->domain, $site->document_root, $backup->token,
-                ], implode("\n", $databaseNames).($databaseNames === [] ? '' : "\n"), 1800);
+                ], $databaseInput.($databases->isEmpty() ? '' : "\n"), 1800);
                 $size = $this->valueFromOutput($output, 'size');
-                $databaseCount = count($databaseNames);
+                $databaseCount = $databases->count();
             } else {
                 $absolutePath = $this->absolutePath($relativePath);
                 $this->createLocalPackage($site->localRoot(), $absolutePath);
@@ -103,12 +106,15 @@ class SiteBackupManager
             $safetyBackup = $this->createUnlocked($site, $user, 'pre_restore', false);
 
             try {
-                $databaseNames = $site->databases()->orderBy('name')->pluck('name')->all();
+                $databases = $site->databases()->orderBy('engine')->orderBy('name')->get(['engine', 'name', 'username']);
+                $databaseInput = $databases->map(fn ($database): string => implode("\t", [
+                    $database->engine ?: 'mariadb', $database->name, $database->username,
+                ]))->implode("\n");
                 if (config('xpanel.apply_system_changes')) {
                     $this->commands->run([
                         'sudo', '-n', (string) config('xpanel.site_helper'), 'backup-restore',
                         $site->domain, $site->document_root, $backup->token, $site->systemUser(),
-                    ], implode("\n", $databaseNames).($databaseNames === [] ? '' : "\n"), 1800);
+                    ], $databaseInput.($databases->isEmpty() ? '' : "\n"), 1800);
                 } else {
                     $this->restoreLocalPackage($site->localRoot(), $this->packagePath($site, $backup));
                 }

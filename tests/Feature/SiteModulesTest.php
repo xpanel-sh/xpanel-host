@@ -123,7 +123,7 @@ class SiteModulesTest extends TestCase
         $site = $this->site();
 
         $this->assertSame(route('sites.backups.index', $site), SiteModules::url($site, 'files', 'backups'));
-        $this->assertSame(route('sites.databases.index', $site), SiteModules::url($site, 'database', 'mysql-databases'));
+        $this->assertSame(route('sites.databases.general', $site), SiteModules::url($site, 'database', 'mysql-databases'));
         $this->assertSame(route('sites.activity.index', $site), SiteModules::url($site, 'advanced', 'activity-log'));
     }
 

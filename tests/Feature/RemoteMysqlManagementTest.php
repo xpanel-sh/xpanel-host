@@ -38,7 +38,7 @@ class RemoteMysqlManagementTest extends TestCase
             'site_id' => $site->id, 'name' => 'xp_remote_app', 'username' => 'xp_remote_user', 'status' => 'active',
         ]);
 
-        $response = $this->actingAs($this->user())->post(route('sites.remote-mysql.store', $site), [
+        $response = $this->actingAs($this->user())->post(route('sites.remote-access.store', $site), [
             'site_database_id' => $database->id,
             'address' => '203.0.113.25',
             'password' => 'Strong-Remote_2026!',
@@ -49,7 +49,7 @@ class RemoteMysqlManagementTest extends TestCase
         $this->assertSame('203.0.113.25', $host->address);
         $this->assertSame('staged', $host->status);
         $this->assertArrayNotHasKey('password', $host->toArray());
-        $this->assertStringContainsString('203.0.113.25', file_get_contents(storage_path('app/mysql/remote-hosts')));
+        $this->assertStringContainsString("mariadb\txp_remote_app\txp_remote_user\t203.0.113.25", file_get_contents(storage_path('app/databases/remote-hosts')));
     }
 
     public function test_remote_access_rejects_ranges_hostnames_and_foreign_databases(): void
@@ -60,26 +60,26 @@ class RemoteMysqlManagementTest extends TestCase
             'site_id' => $other->id, 'name' => 'xp_other_app', 'username' => 'xp_other_user', 'status' => 'active',
         ]);
 
-        $this->actingAs($this->user())->post(route('sites.remote-mysql.store', $site), [
+        $this->actingAs($this->user())->post(route('sites.remote-access.store', $site), [
             'site_database_id' => $database->id,
             'address' => '203.0.113.0/24',
             'password' => 'Strong-Remote_2026!',
         ])->assertSessionHasErrors('address');
 
-        $this->actingAs($this->user())->post(route('sites.remote-mysql.store', $site), [
+        $this->actingAs($this->user())->post(route('sites.remote-access.store', $site), [
             'site_database_id' => $database->id,
             'address' => '203.0.113.25',
             'password' => 'Strong-Remote_2026!',
         ])->assertNotFound();
     }
 
-    public function test_phpmyadmin_page_uses_the_current_panel_origin(): void
+    public function test_database_manager_explains_how_to_enable_dांbgate(): void
     {
         $site = $this->site();
 
-        $this->actingAs($this->user())->get('https://panel.example.com'.route('sites.phpmyadmin', $site, false))
+        $this->actingAs($this->user())->get('https://panel.example.com'.route('sites.database-manager', $site, false))
             ->assertOk()
-            ->assertSee('https://panel.example.com/phpmyadmin', false)
-            ->assertSee('root está bloqueado');
+            ->assertSee('DbGate')
+            ->assertSee('XPanel nunca entrega credenciales root');
     }
 }

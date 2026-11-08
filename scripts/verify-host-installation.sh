@@ -97,10 +97,6 @@ test -s /var/lib/clamav/daily.cvd || test -s /var/lib/clamav/daily.cld \
 /usr/local/bin/xpanel status --root="$ROOT" >/dev/null || fail "the global xpanel command cannot detect Host"
 [[ -x /usr/local/bin/wp ]] || fail "WP-CLI is unavailable"
 
-if [[ "$(env_value XPANEL_PHPMYADMIN_ENABLED)" == "true" ]]; then
-  [[ -f /usr/share/phpmyadmin/index.php && -f /etc/nginx/snippets/xpanel-phpmyadmin.conf ]] \
-    || fail "phpMyAdmin is enabled but incomplete"
-fi
 if [[ "$(env_value XPANEL_ROUNDCUBE_ENABLED)" == "true" ]]; then
   [[ -f /opt/xpanel-roundcube/current/public_html/index.php && -f /etc/xpanel-host/roundcube/config.inc.php ]] \
     || fail "Roundcube is enabled but incomplete"

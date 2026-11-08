@@ -15,6 +15,10 @@
             <i class="ki-filled ki-technology-2"></i>
             Motores web
         </a>
+        <a href="{{ route('settings.database-engines.index') }}"
+           class="kt-btn {{ request()->routeIs('settings.database-engines.*') ? 'kt-btn-primary' : 'kt-btn-ghost' }}">
+            <i class="ki-filled ki-data"></i> Bases de datos
+        </a>
         <a href="{{ route('settings.updates.index') }}"
            class="kt-btn {{ request()->routeIs('settings.updates.*') ? 'kt-btn-primary' : 'kt-btn-ghost' }}">
             <i class="ki-filled ki-update-file"></i>

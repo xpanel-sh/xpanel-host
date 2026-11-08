@@ -43,7 +43,7 @@ class DatabaseProvisioner
     {
         return [
             'sudo', '-n', (string) config('xpanel.site_helper'), $action,
-            $database->name, $database->username,
+            $database->engine ?: 'mariadb', $database->name, $database->username,
         ];
     }
 }

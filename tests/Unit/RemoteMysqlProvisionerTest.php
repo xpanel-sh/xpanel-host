@@ -25,7 +25,7 @@ class RemoteMysqlProvisionerTest extends TestCase
         $runner = Mockery::mock(ServerCommandRunner::class);
         $runner->shouldReceive('run')->once()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh',
-            'database-remote-create', 'xp_test_app', 'xp_test_user', '203.0.113.25',
+            'database-remote-create', 'mariadb', 'xp_test_app', 'xp_test_user', '203.0.113.25',
         ], "Strong-Remote_2026!\n")->andReturn('');
         $runner->shouldReceive('run')->once()->with([
             'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'database-remote-sync',

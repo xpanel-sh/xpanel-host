@@ -8,6 +8,10 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- Motores de datos MariaDB, PostgreSQL y MongoDB administrables desde Ajustes. Host independiente puede instalarlos localmente; una instancia consulta los motores compartidos que habilitó XPanel VPS.
+- Creación de bases por sitio con selección de motor, credenciales aisladas, acceso remoto por IP exacta y medición de espacio por tecnología. Redis no se presenta como base persistente.
+- DbGate reemplaza phpMyAdmin como gestor visual común. Cada Host usa un proceso y credencial de acceso propios; las contraseñas de las bases no se guardan en su configuración y se solicitan al conectar.
+- Copias y restauraciones de sitios incluyen volcados MariaDB, PostgreSQL y MongoDB con formatos nativos.
 - Preparación de mapas de correo sin aplicar cambios durante una recuperación administrada y soporte para que VPS consolide el catálogo global sin mezclar los Maildir de cada cuenta.
 - Métricas anónimas configurables por categoría para Host independiente. Las instancias administradas no duplican el heartbeat informado por VPS y el envío nunca bloquea el panel.
 - Ajustes → General permite definir la identidad visual de cada Host. Una instancia administrada recibe el nombre inicial de VPS, pero guarda su propia modificación y Host independiente conserva control total de su entorno.
@@ -20,6 +24,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- Las copias PostgreSQL usan entrada y salida estándar para conservar privado el directorio temporal de `root` sin impedir que la identidad `postgres` genere o restaure el volcado.
 - El asistente DNS de correo reutiliza las clases de la plantilla con un cuadro de 500 px y un cuerpo desplazable de hasta 400 px, manteniendo fuera del scroll la cabecera y el pie. La solicitud SSL deja de responder `429` tras tres intentos, el botón se bloquea mientras Certbot trabaja y el servidor impide ejecuciones simultáneas.
 - Los proyectos Node.js de instancias VPS pueden atravesar con una ACL mínima los directorios padre de su caché npm privada. Al guardar un sitio también se repara de forma recursiva la propiedad de cachés antiguas bajo un bloqueo exclusivo, evitando el error `EACCES` sin compartir su contenido con otros sitios.
 - El modal DNS de correo ocupa un ancho y alto más compactos. La verificación MX consulta DNS público para evitar cachés obsoletas del VPS, y el SSL de `mail.<cloud-domain>` usa HTTP-01 por webroot, configura el vhost HTTPS de Roundcube y reutiliza el certificado en Postfix y Dovecot sin depender del plugin Nginx de Certbot.

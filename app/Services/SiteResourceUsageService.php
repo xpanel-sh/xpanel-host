@@ -63,10 +63,13 @@ class SiteResourceUsageService
     /** @return array<string, int|float> */
     private function readServer(Site $site): array
     {
+        $databases = $site->databases()->get(['engine', 'name'])
+            ->map(fn ($database): string => ($database->engine ?: 'mariadb').':'.$database->name)
+            ->all();
         $output = $this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'resource-snapshot',
             $site->domain, $site->document_root, $site->systemUser(), $site->web_server,
-            ...$site->databases()->pluck('name')->all(),
+            ...$databases,
         ], timeout: 120);
 
         return $this->parse($output);

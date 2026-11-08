@@ -50,7 +50,7 @@ Servidor Linux o MicroVM
 | **Sitios** | PHP, Node.js y estáticos, document root aislado, subdominios, dominios aparcados, redirecciones y páginas de error |
 | **Motores web** | Nginx inicial; Apache y OpenLiteSpeed instalables bajo demanda |
 | **SSL** | Let's Encrypt con Certbot, SAN por HTTP-01 y wildcard DNS-01 mediante Cloudflare |
-| **Bases de datos** | Bases y usuarios MariaDB aislados por sitio, phpMyAdmin y accesos remotos limitados por IPv4 |
+| **Bases de datos** | MariaDB, PostgreSQL y MongoDB aislados por sitio, DbGate y accesos remotos limitados por IPv4 |
 | **Correo** | Postfix, Dovecot, Maildir, Roundcube y XMail, SPF, DKIM, DMARC y verificación DNS |
 | **Archivos** | Gestor general confinado al hogar de la cuenta y gestor independiente confinado por dominio |
 | **Backups** | Copias manuales o programadas, retención, descarga y restauración segura de archivos y bases |
@@ -275,11 +275,11 @@ El editor consulta registros reales y permite crear, actualizar o eliminar A, AA
 
 **Rendimiento → CDN** reutiliza la conexión para cambiar `proxied` en los registros A/AAAA/CNAME del dominio exacto, siguiendo la [API DNS de Cloudflare](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/list/). La purga completa usa el endpoint oficial de [purga de caché](https://developers.cloudflare.com/api/go/resources/cache/methods/purge/) y requiere el permiso adicional `Cache Purge`; afecta a toda la zona, por lo que el panel lo indica antes de ejecutarla. Desconectar elimina el token cifrado de Host, pero no modifica registros remotos.
 
-### phpMyAdmin y MySQL remoto
+### DbGate y acceso remoto
 
-El instalador añade phpMyAdmin desde los paquetes mantenidos por Debian/Ubuntu y lo publica en `/phpmyadmin` bajo el mismo hostname del panel. Utiliza autenticación `cookie`, conecta únicamente a MariaDB local, bloquea el acceso root y no permite elegir servidores arbitrarios. Cada usuario entra con las credenciales creadas en **Bases de datos → Administración**.
+XPanel usa DbGate como administrador visual común para MariaDB, PostgreSQL y MongoDB. En Host independiente se instala desde **Ajustes → Bases de datos**; en una instancia administrada se habilita una vez desde XPanel VPS. Cada Host ejecuta su propio proceso aislado, sin credenciales root: DbGate solicita la contraseña de la base elegida y limita la conexión a esa base.
 
-**Bases de datos → MySQL remoto** autoriza una IPv4 exacta para una base concreta. Host crea una identidad `usuario@IP`, conserva los privilegios dentro de esa base y reconstruye una allowlist nftables para el puerto 3306. No utiliza `%`, rangos ni root remoto. Al retirar la última autorización, MariaDB vuelve a escuchar sólo en `127.0.0.1`. Si el proveedor del VDS tiene un firewall exterior, la misma IP debe permitirse también allí.
+**Bases de datos → Acceso remoto** autoriza una IPv4 exacta para una base concreta y reconstruye una allowlist nftables para el puerto del motor. MariaDB crea una identidad `usuario@IP`; PostgreSQL y MongoDB verifican la contraseña actual sin cambiarla ni guardarla. No utiliza comodines, rangos ni identidades administrativas. Al retirar el último acceso de un motor, éste vuelve a escuchar únicamente en loopback. Si el proveedor del VPS tiene un firewall exterior, la misma IP debe permitirse también allí.
 
 ### Subdominios
 
@@ -390,7 +390,7 @@ xpanel update
 5. ejecuta `npm ci` o Vite únicamente cuando cambiaron sus dependencias o recursos;
 6. aplica migraciones y reconstruye las cachés;
 7. resincroniza sitios, accesos o correo únicamente cuando cambió su configuración;
-8. actualiza Roundcube, phpMyAdmin o WP-CLI solo cuando faltan o cambió su instalador;
+8. actualiza Roundcube o WP-CLI solo cuando faltan o cambió su instalador; DbGate se instala bajo demanda desde Ajustes;
 9. vuelve a habilitar el panel incluso si una etapa falla.
 
 Tras actualizar, Host independiente verifica servicios, configuración, permisos, migraciones y acceso local. Si falta infraestructura, la actualización rápida se detiene sin recorrer ni reconfigurar silenciosamente todo el servidor. El administrador puede ejecutar `xpanel repair` (equivalente a `xpanel update --repair`) para actualizar y realizar la reconciliación completa. Esa reparación reaplica espacios, ACL, sitios, accesos, correo, utilidades y el instalador idempotente si aún falta un requisito. El instalador también proporciona Node.js 22 LTS desde los binarios oficiales y verifica su checksum antes de compilar el panel.

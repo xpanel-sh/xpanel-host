@@ -6,7 +6,9 @@ use App\Models\Role;
 use App\Models\Site;
 use App\Models\SiteDatabase;
 use App\Models\User;
+use App\Services\DatabaseEngineManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Tests\TestCase;
 
 class DatabaseManagementTest extends TestCase
@@ -54,6 +56,7 @@ class DatabaseManagementTest extends TestCase
         $database = SiteDatabase::firstOrFail();
         $this->assertStringStartsWith('xp_', $database->name);
         $this->assertStringEndsWith('_wordpress', $database->name);
+        $this->assertSame('mariadb', $database->engine);
         $this->assertSame('staged', $database->status);
         $this->assertArrayNotHasKey('password', $database->toArray());
     }
@@ -66,6 +69,25 @@ class DatabaseManagementTest extends TestCase
         ])->assertSessionHasErrors('password');
 
         $this->assertDatabaseCount('site_databases', 0);
+    }
+
+    public function test_an_available_postgresql_engine_can_be_selected(): void
+    {
+        $site = $this->site();
+        $engines = Mockery::mock(DatabaseEngineManager::class);
+        $engines->shouldReceive('isAvailable')->once()->with('postgresql')->andReturnTrue();
+        $this->app->instance(DatabaseEngineManager::class, $engines);
+
+        $this->actingAs($this->user('developer'))->post(route('sites.databases.general.store', $site), [
+            'engine' => 'postgresql',
+            'name' => 'application',
+            'username' => 'appuser',
+            'password' => 'Strong-Database_2026!',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $database = SiteDatabase::firstOrFail();
+        $this->assertSame('postgresql', $database->engine);
+        $this->assertSame('staged', $database->status);
     }
 
     public function test_viewer_cannot_mutate_databases(): void
