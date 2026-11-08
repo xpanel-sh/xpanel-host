@@ -23,10 +23,14 @@ class DatabaseEngineManager
             $status = ['installed' => ! config('xpanel.apply_system_changes') && $slug === 'mariadb', 'version' => null, 'error' => null];
             if (config('xpanel.apply_system_changes')) {
                 try {
-                    $status = $this->metadata($this->commands->run([
+                    $metadata = $this->metadata($this->commands->run([
                         'sudo', '-n', (string) config('xpanel.site_helper'), 'database-engine-status', $slug,
                     ]));
-                    $status['installed'] = ($status['installed'] ?? 'false') === 'true';
+                    $status = [
+                        'installed' => ($metadata['installed'] ?? 'false') === 'true',
+                        'version' => $metadata['version'] ?? null,
+                        'error' => null,
+                    ];
                 } catch (\Throwable $exception) {
                     $status = ['installed' => false, 'version' => null, 'error' => $exception->getMessage()];
                 }
