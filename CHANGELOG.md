@@ -25,6 +25,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 ### Corregido
 
 - Ajustes → Bases de datos normaliza la respuesta correcta del broker antes de renderizarla; una instancia administrada ya no responde 500 por una clave de diagnóstico ausente.
+- DbGate aparece separado bajo «Administrador visual» en lugar de presentarse como un motor de base de datos.
 - Las copias PostgreSQL usan entrada y salida estándar para conservar privado el directorio temporal de `root` sin impedir que la identidad `postgres` genere o restaure el volcado.
 - El asistente DNS de correo reutiliza las clases de la plantilla con un cuadro de 500 px y un cuerpo desplazable de hasta 400 px, manteniendo fuera del scroll la cabecera y el pie. La solicitud SSL deja de responder `429` tras tres intentos, el botón se bloquea mientras Certbot trabaja y el servidor impide ejecuciones simultáneas.
 - Los proyectos Node.js de instancias VPS pueden atravesar con una ACL mínima los directorios padre de su caché npm privada. Al guardar un sitio también se repara de forma recursiva la propiedad de cachés antiguas bajo un bloqueo exclusivo, evitando el error `EACCES` sin compartir su contenido con otros sitios.

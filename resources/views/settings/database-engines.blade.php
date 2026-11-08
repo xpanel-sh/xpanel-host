@@ -10,8 +10,8 @@
    @include('settings._navigation')
    @if(session('status'))<div class="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
    @if($errors->any())<div class="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
-   <div class="grid gap-5 md:grid-cols-2">
-    @foreach($engines as $slug => $engine)
+   <div class="grid gap-5 md:grid-cols-3">
+    @foreach(collect($engines)->except('dbgate') as $slug => $engine)
      <section class="kt-card"><div class="kt-card-content p-6 flex h-full flex-col gap-4">
       <div class="flex items-start justify-between gap-3"><div><h2 class="text-lg font-semibold text-mono">{{ $engine['label'] }}</h2><div class="mt-1 text-xs text-secondary-foreground">{{ $engine['version'] ?: 'Sin versión detectada' }} · Puerto {{ $engine['port'] }}</div></div><span class="kt-badge {{ $engine['installed'] ? 'kt-badge-success' : 'kt-badge-outline' }}">{{ $engine['installed'] ? 'Instalado' : 'Disponible' }}</span></div>
       <p class="grow text-sm text-secondary-foreground">{{ $engine['description'] }}</p>
@@ -23,7 +23,14 @@
      </div></section>
     @endforeach
    </div>
-   <div class="rounded-xl border border-border bg-muted/30 p-5 text-sm text-secondary-foreground">MariaDB permanece como motor predeterminado. PostgreSQL y MongoDB pueden convivir con él. DbGate es únicamente la interfaz visual; XPanel conserva la creación, permisos, límites y copias.</div>
+   @php($dbGate = $engines['dbgate'])
+   <div class="grid gap-3"><div><h2 class="text-lg font-semibold text-mono">Administrador visual</h2><p class="mt-1 text-sm text-secondary-foreground">Herramientas para consultar los motores disponibles. No almacenan las bases ni sustituyen a MariaDB, PostgreSQL o MongoDB.</p></div>
+    <section class="kt-card"><div class="kt-card-content p-6 flex items-center justify-between gap-5">
+     <div><div class="flex items-center gap-2"><h3 class="font-semibold text-mono">DbGate</h3><span class="kt-badge {{ $dbGate['installed'] ? 'kt-badge-success' : 'kt-badge-outline' }}">{{ $dbGate['installed'] ? 'Instalado' : 'Disponible' }}</span></div><p class="mt-2 text-sm text-secondary-foreground">Interfaz visual para MariaDB, PostgreSQL y MongoDB. Solicita la contraseña del usuario de la base al conectar.</p>@if($dbGate['version'])<div class="mt-1 text-xs text-secondary-foreground">Versión {{ $dbGate['version'] }}</div>@endif @if($dbGate['error'])<div class="mt-3 rounded-lg bg-danger/10 p-3 text-xs text-danger break-words">{{ $dbGate['error'] }}</div>@endif</div>
+     <div class="shrink-0">@if($dbGate['installed'])<button class="kt-btn kt-btn-outline" disabled>Disponible</button>@elseif(config('xpanel.management_mode') === 'vps-instance')<div class="text-xs text-secondary-foreground">No habilitado en el VPS.</div>@elseif(config('xpanel.apply_system_changes'))<form method="post" action="{{ route('settings.database-engines.install', 'dbgate') }}" onsubmit="return confirm('¿Instalar DbGate en este servidor?');">@csrf<button class="kt-btn kt-btn-primary">Instalar DbGate</button></form>@else<button class="kt-btn kt-btn-outline" disabled>Solo disponible en Linux</button>@endif</div>
+    </div></section>
+   </div>
+   <div class="rounded-xl border border-border bg-muted/30 p-5 text-sm text-secondary-foreground">MariaDB permanece como motor predeterminado. PostgreSQL y MongoDB pueden convivir con él. XPanel conserva la creación, permisos, límites y copias.</div>
   </div>
  </main>@include('layouts.partials.client.footer')</div>
 </div>
