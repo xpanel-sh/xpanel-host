@@ -48,6 +48,7 @@ site_group="$(env_value XPANEL_SITE_GROUP)"
 site_group="${site_group:-www-data}"
 helper="$(env_value XPANEL_SITE_HELPER)"
 helper="${helper:-$ROOT/scripts/xpanel-site-helper.sh}"
+command -v dbgate-serve >/dev/null 2>&1 || fail "DbGate database manager is not installed"
 php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
 
 id "$site_user" >/dev/null 2>&1 || fail "panel service user does not exist: $site_user"

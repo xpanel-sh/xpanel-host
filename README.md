@@ -277,7 +277,7 @@ El editor consulta registros reales y permite crear, actualizar o eliminar A, AA
 
 ### DbGate y acceso remoto
 
-XPanel usa DbGate como administrador visual común para MariaDB, PostgreSQL y MongoDB. En Host independiente se instala desde **Ajustes → Bases de datos**; en una instancia administrada se habilita una vez desde XPanel VPS. Cada Host ejecuta su propio proceso aislado, sin credenciales root: DbGate solicita la contraseña de la base elegida y limita la conexión a esa base.
+XPanel instala DbGate por defecto como administrador visual común para MariaDB, PostgreSQL y MongoDB. En VPS el binario se comparte, pero cada Host ejecuta su propio proceso aislado y conserva un acceso diferente. No recibe credenciales root: DbGate solicita la contraseña de la base elegida y limita la conexión a esa base.
 
 **Bases de datos → Acceso remoto** autoriza una IPv4 exacta para una base concreta y reconstruye una allowlist nftables para el puerto del motor. MariaDB crea una identidad `usuario@IP`; PostgreSQL y MongoDB verifican la contraseña actual sin cambiarla ni guardarla. No utiliza comodines, rangos ni identidades administrativas. Al retirar el último acceso de un motor, éste vuelve a escuchar únicamente en loopback. Si el proveedor del VPS tiene un firewall exterior, la misma IP debe permitirse también allí.
 

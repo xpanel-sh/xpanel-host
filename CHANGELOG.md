@@ -11,6 +11,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 - Motores de datos MariaDB, PostgreSQL y MongoDB administrables desde Ajustes. Host independiente puede instalarlos localmente; una instancia consulta los motores compartidos que habilitó XPanel VPS.
 - Creación de bases por sitio con selección de motor, credenciales aisladas, acceso remoto por IP exacta y medición de espacio por tecnología. Redis no se presenta como base persistente.
 - DbGate reemplaza phpMyAdmin como gestor visual común. Cada Host usa un proceso y credencial de acceso propios; las contraseñas de las bases no se guardan en su configuración y se solicitan al conectar.
+- DbGate forma parte de la instalación estándar y las actualizaciones existentes lo incorporan automáticamente de forma idempotente.
 - Copias y restauraciones de sitios incluyen volcados MariaDB, PostgreSQL y MongoDB con formatos nativos.
 - Preparación de mapas de correo sin aplicar cambios durante una recuperación administrada y soporte para que VPS consolide el catálogo global sin mezclar los Maildir de cada cuenta.
 - Métricas anónimas configurables por categoría para Host independiente. Las instancias administradas no duplican el heartbeat informado por VPS y el envío nunca bloquea el panel.

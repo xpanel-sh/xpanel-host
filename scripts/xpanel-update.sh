@@ -225,6 +225,7 @@ getent passwd "$site_user" >/dev/null || { echo "Usuario del panel inválido: $s
 getent group "$site_group" >/dev/null || { echo "Grupo del panel inválido: $site_group" >&2; exit 1; }
 chown root:"$site_group" "$ROOT/scripts/xpanel-site-helper.sh"
 chmod 0750 "$ROOT/scripts/xpanel-site-helper.sh"
+bash "$ROOT/scripts/install-dbgate.sh"
 
 if [[ "$UPDATE_MODE" == "update" && -n "$current_revision" && "$installed_revision" == "${current_revision:0:12}" ]]; then
   echo "XPanel Host ya utiliza la revisión instalada; ejecutando verificación rápida."
