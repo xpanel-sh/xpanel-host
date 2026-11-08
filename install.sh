@@ -860,6 +860,7 @@ chmod 0644 /var/lib/xpanel-host/language
 install_base_dependencies
 ensure_node_runtime
 bash "$ROOT/scripts/install-dbgate.sh"
+bash "$ROOT/scripts/remove-legacy-phpmyadmin.sh"
 validate_php_runtime
 
 composer --working-dir="$ROOT" install --no-dev --optimize-autoloader --no-interaction --prefer-dist

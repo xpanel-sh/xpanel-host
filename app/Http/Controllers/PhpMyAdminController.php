@@ -13,12 +13,13 @@ class PhpMyAdminController extends Controller
     {
         $status = $engines->statuses()['dbgate'];
 
-        $credentials = $status['installed'] ? $dbGate->synchronize() : ['login' => null, 'password' => null];
+        $enabled = (bool) $status['installed'] && (bool) ($status['enabled'] ?? true);
+        $credentials = $enabled ? $dbGate->synchronize() : ['login' => null, 'password' => null];
         return view('sites.database.phpmyadmin', [
             'site' => $site,
             'databases' => $site->databases()->orderBy('name')->get(),
             'dbGateUrl' => url('/dbgate/'),
-            'enabled' => (bool) $status['installed'],
+            'enabled' => $enabled,
             'version' => $status['version'],
             'dbGateLogin' => $credentials['login'],
             'dbGatePassword' => $credentials['password'],

@@ -394,6 +394,7 @@ Route::middleware('setup.complete')->group(function () {
             Route::post('/settings/web-servers/{engine}/install', [WebServerEngineController::class, 'install'])->name('settings.web-servers.install');
             Route::get('/settings/database-engines', [DatabaseEngineController::class, 'index'])->name('settings.database-engines.index');
             Route::post('/settings/database-engines/{engine}/install', [DatabaseEngineController::class, 'install'])->name('settings.database-engines.install');
+            Route::post('/settings/database-engines/dbgate/state', [DatabaseEngineController::class, 'dbGateState'])->name('settings.database-engines.dbgate-state');
             Route::get('/settings/updates', [HostUpdateController::class, 'index'])->name('settings.updates.index');
             Route::get('/settings/updates/status', [HostUpdateController::class, 'status'])->middleware('throttle:120,1')->name('settings.updates.status');
             Route::post('/settings/updates', [HostUpdateController::class, 'start'])->name('settings.updates.start');

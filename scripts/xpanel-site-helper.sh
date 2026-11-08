@@ -1928,6 +1928,16 @@ SQL
   fi
 }
 
+dbgate_executable() {
+  local candidate
+  for candidate in /usr/local/bin/dbgate-serve /usr/bin/dbgate-serve; do
+    [[ -x "$candidate" ]] || continue
+    printf '%s\n' "$candidate"
+    return 0
+  done
+  return 1
+}
+
 database_engine_status() {
   local engine="$2" installed=false version=""
   case "$engine" in
@@ -1938,10 +1948,19 @@ database_engine_status() {
     mongodb)
       if command -v mongosh >/dev/null 2>&1 && systemctl is-active --quiet mongod; then installed=true; version="$(mongosh --version | head -n1)"; fi ;;
     dbgate)
-      if command -v dbgate-serve >/dev/null 2>&1; then installed=true; version="$(npm list -g dbgate-serve --depth=0 2>/dev/null | sed -nE 's/.*dbgate-serve@([^ ]+).*/\1/p' | head -n1)"; fi ;;
+      if dbgate_executable >/dev/null; then
+        installed=true
+        version="$(npm list -g dbgate-serve --depth=0 2>/dev/null | sed -nE 's/.*dbgate-serve@([^ ]+).*/\1/p' | head -n1 || true)"
+      fi ;;
     *) fail "Unsupported database engine." ;;
   esac
-  printf 'installed=%s\nversion=%s\n' "$installed" "$version"
+  printf 'installed=%s\n' "$installed"
+  if [[ "$engine" == dbgate && -e /etc/xpanel-host/dbgate.disabled ]]; then
+    printf 'enabled=false\n'
+  else
+    printf 'enabled=true\n'
+  fi
+  printf 'version=%s\n' "$version"
 }
 
 database_engine_install() {
@@ -1995,7 +2014,8 @@ database_engine_install() {
 }
 
 dbgate_sync() {
-  command -v dbgate-serve >/dev/null 2>&1 || fail "DbGate is not installed."
+  [[ ! -e /etc/xpanel-host/dbgate.disabled ]] || fail "DbGate is disabled by the server administrator."
+  dbgate_executable >/dev/null || fail "DbGate is not installed."
   local source="$STATE_ROOT/storage/app/dbgate/runtime.env" port="${XPANEL_DBGATE_PORT:-3000}" unit user working executable
   [[ -f "$source" && ! -L "$source" ]] || fail "DbGate staged configuration is unavailable."
   [[ "$port" =~ ^[0-9]{4,5}$ ]] && (( port >= 1024 && port <= 65535 )) || fail "Invalid DbGate port."
@@ -2008,8 +2028,7 @@ dbgate_sync() {
     user="${ACCOUNT_USER:-$SITE_USER}"
   fi
   working="$STATE_ROOT/storage/app/dbgate/data"
-  executable="$(command -v dbgate-serve)"
-  [[ "$executable" == /usr/bin/dbgate-serve || "$executable" == /usr/local/bin/dbgate-serve ]] || fail "DbGate executable is outside an approved system path."
+  executable="$(dbgate_executable)"
   install -d -o "$user" -g "$user" -m 0700 "$working"
   chown "$user:$user" "$source"
   chmod 0600 "$source"
@@ -2062,6 +2081,24 @@ EOF
   systemctl restart "$unit.service"
   nginx -t && systemctl reload nginx
   printf 'port=%s\nunit=%s\n' "$port" "$unit"
+}
+
+dbgate_set_enabled() {
+  local enabled="$2" unit
+  [[ "$enabled" == true || "$enabled" == false ]] || fail "Invalid DbGate state."
+  install -d -o root -g root -m 0755 /etc/xpanel-host
+  if [[ "$enabled" == true ]]; then
+    rm -f -- /etc/xpanel-host/dbgate.disabled
+    echo "DbGate enabled."
+    return 0
+  fi
+  : > /etc/xpanel-host/dbgate.disabled
+  chmod 0644 /etc/xpanel-host/dbgate.disabled
+  while read -r unit _; do
+    [[ "$unit" =~ ^xpanel-dbgate(-[a-f0-9-]+)?\.service$ ]] || continue
+    systemctl disable --now "$unit" >/dev/null 2>&1 || true
+  done < <(systemctl list-unit-files 'xpanel-dbgate*.service' --no-legend 2>/dev/null || true)
+  echo "DbGate disabled."
 }
 
 database_remote_action() {
@@ -3023,6 +3060,7 @@ case "$ACTION" in
   engine-install) engine_install "$@" ;;
   database-engine-status) database_engine_status "$@" ;;
   database-engine-install) database_engine_install "$@" ;;
+  dbgate-set-enabled) dbgate_set_enabled "$@" ;;
   dbgate-sync) dbgate_sync ;;
   database-create|database-password|database-remove) database_action "$@" ;;
   database-remote-create|database-remote-remove) database_remote_action "$@" ;;

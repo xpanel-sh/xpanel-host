@@ -20,7 +20,7 @@ class DatabaseEngineManager
     {
         $statuses = [];
         foreach (self::ENGINES as $slug => $definition) {
-            $status = ['installed' => ! config('xpanel.apply_system_changes') && $slug === 'mariadb', 'version' => null, 'error' => null];
+            $status = ['installed' => ! config('xpanel.apply_system_changes') && $slug === 'mariadb', 'enabled' => true, 'version' => null, 'error' => null];
             if (config('xpanel.apply_system_changes')) {
                 try {
                     $metadata = $this->metadata($this->commands->run([
@@ -28,11 +28,12 @@ class DatabaseEngineManager
                     ]));
                     $status = [
                         'installed' => ($metadata['installed'] ?? 'false') === 'true',
+                        'enabled' => ($metadata['enabled'] ?? 'true') === 'true',
                         'version' => $metadata['version'] ?? null,
                         'error' => null,
                     ];
                 } catch (\Throwable $exception) {
-                    $status = ['installed' => false, 'version' => null, 'error' => $exception->getMessage()];
+                    $status = ['installed' => false, 'enabled' => false, 'version' => null, 'error' => $exception->getMessage()];
                 }
             }
             $statuses[$slug] = $definition + $status;
@@ -66,6 +67,19 @@ class DatabaseEngineManager
         $this->commands->run([
             'sudo', '-n', (string) config('xpanel.site_helper'), 'database-engine-install', $engine,
         ], null, 1800);
+    }
+
+    public function setDbGateEnabled(bool $enabled): void
+    {
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            throw new RuntimeException('DbGate se habilita o deshabilita una sola vez desde XPanel VPS.');
+        }
+        if (! config('xpanel.apply_system_changes')) {
+            throw new RuntimeException('Esta acción solo está disponible en el servidor Linux.');
+        }
+        $this->commands->run([
+            'sudo', '-n', (string) config('xpanel.site_helper'), 'dbgate-set-enabled', $enabled ? 'true' : 'false',
+        ], null, 120);
     }
 
     /** @return array<string, string> */

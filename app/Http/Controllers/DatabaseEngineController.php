@@ -23,4 +23,16 @@ class DatabaseEngineController extends Controller
 
         return back()->with('status', DatabaseEngineManager::ENGINES[$engine]['label'].' quedó disponible.');
     }
+
+    public function dbGateState(DatabaseEngineManager $manager): RedirectResponse
+    {
+        $enabled = request()->boolean('enabled');
+        try {
+            $manager->setDbGateEnabled($enabled);
+        } catch (\Throwable $exception) {
+            return back()->withErrors(['server' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', 'DbGate quedó '.($enabled ? 'habilitado' : 'deshabilitado').'.');
+    }
 }

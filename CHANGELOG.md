@@ -12,6 +12,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 - Creación de bases por sitio con selección de motor, credenciales aisladas, acceso remoto por IP exacta y medición de espacio por tecnología. Redis no se presenta como base persistente.
 - DbGate reemplaza phpMyAdmin como gestor visual común. Cada Host usa un proceso y credencial de acceso propios; las contraseñas de las bases no se guardan en su configuración y se solicitan al conectar.
 - DbGate forma parte de la instalación estándar y las actualizaciones existentes lo incorporan automáticamente de forma idempotente.
+- DbGate se detecta por sus rutas de sistema aunque el panel se ejecute con un `PATH` restringido. Host independiente puede habilitarlo o deshabilitarlo; una instancia refleja la decisión global del VPS sin ofrecer una instalación local imposible.
 - Copias y restauraciones de sitios incluyen volcados MariaDB, PostgreSQL y MongoDB con formatos nativos.
 - Preparación de mapas de correo sin aplicar cambios durante una recuperación administrada y soporte para que VPS consolide el catálogo global sin mezclar los Maildir de cada cuenta.
 - Métricas anónimas configurables por categoría para Host independiente. Las instancias administradas no duplican el heartbeat informado por VPS y el envío nunca bloquea el panel.
@@ -25,6 +26,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- La actualización retira la configuración y el paquete phpMyAdmin únicamente cuando reconoce una instalación anterior administrada por XPanel; las bases y sus usuarios no se modifican.
 - Ajustes → Bases de datos normaliza la respuesta correcta del broker antes de renderizarla; una instancia administrada ya no responde 500 por una clave de diagnóstico ausente.
 - DbGate aparece separado bajo «Administrador visual» en lugar de presentarse como un motor de base de datos.
 - Las copias PostgreSQL usan entrada y salida estándar para conservar privado el directorio temporal de `root` sin impedir que la identidad `postgres` genere o restaure el volcado.

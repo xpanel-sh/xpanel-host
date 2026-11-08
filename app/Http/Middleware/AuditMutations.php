@@ -155,6 +155,7 @@ class AuditMutations
             'sites.remote-access.store' => 'Autorizó una IP para una base de datos.',
             'sites.remote-access.destroy' => 'Revocó una IP de una base de datos.',
             'settings.database-engines.install' => 'Instaló un motor de base de datos.',
+            'settings.database-engines.dbgate-state' => 'Cambió la disponibilidad de DbGate.',
             'sites.subdomains.store' => 'Creó un subdominio.',
             'sites.subdomains.destroy' => 'Eliminó un subdominio.',
             'sites.access.terminal.token' => 'Abrió una terminal SSH real del sitio.',
