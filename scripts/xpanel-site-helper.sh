@@ -2020,17 +2020,21 @@ database_engine_install() {
 dbgate_sync() {
   [[ ! -e /etc/xpanel-host/dbgate.disabled ]] || fail "DbGate is disabled by the server administrator."
   dbgate_executable >/dev/null || fail "DbGate is not installed."
-  local source="$STATE_ROOT/storage/app/dbgate/runtime.env" port="${XPANEL_DBGATE_PORT:-3000}" unit user working executable
+  local source="$STATE_ROOT/storage/app/dbgate/runtime.env" port="${XPANEL_DBGATE_PORT:-}" unit user working executable attempt http_code ready=false
   [[ -f "$source" && ! -L "$source" ]] || fail "DbGate staged configuration is unavailable."
-  [[ "$port" =~ ^[0-9]{4,5}$ ]] && (( port >= 1024 && port <= 65535 )) || fail "Invalid DbGate port."
   if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
     [[ "${XPANEL_INSTANCE_ID:-}" =~ ^[a-f0-9-]{36}$ ]] || fail "Invalid managed DbGate instance."
+    if [[ -z "$port" && "${XPANEL_PANEL_PORT:-}" =~ ^1[0-9]{4}$ ]]; then
+      port=$((10#$XPANEL_PANEL_PORT + 20000))
+    fi
     unit="xpanel-dbgate-${XPANEL_INSTANCE_ID}"
     user="$ACCOUNT_USER"
   else
+    port="${port:-3000}"
     unit="xpanel-dbgate"
     user="${ACCOUNT_USER:-$SITE_USER}"
   fi
+  [[ "$port" =~ ^[0-9]{4,5}$ ]] && (( 10#$port >= 1024 && 10#$port <= 65535 )) || fail "Invalid DbGate port. Repair this Host instance from XPanel VPS."
   working="$STATE_ROOT/storage/app/dbgate/data"
   executable="$(dbgate_executable)"
   install -d -o "$user" -g "$user" -m 0700 "$working"
@@ -2047,7 +2051,8 @@ User=$user
 Group=$user
 EnvironmentFile=$source
 Environment=PORT=$port
-Environment=LISTEN=127.0.0.1
+Environment=HOME=$working
+Environment=DATA_DIRECTORY=$working
 WorkingDirectory=$working
 ExecStart=$executable
 Restart=on-failure
@@ -2083,6 +2088,19 @@ EOF
   systemctl daemon-reload
   systemctl enable --now "$unit.service"
   systemctl restart "$unit.service"
+  for attempt in {1..40}; do
+    if http_code="$(curl --silent --max-time 1 --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:$port/dbgate/" 2>/dev/null)" \
+      && [[ "$http_code" =~ ^(2[0-9]{2}|3[0-9]{2}|401|403)$ ]]; then
+      ready=true
+      break
+    fi
+    systemctl is-active --quiet "$unit.service" || break
+    sleep 0.25
+  done
+  if [[ "$ready" != true ]]; then
+    journalctl -u "$unit.service" --no-pager -n 30 >&2 || true
+    fail "DbGate did not become ready on 127.0.0.1:$port."
+  fi
   nginx -t && systemctl reload nginx
   printf 'port=%s\nunit=%s\n' "$port" "$unit"
 }
