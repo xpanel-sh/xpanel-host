@@ -28,7 +28,7 @@ class SqliteDatabaseController extends Controller
             return back()->withInput()->withErrors(['file' => $exception->getMessage()]);
         }
 
-        return back()->with('status', 'Archivo SQLite conectado a DbGate. Los datos siguen en el sitio.');
+        return back()->with('status', 'Archivo SQLite registrado. Pulsa Sincronizar con DbGate para cargar la conexión; los datos siguen en el sitio.');
     }
 
     public function destroy(Site $site, SiteSqliteDatabase $sqliteDatabase, HostingDatabaseScope $scope): RedirectResponse

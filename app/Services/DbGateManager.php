@@ -11,13 +11,14 @@ class DbGateManager
 {
     public function __construct(private readonly ServerCommandRunner $commands, private readonly SiteSqliteDatabaseManager $sqlite) {}
 
-    /** @return array{login:string,password:string} */
+    /** @return array{login:string,password:string,warnings:list<string>} */
     public function synchronize(): array
     {
         $credentials = $this->credentials();
         $databases = SiteDatabase::query()->where('status', 'active')->orderBy('id')->get();
         $ids = $databases->map(fn (SiteDatabase $database): string => 'db'.$database->id)->all();
         $sqliteFiles = [];
+        $warnings = [];
         foreach (SiteSqliteDatabase::query()->with('site')->orderBy('id')->get() as $database) {
             try {
                 $sqliteFiles['sqlite'.$database->id] = [
@@ -27,6 +28,7 @@ class DbGateManager
             } catch (Throwable $exception) {
                 // A moved or removed site file must never turn into an unrestricted connection.
                 report($exception);
+                $warnings[] = $database->site->domain.' · '.$database->relative_path.': '.$exception->getMessage();
             }
         }
         $ids = array_merge($ids, array_keys($sqliteFiles));
@@ -94,7 +96,7 @@ class DbGateManager
             $this->commands->run(['sudo', '-n', (string) config('xpanel.site_helper'), 'dbgate-sync'], null, 120);
         }
 
-        return $credentials;
+        return $credentials + ['warnings' => $warnings];
     }
 
     /** @return array{login:string,password:string} */

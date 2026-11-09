@@ -125,6 +125,22 @@ class DatabaseManagementTest extends TestCase
         $this->assertSame('staged', $database->status);
     }
 
+    public function test_managed_database_and_user_use_the_short_instance_prefix(): void
+    {
+        config()->set('xpanel.management_mode', 'vps-instance');
+        config()->set('xpanel.instance_id', 'bd84fd44-ceb6-4c07-b9db-4fe73b1a4db4');
+        config()->set('xpanel.assigned_max_databases', 10);
+        $site = $this->site('migen.ronaldbit.com');
+
+        $this->actingAs($this->user('developer'))->post(route('sites.databases.store', $site), [
+            'name' => 'migen', 'username' => 'migen', 'password' => 'Strong-Database_2026!',
+        ])->assertSessionHasNoErrors();
+
+        $database = SiteDatabase::firstOrFail();
+        $this->assertSame('xp_bd84fd_migen', $database->name);
+        $this->assertSame('xp_bd84fd_migen', $database->username);
+    }
+
     public function test_viewer_cannot_mutate_databases(): void
     {
         $site = $this->site();

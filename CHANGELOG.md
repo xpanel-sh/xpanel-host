@@ -8,6 +8,8 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- Bases y usuarios nuevos usan el prefijo corto de la cuenta (`xp_<instancia>_`) también al importar sitios o instalar WordPress. Las bases existentes conservan su nombre.
+- La conexión SQLite registrada muestra la sincronización con DbGate junto a Desconectar y aclara que hay que cargarla antes de verla en el gestor.
 - Archivos SQLite existentes de cada sitio pueden conectarse a DbGate desde Bases de datos sin instalar otro motor. Se validan la ruta, el formato y que queden fuera de la carpeta pública; desconectar conserva los datos. DbGate puede escribir en el espacio web de su propia cuenta para permitir journaling y WAL, tanto en Host independiente como administrado. Cada archivo registrado cuenta dentro del máximo de bases del plan.
 - DbGate conserva el archivo de conexiones bajo la identidad del panel después de sincronizarlo; así una segunda visita puede incorporar o quitar conexiones sin fallar por permisos.
 - Motores de datos MariaDB, PostgreSQL y MongoDB administrables desde Ajustes. Host independiente puede instalarlos localmente; una instancia consulta los motores compartidos que habilitó XPanel VPS.

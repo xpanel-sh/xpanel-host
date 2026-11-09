@@ -33,14 +33,16 @@
         </form>
       @endif
       <p class="text-xs text-secondary-foreground">Si no aparece, comprueba que el archivo exista en el proyecto. En sitios PHP o estáticos configura una carpeta pública separada, por ejemplo <code>public</code>; Node.js se publica mediante su proceso. SQLite consume espacio y una base del límite del plan.</p>
-      <div><a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.database-manager', $site) }}">Abrir administrador DbGate</a></div>
       @if ($sqliteDatabases->isNotEmpty())
         <div class="divide-y divide-border rounded-lg border border-border">
           @foreach ($sqliteDatabases as $sqliteDatabase)
             <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"><div><span class="kt-badge kt-badge-outline">SQLite</span> <span class="ms-2">{{ $sqliteDatabase->site->domain }}</span> · <code>{{ $sqliteDatabase->relative_path }}</code></div>
-              @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
-                <form method="post" action="{{ route('sites.databases.sqlite.destroy', [$site, $sqliteDatabase]) }}">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline" type="submit" onclick="return confirm('¿Retirar la conexión de DbGate? El archivo no se eliminará.')">Desconectar</button></form>
-              @endif
+              <div class="flex items-center gap-2">
+                <a class="kt-btn kt-btn-sm kt-btn-primary" href="{{ route('sites.database-manager', $site) }}">Sincronizar con DbGate</a>
+                @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
+                  <form method="post" action="{{ route('sites.databases.sqlite.destroy', [$site, $sqliteDatabase]) }}">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline" type="submit" onclick="return confirm('¿Retirar la conexión de DbGate? El archivo no se eliminará.')">Desconectar</button></form>
+                @endif
+              </div>
             </div>
           @endforeach
         </div>

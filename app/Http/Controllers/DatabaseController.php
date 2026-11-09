@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Site;
 use App\Models\SiteDatabase;
 use App\Services\DatabaseProvisioner;
+use App\Services\DatabaseNamePrefix;
 use App\Services\DatabaseEngineManager;
 use App\Services\HostingPlanQuota;
 use App\Services\HostingDatabaseScope;
@@ -53,10 +54,7 @@ class DatabaseController extends Controller
             return back()->withInput($request->except('password'))->withErrors(['engine' => 'El motor seleccionado no está disponible en este servidor.']);
         }
         $target = $scope->selected($site, (int) ($data['target_site_id'] ?? $site->id));
-        $instancePrefix = config('xpanel.management_mode') === 'vps-instance'
-            ? substr(str_replace('-', '', (string) config('xpanel.instance_id')), 0, 6).'_'
-            : '';
-        $prefix = 'xp_'.$instancePrefix.substr(hash('sha256', $target->domain), 0, 8).'_';
+        $prefix = DatabaseNamePrefix::currentAccount();
         $database = null;
         try {
             $database = $target->databases()->create([

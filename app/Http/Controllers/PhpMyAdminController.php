@@ -26,7 +26,7 @@ class PhpMyAdminController extends Controller
         $enabled = (bool) $status['installed'] && (bool) ($status['enabled'] ?? true);
         $ready = false;
         $runtimeError = null;
-        $credentials = ['login' => null, 'password' => null];
+        $credentials = ['login' => null, 'password' => null, 'warnings' => []];
         if ($enabled) {
             try {
                 $credentials = $dbGate->synchronize();
@@ -47,6 +47,7 @@ class PhpMyAdminController extends Controller
             'version' => $status['version'],
             'dbGateLogin' => $credentials['login'],
             'dbGatePassword' => $credentials['password'],
+            'dbGateWarnings' => $credentials['warnings'],
         ]);
     }
 }

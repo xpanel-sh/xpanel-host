@@ -133,6 +133,8 @@ class SqliteDatabaseManagementTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame($child->id, $parent->subdomains()->firstOrFail()->sqliteDatabases()->firstOrFail()->site_id);
+        $this->actingAs($user)->get(route('sites.databases.general', $parent))
+            ->assertOk()->assertSee('Sincronizar con DbGate')->assertSee('Desconectar');
         app(DbGateManager::class)->synchronize();
         $this->assertStringContainsString('='.str_replace('\\', '/', $file), File::get(storage_path('app/dbgate/runtime.env')));
     }

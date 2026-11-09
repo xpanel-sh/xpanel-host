@@ -102,7 +102,7 @@ class SiteMigrationManager
     /** @param array<string, mixed> $data */
     private function createDatabase(Site $site, array $data): SiteDatabase
     {
-        $prefix = 'xp_'.substr(hash('sha256', $site->domain), 0, 8).'_';
+        $prefix = DatabaseNamePrefix::currentAccount();
 
         return $site->databases()->create([
             'name' => substr($prefix.(string) $data['database_name'], 0, 64),
