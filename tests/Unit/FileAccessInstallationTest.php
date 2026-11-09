@@ -27,7 +27,7 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('X11Forwarding no', $helper);
         $this->assertStringContainsString('Match all', $helper);
         $this->assertStringContainsString('shell_home="/family/$domain_label"', $helper);
-        $this->assertStringContainsString('shell_start="/family"', $helper);
+        $this->assertStringContainsString('shell_start="$shell_home"', $helper);
         $this->assertStringContainsString('cd -- %q', $helper);
         $this->assertStringContainsString('/family/${terminal_domains[$family_index]}', $helper);
         $this->assertStringContainsString('Terminal family contains an unrelated domain.', $helper);

@@ -30,7 +30,8 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
-- La terminal del dominio principal mantiene `/family` como punto de inicio, pero usa como `HOME` el proyecto escribible de ese dominio. npm y otras herramientas dejan de intentar crear su caché en la raíz protegida `/family`. La actualización vuelve a generar los perfiles de terminal al cambiar su helper.
+- La terminal del dominio principal inicia en su proyecto escribible (`~`) y conserva los subdominios como carpetas hermanas accesibles con `cd ..`. npm y otras herramientas dejan de intentar crear su caché en la raíz protegida `/family`. La actualización vuelve a generar los perfiles de terminal al cambiar su helper.
+- El agente de terminal envía señales WebSocket periódicas y detecta conexiones inactivas rotas, evitando que las pulsaciones queden retenidas durante varios minutos sin indicar una desconexión.
 - Las bases del dominio principal y sus subdominios se administran desde una sola sección del hosting. SQLite detecta archivos existentes de proyectos PHP y Node.js, configura su conexión DbGate sin pedir rutas del servidor y conserva el límite y aislamiento de cada cuenta.
 - La sincronización puntual de permisos usa la sintaxis correcta de `setfacl` para ACL actuales y heredadas; conectar un archivo SQLite ya no falla al interpretar una regla como ruta inexistente.
 - La configuración PHP global enumera las extensiones de la versión del sitio y, cuando puede inspeccionar PHP-FPM, distingue módulos activos de paquetes solo instalados. Aclara que el perfil es opcional y que un perfil compartido afecta a varios sitios; los perfiles nuevos incluyen SQLite si está instalado.

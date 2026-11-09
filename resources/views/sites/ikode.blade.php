@@ -4230,6 +4230,7 @@
                         if (terminal.socket !== socket) return;
                         window.clearTimeout(connectionTimeout);
                         if (!socketOpened) showSocketError('No se pudo abrir la sesión SSH. Comprueba Acceso SSH → Terminal iKode y vuelve a conectar.');
+                        else terminal.term.write('\r\n\x1b[33mLa conexión de la terminal se cerró. Usa Reconectar para continuar.\x1b[0m\r\n');
                         terminal.socket = null;
                         terminal.connecting = false;
                         setTerminalStatus(terminal, 'Desconectado');

@@ -368,7 +368,7 @@ if changed_matches '^(app/.*(Certificate|Ssl|VirtualHost|Site)|config/xpanel\.ph
 else
   echo "Sitios y certificados sin cambios de configuración; sincronización omitida."
 fi
-if [[ "$terminal_enabled" == "true" ]] && changed_matches '^(app/.*(Terminal|Access)|scripts/configure-terminal-agent\.sh|terminal-agent/)'; then
+if [[ "$terminal_enabled" == "true" ]] && changed_matches '^(app/.*(Terminal|Access)|scripts/configure-terminal-agent\.sh|agent/)'; then
   bash "$ROOT/scripts/configure-terminal-agent.sh"
   account_user="$(env_value XPANEL_ACCOUNT_USER)"
   account_home="$(env_value XPANEL_ACCOUNT_HOME)"

@@ -18,6 +18,12 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 4096,
 }
 
+const (
+	terminalPingInterval = 25 * time.Second
+	terminalPongWait     = 75 * time.Second
+	terminalWriteWait    = 10 * time.Second
+)
+
 type wsMessage struct {
 	Type string `json:"type"`
 	Data string `json:"data,omitempty"`
@@ -38,6 +44,9 @@ func (w *socketWriter) write(kind, message string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	if err := w.conn.SetWriteDeadline(time.Now().Add(terminalWriteWait)); err != nil {
+		return err
+	}
 	return w.conn.WriteMessage(websocket.TextMessage, frame)
 }
 
@@ -138,6 +147,28 @@ func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload, token 
 		session.Close()
 		conn.Close()
 	}()
+	// Browsers answer WebSocket ping frames automatically. Keep an idle terminal
+	// alive through proxies and close a broken socket instead of silently
+	// buffering keystrokes until the network recovers minutes later.
+	_ = conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+	})
+	go func() {
+		ticker := time.NewTicker(terminalPingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(terminalWriteWait)); err != nil {
+					finish()
+					return
+				}
+			}
+		}
+	}()
 
 	for {
 		_, raw, err := conn.ReadMessage()
@@ -150,7 +181,10 @@ func bridgeToSSH(conn *websocket.Conn, cfg *config, payload tokenPayload, token 
 		}
 		switch msg.Type {
 		case "data":
-			_, _ = stdin.Write([]byte(msg.Data))
+			if _, err := stdin.Write([]byte(msg.Data)); err != nil {
+				finish()
+				return
+			}
 		case "resize":
 			if msg.Cols > 0 && msg.Rows > 0 {
 				_ = session.WindowChange(msg.Rows, msg.Cols)

@@ -2440,10 +2440,10 @@ access_sync() {
   domain_label="$(basename -- "$document_root")"
   if [[ "$terminal_scope" == "family" ]]; then
     # /family is root-owned so it can safely contain bind mounts for several
-    # sites. It is a useful starting directory, but cannot be HOME: npm and
-    # other tools would try to create /family/.npm and fail with EACCES.
+    # sites. Start in the writable primary project, which is also HOME; its
+    # sibling subdomains remain available with `cd ..`.
     shell_home="/family/$domain_label"
-    shell_start="/family"
+    shell_start="$shell_home"
   fi
   printf 'export HOME=%q\ncd -- %q\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$shell_start" "$domain_label" > "$jail/etc/profile"
   cat >> "$jail/etc/profile" <<'TERMINAL_COLORS'
