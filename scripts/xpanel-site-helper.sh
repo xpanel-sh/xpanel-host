@@ -2020,7 +2020,7 @@ database_engine_install() {
 dbgate_sync() {
   [[ ! -e /etc/xpanel-host/dbgate.disabled ]] || fail "DbGate is disabled by the server administrator."
   dbgate_executable >/dev/null || fail "DbGate is not installed."
-  local source="$STATE_ROOT/storage/app/dbgate/runtime.env" port="${XPANEL_DBGATE_PORT:-}" unit user working executable attempt http_code ready=false
+  local source="$STATE_ROOT/storage/app/dbgate/runtime.env" port="${XPANEL_DBGATE_PORT:-}" unit user working executable attempt http_code ready=false writable_sites=""
   [[ -f "$source" && ! -L "$source" ]] || fail "DbGate staged configuration is unavailable."
   if [[ "${XPANEL_MANAGEMENT_MODE:-}" == vps-instance ]]; then
     [[ "${XPANEL_INSTANCE_ID:-}" =~ ^[a-f0-9-]{36}$ ]] || fail "Invalid managed DbGate instance."
@@ -2042,8 +2042,16 @@ dbgate_sync() {
   fi
   runuser -u "$user" -- test -x "$executable" \
     || fail "DbGate executable is not accessible to the Host user $user. Repair DbGate from XPanel VPS."
+  if [[ -n "$ACCOUNT_USER" && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" \
+      && [[ -d "$ACCOUNT_HOME/public_html" && ! -L "$ACCOUNT_HOME" && ! -L "$ACCOUNT_HOME/public_html" ]]; then
+    # SQLite creates journal/WAL files beside the database. Keep the system
+    # read-only outside this hosting account; Unix ownership/ACLs isolate sites.
+    writable_sites=" $ACCOUNT_HOME/public_html"
+  fi
   install -d -o "$user" -g "$user" -m 0700 "$working"
-  chown "$user:$user" "$source"
+  # systemd reads EnvironmentFile before switching to the DbGate UID. Keep
+  # the staged file writable by the panel so later connection changes work.
+  chown "$SITE_USER:$SITE_GROUP" "$source"
   chmod 0600 "$source"
   cat > "/etc/systemd/system/$unit.service" <<EOF
 [Unit]
@@ -2064,7 +2072,7 @@ Restart=on-failure
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=$working
+ReadWritePaths=$working$writable_sites
 
 [Install]
 WantedBy=multi-user.target

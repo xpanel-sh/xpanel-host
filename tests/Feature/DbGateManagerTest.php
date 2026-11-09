@@ -32,7 +32,7 @@ class DbGateManagerTest extends TestCase
             'status' => 'active',
         ]);
 
-        $manager = new DbGateManager(Mockery::mock(ServerCommandRunner::class));
+        $manager = new DbGateManager(Mockery::mock(ServerCommandRunner::class), app(\App\Services\SiteSqliteDatabaseManager::class));
         $credentials = $manager->synchronize();
         $environment = file_get_contents(storage_path('app/dbgate/runtime.env'));
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\MailAccount;
 use App\Models\Site;
 use App\Models\SiteDatabase;
+use App\Models\SiteSqliteDatabase;
 use Illuminate\Validation\ValidationException;
 
 class HostingPlanQuota
@@ -21,7 +22,7 @@ class HostingPlanQuota
     public function assertCanCreateDatabase(): void
     {
         $limit = $this->limit('assigned_max_databases');
-        if ($limit > 0 && SiteDatabase::query()->count() >= $limit) {
+        if ($limit > 0 && SiteDatabase::query()->count() + SiteSqliteDatabase::query()->count() >= $limit) {
             throw ValidationException::withMessages(['server' => "El plan permite hasta {$limit} bases de datos en total."]);
         }
     }

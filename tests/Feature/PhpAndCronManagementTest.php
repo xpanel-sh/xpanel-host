@@ -96,6 +96,24 @@ class PhpAndCronManagementTest extends TestCase
             ->assertRedirect(route('sites.php.configuration', $site));
     }
 
+    public function test_node_primary_php_page_links_to_its_independent_php_subdomain(): void
+    {
+        $primary = $this->site('example.com');
+        $primary->update(['type' => 'node']);
+        $subdomain = $this->site('migen.example.com');
+        $subdomain->update(['parent_site_id' => $primary->id]);
+
+        $this->actingAs($this->owner())->get(route('sites.php.configuration', $primary))
+            ->assertOk()
+            ->assertSee('migen.example.com')
+            ->assertSee(route('sites.php.configuration', $subdomain), false);
+
+        $this->actingAs($this->owner())->get(route('sites.php.configuration', $subdomain))
+            ->assertOk()
+            ->assertSee('Estos ajustes afectan solo a migen.example.com')
+            ->assertSee('Extensiones heredadas del servidor');
+    }
+
     public function test_cron_job_is_staged_as_the_limited_site_user(): void
     {
         $site = $this->site();

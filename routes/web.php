@@ -42,6 +42,7 @@ use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SiteAccessController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SqliteDatabaseController;
 use App\Http\Controllers\SiteDiagnosticController;
 use App\Http\Controllers\SiteMigrationController;
 use App\Http\Controllers\SiteOperationController;
@@ -323,6 +324,8 @@ Route::middleware('setup.complete')->group(function () {
             Route::delete('/sites/{site}/security/ssl', [CertificateController::class, 'destroy'])->name('sites.ssl.destroy');
             Route::post('/sites/{site}/database/mysql-databases', [DatabaseController::class, 'store'])->name('sites.databases.store');
             Route::post('/sites/{site}/database/databases', [DatabaseController::class, 'store'])->name('sites.databases.general.store');
+            Route::post('/sites/{site}/database/sqlite', [SqliteDatabaseController::class, 'store'])->name('sites.databases.sqlite.store');
+            Route::delete('/sites/{site}/database/sqlite/{sqliteDatabase}', [SqliteDatabaseController::class, 'destroy'])->name('sites.databases.sqlite.destroy');
             Route::post('/sites/{site}/database/databases/{siteDatabase}/password', [DatabaseController::class, 'password'])->name('sites.databases.general.password');
             Route::delete('/sites/{site}/database/databases/{siteDatabase}', [DatabaseController::class, 'destroy'])->name('sites.databases.general.destroy');
             Route::post('/sites/{site}/domains/subdomains', [SubdomainController::class, 'store'])->name('sites.subdomains.store');

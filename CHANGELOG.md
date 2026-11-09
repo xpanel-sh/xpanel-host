@@ -8,6 +8,8 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- Archivos SQLite existentes de cada sitio pueden conectarse a DbGate desde Bases de datos sin instalar otro motor. Se validan la ruta, el formato y que queden fuera de la carpeta pública; desconectar conserva los datos. DbGate puede escribir en el espacio web de su propia cuenta para permitir journaling y WAL, tanto en Host independiente como administrado. Cada archivo registrado cuenta dentro del máximo de bases del plan.
+- DbGate conserva el archivo de conexiones bajo la identidad del panel después de sincronizarlo; así una segunda visita puede incorporar o quitar conexiones sin fallar por permisos.
 - Motores de datos MariaDB, PostgreSQL y MongoDB administrables desde Ajustes. Host independiente puede instalarlos localmente; una instancia consulta los motores compartidos que habilitó XPanel VPS.
 - Creación de bases por sitio con selección de motor, credenciales aisladas, acceso remoto por IP exacta y medición de espacio por tecnología. Redis no se presenta como base persistente.
 - DbGate reemplaza phpMyAdmin como gestor visual común. Cada Host usa un proceso y credencial de acceso propios; las contraseñas de las bases no se guardan en su configuración y se solicitan al conectar.
@@ -26,6 +28,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- Los ajustes PHP del dominio principal Node.js enlazan a los subdominios PHP independientes; la ficha de cada subdominio ofrece acceso directo a su configuración PHP y aclara cuándo se necesita un perfil aislado o basta el PHP global.
 - En Host independiente, la instalación de motores de bases corre en segundo plano con estado visible para evitar `502` y reintentos mientras `apt` sigue activo; una instancia administrada continúa usando los motores compartidos del VPS.
 - DbGate instalado globalmente queda accesible para los usuarios aislados de Host incluso cuando la instalación heredó `umask 027`; al iniciar se reparan los permisos del paquete y se comprueba su ejecución con la identidad de la cuenta antes de activar el servicio.
 - La reparación de DbGate fija el prefijo npm en `/usr/local`, comprueba que exista el ejecutable y deja de mostrar un éxito falso cuando npm termina sin una instalación detectable.

@@ -101,6 +101,8 @@
                                         <td class="p-4 text-right whitespace-nowrap">
                                             @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
                                                 <a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.subdomains.edit', [$site, $label]) }}"><i class="ki-filled ki-setting-2"></i> Configurar</a>
+                                                @if($subdomain->type === 'php')<a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.php.configuration', $subdomain) }}">PHP</a>@endif
+                                                <a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.databases.general', $subdomain) }}">Bases</a>
                                                 <form class="inline" method="POST" action="{{ route('sites.subdomains.destroy', [$site, $subdomain]) }}" onsubmit="return confirm('Eliminar el subdominio {{ $subdomain->domain }}? Sus archivos se conservarán.');">
                                                     @csrf @method('DELETE')
                                                     <button class="kt-btn kt-btn-sm kt-btn-outline kt-btn-destructive" type="submit">Eliminar</button>

@@ -7,6 +7,7 @@ use App\Models\MailAccount;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\SiteDatabase;
+use App\Models\SiteSqliteDatabase;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -61,6 +62,20 @@ class HostingPlanQuotaTest extends TestCase
             'name' => 'another', 'username' => 'another', 'password' => 'Strong-Database_2026!',
         ])->assertSessionHasErrors('server');
         $this->assertDatabaseCount('site_databases', 1);
+    }
+
+    public function test_sqlite_files_count_toward_the_managed_database_limit(): void
+    {
+        config()->set('xpanel.management_mode', 'vps-instance');
+        config()->set('xpanel.assigned_max_databases', 1);
+        $first = $this->site('sqlite-first.test');
+        $second = $this->site('sqlite-second.test');
+        SiteSqliteDatabase::create(['site_id' => $first->id, 'relative_path' => 'database/database.sqlite']);
+
+        $this->actingAs($this->owner())->post(route('sites.databases.store', $second), [
+            'name' => 'another', 'username' => 'another', 'password' => 'Strong-Database_2026!',
+        ])->assertSessionHasErrors('server');
+        $this->assertDatabaseCount('site_databases', 0);
     }
 
     public function test_managed_mailbox_quota_is_account_wide(): void

@@ -22,6 +22,30 @@
       </div></section>
     @endif
 
+    <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">SQLite del sitio</h2></div><div class="kt-card-content grid gap-4 p-5">
+      <p class="text-sm text-secondary-foreground">SQLite guarda los datos en un archivo del propio sitio. Para Laravel usa <code>database/database.sqlite</code> y configura la carpeta pública del sitio como <code>public</code>. El archivo consume el espacio de este hosting.</p>
+      @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
+        <form method="post" action="{{ route('sites.databases.sqlite.store', $site) }}" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+          @csrf
+          <div class="w-full sm:max-w-md"><label class="kt-form-label" for="sqlite_relative_path">Archivo existente, relativo al proyecto</label><input id="sqlite_relative_path" class="kt-input" name="relative_path" required maxlength="255" value="{{ old('relative_path', 'database/database.sqlite') }}" placeholder="database/database.sqlite"></div>
+          <button class="kt-btn kt-btn-primary" type="submit">Conectar a DbGate</button>
+        </form>
+      @endif
+      <p class="text-xs text-secondary-foreground">Crea primero el archivo desde iKode o tu aplicación. Solo se aceptan archivos fuera de la carpeta pública. SQLite consume espacio y una base del límite del plan.</p>
+      <div><a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.database-manager', $site) }}">Abrir administrador DbGate</a></div>
+      @if ($sqliteDatabases->isNotEmpty())
+        <div class="divide-y divide-border rounded-lg border border-border">
+          @foreach ($sqliteDatabases as $sqliteDatabase)
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"><div><span class="kt-badge kt-badge-outline">SQLite</span> <code class="ms-2">{{ $sqliteDatabase->relative_path }}</code></div>
+              @if (auth()->user()->hasPermission(\App\Support\Permissions::SITES_MANAGE))
+                <form method="post" action="{{ route('sites.databases.sqlite.destroy', [$site, $sqliteDatabase]) }}">@csrf @method('DELETE')<button class="kt-btn kt-btn-sm kt-btn-outline" type="submit" onclick="return confirm('¿Retirar la conexión de DbGate? El archivo no se eliminará.')">Desconectar</button></form>
+              @endif
+            </div>
+          @endforeach
+        </div>
+      @endif
+    </div></section>
+
     <section class="kt-card overflow-visible"><div class="kt-card-header"><h2 class="kt-card-title">Bases del sitio ({{ $databases->count() }})</h2></div><div class="overflow-x-auto">
       <table class="w-full min-w-[840px] text-left"><thead class="border-b border-border text-xs uppercase text-secondary-foreground"><tr><th class="px-5 py-3">Motor</th><th class="px-5 py-3">Base</th><th class="px-5 py-3">Usuario</th><th class="px-5 py-3">Host</th><th class="px-5 py-3">Estado</th><th class="px-5 py-3"></th></tr></thead><tbody class="divide-y divide-border">
       @forelse ($databases as $database)

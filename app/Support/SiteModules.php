@@ -82,7 +82,7 @@ class SiteModules
                 'label' => 'Bases de datos',
                 'icon' => 'ki-data',
                 'items' => [
-                    'mysql-databases' => ['label' => 'Administración', 'icon' => 'ki-data', 'description' => 'Crea bases MariaDB, PostgreSQL o MongoDB y sus usuarios.'],
+                    'mysql-databases' => ['label' => 'Administración', 'icon' => 'ki-data', 'description' => 'Crea bases MariaDB, PostgreSQL o MongoDB, o conecta un archivo SQLite del sitio.'],
                     'phpmyadmin' => ['label' => 'DbGate', 'icon' => 'ki-code', 'description' => 'Administra todos los motores desde una interfaz visual común.'],
                     'remote-mysql' => ['label' => 'Acceso remoto', 'icon' => 'ki-abstract-41', 'description' => 'Autoriza IPs externas para una base y un usuario concretos.'],
                 ],

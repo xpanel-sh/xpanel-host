@@ -24,6 +24,9 @@ class PhpConfigurationController extends Controller
             'settings' => $this->settings($site),
             'profiles' => PhpProfile::query()->where('php_version', $site->php_version)->withCount('sites')->orderBy('name')->get(),
             'extensionCatalog' => $catalog->forVersion($site->php_version),
+            'phpSubdomains' => $site->parent_site_id === null
+                ? $site->subdomains()->where('type', 'php')->get()
+                : collect(),
         ]);
     }
 

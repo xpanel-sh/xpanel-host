@@ -126,6 +126,8 @@ class SubdomainManagementTest extends TestCase
             ->assertRedirect(route('sites.subdomains.edit', [$parent, 'digital']));
         $this->actingAs($user)->get(route('sites.edit', $child))
             ->assertRedirect(route('sites.subdomains.edit', [$parent, 'digital']));
+        $this->actingAs($user)->get(route('sites.subdomains.edit', [$parent, 'digital']))
+            ->assertSee(route('sites.php.configuration', $child), false);
     }
 
     public function test_a_subdomain_environment_cannot_be_opened_through_another_parent(): void

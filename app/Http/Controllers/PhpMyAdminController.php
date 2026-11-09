@@ -30,6 +30,7 @@ class PhpMyAdminController extends Controller
         return view('sites.database.phpmyadmin', [
             'site' => $site,
             'databases' => $site->databases()->orderBy('name')->get(),
+            'sqliteDatabases' => $site->sqliteDatabases()->orderBy('relative_path')->get(),
             'dbGateUrl' => url('/dbgate/'),
             'enabled' => $enabled,
             'ready' => $ready,

@@ -19,6 +19,7 @@ class DatabaseController extends Controller
         return view('sites.database.mysql-databases', [
             'site' => $site,
             'databases' => $site->databases()->orderBy('engine')->orderBy('name')->get(),
+            'sqliteDatabases' => $site->sqliteDatabases()->orderBy('relative_path')->get(),
             'engines' => $engines->available(),
         ]);
     }

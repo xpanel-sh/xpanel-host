@@ -23,6 +23,8 @@
                     <div class="flex shrink-0 items-center gap-2">
                         <span class="kt-badge kt-badge-outline" data-site-type-badge>{{ strtoupper($subdomain->type) }}</span>
                         <span class="kt-badge kt-badge-outline {{ $subdomain->status === 'active' ? 'kt-badge-success' : 'kt-badge-warning' }}">{{ $subdomain->status === 'active' ? 'Activo' : 'Suspendido' }}</span>
+                        @if($subdomain->type === 'php')<a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.php.configuration', $subdomain) }}">Configurar PHP</a>@endif
+                        <a class="kt-btn kt-btn-sm kt-btn-outline" href="{{ route('sites.databases.general', $subdomain) }}">Bases de datos</a>
                     </div>
                 </div>
             </div>

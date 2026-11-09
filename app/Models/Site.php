@@ -156,6 +156,11 @@ class Site extends Model
         return $this->hasMany(SiteDatabase::class);
     }
 
+    public function sqliteDatabases(): HasMany
+    {
+        return $this->hasMany(SiteSqliteDatabase::class);
+    }
+
     public function backups(): HasMany
     {
         return $this->hasMany(SiteBackup::class)->latest();
