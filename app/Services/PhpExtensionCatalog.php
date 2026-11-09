@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\Process\Process;
 
 class PhpExtensionCatalog
 {
@@ -21,7 +22,7 @@ class PhpExtensionCatalog
             'pgsql' => ['label' => 'PostgreSQL', 'description' => 'pgsql y PDO PostgreSQL.', 'modules' => ['pdo', 'pgsql', 'pdo_pgsql']],
             'redis' => ['label' => 'Redis', 'description' => 'Sesiones, caché y colas Redis.', 'modules' => ['redis']],
             'soap' => ['label' => 'SOAP', 'description' => 'Clientes y servicios SOAP.', 'modules' => ['soap']],
-            'sqlite3' => ['label' => 'SQLite', 'description' => 'SQLite3 y PDO SQLite.', 'modules' => ['pdo', 'sqlite3', 'pdo_sqlite']],
+            'sqlite3' => ['label' => 'SQLite', 'description' => 'SQLite3 y PDO SQLite.', 'modules' => ['pdo', 'sqlite3', 'pdo_sqlite'], 'recommended' => true],
             'xml' => ['label' => 'XML', 'description' => 'DOM, XMLReader, XMLWriter y XSL.', 'modules' => ['dom', 'simplexml', 'xml', 'xmlreader', 'xmlwriter', 'xsl'], 'recommended' => true],
             'zip' => ['label' => 'ZIP', 'description' => 'Creación y extracción de archivos ZIP.', 'modules' => ['zip'], 'recommended' => true],
         ];
@@ -30,9 +31,46 @@ class PhpExtensionCatalog
     /** @return array<string, array<string, mixed>> */
     public function forVersion(string $version): array
     {
-        return collect($this->definitions())->map(function (array $definition, string $slug) use ($version): array {
-            return $definition + ['slug' => $slug, 'installed' => $this->isInstalled($version, $slug)];
+        $loadedModules = $this->loadedFpmModules($version);
+
+        return collect($this->definitions())->map(function (array $definition, string $slug) use ($version, $loadedModules): array {
+            $installed = $this->isInstalled($version, $slug);
+            $enabled = $loadedModules === null ? null : collect($definition['modules'])
+                ->every(fn (string $module): bool => in_array(strtolower($module), $loadedModules, true)
+                    || ($module === 'opcache' && in_array('zend opcache', $loadedModules, true)));
+
+            return $definition + ['slug' => $slug, 'installed' => $installed, 'enabled' => $enabled];
         })->all();
+    }
+
+    /** @return list<string>|null Null means the PHP-FPM runtime could not be inspected. */
+    private function loadedFpmModules(string $version): ?array
+    {
+        if (! config('xpanel.apply_system_changes') || ! preg_match('/^8\.[1-4]$/', $version)) {
+            return null;
+        }
+
+        $binary = '/usr/sbin/php-fpm'.$version;
+        if (! is_executable($binary)) {
+            return null;
+        }
+
+        try {
+            $process = new Process([$binary, '-m']);
+            $process->setTimeout(5);
+            $process->run();
+            if (! $process->isSuccessful()) {
+                return null;
+            }
+
+            return array_values(array_unique(array_map(
+                static fn (string $module): string => strtolower(trim($module)),
+                array_filter(preg_split('/\R/', $process->getOutput()) ?: [],
+                    static fn (string $line): bool => trim($line) !== '' && ! str_starts_with(trim($line), '[')),
+            )));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /** @param array<int, string> $extensions @return array<int, string> */

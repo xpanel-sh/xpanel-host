@@ -28,6 +28,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- La configuración PHP global enumera las extensiones de la versión del sitio y, cuando puede inspeccionar PHP-FPM, distingue módulos activos de paquetes solo instalados. Aclara que el perfil es opcional y que un perfil compartido afecta a varios sitios; los perfiles nuevos incluyen SQLite si está instalado.
 - Los ajustes PHP del dominio principal Node.js enlazan a los subdominios PHP independientes; la ficha de cada subdominio ofrece acceso directo a su configuración PHP y aclara cuándo se necesita un perfil aislado o basta el PHP global.
 - En Host independiente, la instalación de motores de bases corre en segundo plano con estado visible para evitar `502` y reintentos mientras `apt` sigue activo; una instancia administrada continúa usando los motores compartidos del VPS.
 - DbGate instalado globalmente queda accesible para los usuarios aislados de Host incluso cuando la instalación heredó `umask 027`; al iniciar se reparan los permisos del paquete y se comprueba su ejecución con la identidad de la cuenta antes de activar el servicio.

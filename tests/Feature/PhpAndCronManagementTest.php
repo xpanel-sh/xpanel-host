@@ -111,7 +111,19 @@ class PhpAndCronManagementTest extends TestCase
         $this->actingAs($this->owner())->get(route('sites.php.configuration', $subdomain))
             ->assertOk()
             ->assertSee('Estos ajustes afectan solo a migen.example.com')
-            ->assertSee('Extensiones heredadas del servidor');
+            ->assertSee('Extensiones heredadas de PHP 8.3');
+    }
+
+    public function test_global_php_page_lists_extensions_and_explains_profiles_are_optional(): void
+    {
+        $site = $this->site('laravel.example.com');
+
+        $this->actingAs($this->owner())->get(route('sites.php.configuration', $site))
+            ->assertOk()
+            ->assertSee('Extensiones heredadas de PHP 8.3')
+            ->assertSee('SQLite3 y PDO SQLite.')
+            ->assertSee('Crear un perfil es opcional.')
+            ->assertSee('name="extensions[]" value="sqlite3"', false);
     }
 
     public function test_cron_job_is_staged_as_the_limited_site_user(): void

@@ -27,14 +27,14 @@
       <form method="post" action="{{ route('sites.php.profile.assign', $site) }}" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">@csrf @method('PUT')
        <label class="grid gap-2 text-sm"><span class="font-medium text-mono">Perfil PHP {{ $site->php_version }}</span><select class="kt-select" name="php_profile_id"><option value="">Global del servidor</option>@foreach($profiles as $profile)<option value="{{ $profile->id }}" @selected((string) old('php_profile_id', $site->php_profile_id) === (string) $profile->id)>{{ $profile->name }} · {{ $profile->sites_count }} sitio(s)</option>@endforeach</select></label>
        @if($canManage)<button class="kt-btn kt-btn-primary" type="submit">Aplicar perfil</button>@endif
-      </form><p class="mt-3 text-xs text-secondary-foreground">Con «Global del servidor» el sitio usa las extensiones PHP habilitadas en el servidor; no necesitas crear un perfil para usarlas. Crea un perfil aislado solo si quieres elegir extensiones distintas para este sitio.</p>
+      </form><p class="mt-3 text-xs text-secondary-foreground">Con «Global del servidor» el sitio usa las extensiones PHP habilitadas en el servidor. Crear un perfil es opcional. Puedes asignar el mismo perfil a varios sitios; cambiarlo afectará a todos los que lo usen.</p>
      </div></section>
      <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Crear perfil aislado</h2></div><div class="kt-card-content p-5">
       <form method="post" action="{{ route('sites.php.profiles.store', $site) }}" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">@csrf
        <label class="grid gap-2 text-sm"><span class="font-medium text-mono">Nombre</span><input class="kt-input" name="name" maxlength="80" placeholder="Producción, WordPress, API…" required></label>
        @if($canManage)<button class="kt-btn kt-btn-primary" type="submit">Crear y aplicar</button>@endif
        @foreach($extensionCatalog as $slug => $extension) @if($extension['installed'] && ($extension['recommended'] ?? false))<input type="hidden" name="extensions[]" value="{{ $slug }}">@endif @endforeach
-      </form><p class="mt-3 text-xs text-secondary-foreground">Se crea con las extensiones recomendadas instaladas; después puedes personalizarlo.</p>
+      </form><p class="mt-3 text-xs text-secondary-foreground">Se crea con las extensiones recomendadas instaladas, incluido SQLite cuando está disponible. Después puedes personalizarlo; el cambio afectará a todos los sitios que compartan ese perfil.</p>
      </div></section>
     </div>
    @endif
@@ -51,7 +51,21 @@
      @if($canManage && config('xpanel.management_mode') !== 'vps-instance' && collect($extensionCatalog)->contains(fn ($extension) => ! $extension['installed']))<div class="mt-4 flex flex-wrap items-center gap-2 border-t border-input pt-4"><span class="me-1 text-xs text-secondary-foreground">Instalar en PHP {{ $site->php_version }}:</span>@foreach($extensionCatalog as $slug => $extension)@unless($extension['installed'])<form method="post" action="{{ route('sites.php.extensions.install', [$site, $slug]) }}">@csrf<button class="kt-btn kt-btn-sm kt-btn-outline" type="submit">+ {{ $extension['label'] }}</button></form>@endunless @endforeach</div>@endif
     </div></section>
    @elseif($site->web_server !== 'openlitespeed')
-    <div class="kt-card"><div class="kt-card-content flex flex-wrap items-center justify-between gap-3 p-5"><div><div class="font-medium text-mono">Extensiones heredadas del servidor</div><p class="mt-1 text-sm text-secondary-foreground">Este sitio usa las extensiones habilitadas en PHP {{ $site->php_version }} del servidor. Para elegir un conjunto propio, crea un perfil aislado.</p><p class="mt-1 text-xs text-secondary-foreground">SQLite: {{ ($extensionCatalog['sqlite3']['installed'] ?? false) ? 'módulos disponibles en el servidor; Laravel puede usar PDO SQLite si están habilitados en este runtime.' : 'módulos no instalados para esta versión de PHP; solicita su instalación al administrador del VPS.' }}</p></div><span class="kt-badge kt-badge-outline">Global</span></div></div>
+    <section class="kt-card">
+     <div class="kt-card-header"><div><h2 class="kt-card-title">Extensiones heredadas de PHP {{ $site->php_version }}</h2><p class="mt-1 text-xs text-secondary-foreground">Estado del PHP-FPM global que usa este sitio. Cambiarlo en el servidor afectaría a otros sitios que usan la misma versión.</p></div><span class="kt-badge kt-badge-outline">Global</span></div>
+     <div class="kt-card-content grid gap-3 p-5">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+       @foreach($extensionCatalog as $extension)
+        @php $moduleState = ! $extension['installed'] ? 'No instalada' : ($extension['enabled'] === true ? 'Activa en PHP-FPM' : ($extension['enabled'] === false ? 'Instalada, inactiva' : 'Instalada, sin verificar')); @endphp
+        <div class="flex items-start justify-between gap-2 rounded-lg border border-input p-3"><div class="min-w-0"><div class="font-medium text-mono">{{ $extension['label'] }}</div><p class="mt-1 text-xs text-secondary-foreground">{{ $extension['description'] }}</p></div><span class="kt-badge kt-badge-outline shrink-0">{{ $moduleState }}</span></div>
+       @endforeach
+      </div>
+      <p class="text-xs text-secondary-foreground">Para elegir extensiones distintas solo para este sitio, crea y asígnale un perfil aislado. @if(config('xpanel.management_mode') === 'vps-instance') Las extensiones del PHP global las instala el administrador del VPS. @endif</p>
+      @if($canManage && config('xpanel.management_mode') !== 'vps-instance')
+       <div class="flex flex-wrap items-center gap-2 border-t border-input pt-3"><span class="text-xs text-secondary-foreground">Instalar en el servidor:</span>@foreach($extensionCatalog as $slug => $extension)@unless($extension['installed'])<form method="post" action="{{ route('sites.php.extensions.install', [$site, $slug]) }}">@csrf<button class="kt-btn kt-btn-sm kt-btn-outline" type="submit">+ {{ $extension['label'] }}</button></form>@endunless @endforeach</div>
+      @endif
+     </div>
+    </section>
    @endif
    <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Límites del proceso PHP</h2></div><div class="kt-card-content p-5"><form method="post" action="{{ route('sites.php.configuration.update', $site) }}" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">@csrf @method('PUT')
     @foreach(['memory_limit'=>'Memoria máxima','upload_max_filesize'=>'Subida máxima','post_max_size'=>'POST máximo'] as $field=>$label)<label class="grid gap-2 text-sm"><span class="font-medium text-mono">{{ $label }}</span><select class="kt-select" name="{{ $field }}" required>@foreach(['32M','64M','128M','256M','512M','1G','2G'] as $size)<option value="{{ $size }}" @selected(old($field,$settings->{$field}) === $size)>{{ $size }}</option>@endforeach</select></label>@endforeach
