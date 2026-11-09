@@ -19,6 +19,10 @@ class PanelAccessController extends Controller
             'appUrl' => config('app.url'),
             'sslActive' => str_starts_with((string) config('app.url'), 'https://'),
             'managedByVps' => config('xpanel.management_mode') === 'vps-instance',
+            'technicalDomain' => config('xpanel.technical_panel_domain'),
+            'customDomain' => config('xpanel.custom_panel_domain'),
+            'customStatus' => config('xpanel.custom_panel_status'),
+            'technicalSslStatus' => config('xpanel.technical_ssl_status'),
         ]);
     }
 

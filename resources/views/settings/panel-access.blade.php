@@ -10,10 +10,18 @@
         <div>
             <div class="text-sm text-secondary-foreground">Ajustes / Acceso al panel</div>
             <h1 class="text-2xl font-semibold text-mono">Dirección de administración</h1>
-            <p class="mt-1 text-sm text-secondary-foreground">Cambia entre el acceso directo por IP y un dominio propio verificado.</p>
+            <p class="mt-1 text-sm text-secondary-foreground">Configura tu dominio propio. Las direcciones técnica y de recuperación continúan disponibles.</p>
         </div>
 
         @include('settings._navigation')
+
+        @if($managedByVps)
+        <section class="kt-card"><div class="kt-card-header"><h2 class="kt-card-title">Tus tres accesos</h2></div><div class="kt-card-content p-5 grid gap-3 text-sm">
+            <div><span class="text-secondary-foreground">1 · Dominio propio</span> <span class="kt-badge kt-badge-outline">{{ $customStatus ?: 'No configurado' }}</span><div class="mt-1">@if($customDomain)<a class="kt-link break-all" href="https://{{ $customDomain }}" target="_blank" rel="noopener">https://{{ $customDomain }}</a>@else<span>Opcional</span>@endif</div></div>
+            <div><span class="text-secondary-foreground">2 · Dirección técnica</span> <span class="kt-badge kt-badge-outline">{{ $technicalSslStatus === 'active' ? 'SSL activo' : 'SSL pendiente' }}</span><div class="mt-1">@if($technicalDomain)<a class="kt-link break-all" href="https://{{ $technicalDomain }}" target="_blank" rel="noopener">https://{{ $technicalDomain }}</a>@endif</div></div>
+            <div><span class="text-secondary-foreground">3 · IP y puerto</span><div class="mt-1"><a class="kt-link break-all" href="https://{{ $serverIp }}:{{ $port }}" target="_blank" rel="noopener">https://{{ $serverIp }}:{{ $port }}</a></div></div>
+        </div></section>
+        @endif
 
         @if ($errors->any())
             <div class="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>
@@ -39,7 +47,7 @@
             <section class="kt-card">
                 <div class="kt-card-header"><h2 class="kt-card-title">Dominio del panel</h2></div>
                 <div class="kt-card-content p-5">
-                    <p class="mb-4 text-sm text-secondary-foreground">Primero crea un registro A hacia <code>{{ $serverIp }}</code>. Host comprobará el DNS antes de cambiar la dirección.</p>
+            <p class="mb-4 text-sm text-secondary-foreground">Primero crea un registro A hacia <code>{{ $serverIp }}</code>. Host comprobará el DNS antes de activar tu dirección personalizada.</p>
                     <form method="post" action="{{ route('settings.panel-access.domain') }}" class="grid gap-4">
                         @csrf @method('PUT')
                         <input class="kt-input" name="domain" value="{{ old('domain', $domain) }}" placeholder="panel.example.com" required>
