@@ -2386,8 +2386,7 @@ access_sync() {
     done
   fi
 
-  local shell_home="$document_root" passwd_home="" compatibility_home=""
-  [[ "$terminal_scope" != "family" ]] || shell_home="/family"
+  local shell_home="$document_root" shell_start="$document_root" passwd_home="" compatibility_home=""
   passwd_home="$(getent passwd "$site_user" | cut -d: -f6)"
   # usermod refuses to change a home while PHP-FPM/Node/SSH still has a
   # process under that UID. Keep the old passwd home temporarily and mirror
@@ -2439,7 +2438,14 @@ access_sync() {
   # string itself.
   local domain_label
   domain_label="$(basename -- "$document_root")"
-  printf 'export HOME=%q\ncd -- "$HOME"\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$domain_label" > "$jail/etc/profile"
+  if [[ "$terminal_scope" == "family" ]]; then
+    # /family is root-owned so it can safely contain bind mounts for several
+    # sites. It is a useful starting directory, but cannot be HOME: npm and
+    # other tools would try to create /family/.npm and fail with EACCES.
+    shell_home="/family/$domain_label"
+    shell_start="/family"
+  fi
+  printf 'export HOME=%q\ncd -- %q\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$shell_start" "$domain_label" > "$jail/etc/profile"
   cat >> "$jail/etc/profile" <<'TERMINAL_COLORS'
 # XPANEL_TERMINAL_STYLE_V2
 if [[ "${XPANEL_TERMINAL_COLORS:-0}" == "1" ]]; then
