@@ -31,7 +31,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
-- Los sitios PHP y estáticos administrados conceden a Nginx acceso de solo lectura a la subcarpeta pública y permiso de atravesar sus directorios padres. Se conserva privado el resto del proyecto y se evita el 403 tras publicar Laravel en `public`.
+- Los sitios PHP y estáticos conceden a Nginx acceso de solo lectura a la subcarpeta pública y permiso de atravesar sus directorios padres. Se conserva privado el resto del proyecto y se evita el 403 tras publicar Laravel en `public`. Una actualización del helper reaplica los permisos a los sitios existentes también en el modo de actualización rápida.
 - La terminal del dominio principal inicia en `/family`, donde `ls` muestra el dominio y sus subdominios como carpetas hermanas. El prompt distingue la raíz (`~`) de cada proyecto (`~/dominio`), incluido el dominio principal. `HOME` apunta por separado al proyecto escribible del dominio principal para que npm y otras herramientas no intenten crear su caché en la raíz protegida `/family`. La actualización vuelve a generar los perfiles de terminal al cambiar su helper.
 - El agente de terminal envía señales WebSocket periódicas y detecta conexiones inactivas rotas, evitando que las pulsaciones queden retenidas durante varios minutos sin indicar una desconexión.
 - Las bases del dominio principal y sus subdominios se administran desde una sola sección del hosting. SQLite detecta archivos existentes de proyectos PHP y Node.js, configura su conexión DbGate sin pedir rutas del servidor y conserva el límite y aislamiento de cada cuenta.

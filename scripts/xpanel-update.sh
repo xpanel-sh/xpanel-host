@@ -362,7 +362,7 @@ if [[ "$UPDATE_MODE" == "repair" || ! -f /etc/nginx/sites-available/xpanel-host-
   bash "$ROOT/scripts/configure-nginx-catchall.sh"
 fi
 sudo -u "$site_user" php "$ROOT/artisan" optimize:clear
-if changed_matches '^(app/.*(Certificate|Ssl|VirtualHost|Site)|config/xpanel\.php|database/migrations/)'; then
+if changed_matches '^(app/.*(Certificate|Ssl|VirtualHost|Site)|config/xpanel\.php|database/migrations/|scripts/xpanel-site-helper\.sh$)'; then
   sudo -u "$site_user" php "$ROOT/artisan" xpanel:ssl-sync
   sudo -u "$site_user" php "$ROOT/artisan" xpanel:sites-sync
 else
