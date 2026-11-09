@@ -2449,14 +2449,12 @@ access_sync() {
   if [[ "$terminal_scope" == "family" ]]; then
     cat >> "$jail/etc/profile" <<'FAMILY_PROMPT'
 # The family root is a workspace view, while HOME must remain writable for
-# npm and other tools. Display that root as ~ without changing either path.
+# npm and other tools. Display paths relative to that workspace root.
 xpanel_prompt_directory() {
   if [[ "$PWD" == /family ]]; then
     printf '~'
-  elif [[ "$PWD" == "$HOME" ]]; then
-    printf '~'
-  elif [[ "$PWD" == "$HOME/"* ]]; then
-    printf '~/%s' "${PWD#"$HOME/"}"
+  elif [[ "$PWD" == /family/* ]]; then
+    printf '~/%s' "${PWD#/family/}"
   else
     printf '%s' "$PWD"
   fi
