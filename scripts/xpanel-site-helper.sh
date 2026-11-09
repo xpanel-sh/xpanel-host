@@ -465,6 +465,24 @@ grant_panel_file_access() {
   fi
 }
 
+grant_web_server_file_access() {
+  local document_root="$1" web_root="$2" ancestor
+  valid_document_root "$document_root" || fail "Invalid site document root."
+  valid_document_root "$web_root" || fail "Invalid public web root."
+  [[ "$web_root" == "$document_root" || "$web_root" == "$document_root/"* ]] || fail "Public web root escaped the site."
+  [[ -d "$web_root" && ! -L "$web_root" ]] || fail "Public web root is unavailable."
+
+  # Nginx workers run as www-data, not as the isolated panel or site user.
+  # Grant traversal above the public root without exposing private project files.
+  ancestor="$(dirname "$web_root")"
+  while [[ "$ancestor" == "$document_root" || "$ancestor" == "$document_root/"* || "$ancestor" == /home/* || "$ancestor" == /var/www/* || "$ancestor" == /srv/www/* ]]; do
+    setfacl -m u:www-data:--x "$ancestor"
+    ancestor="$(dirname "$ancestor")"
+  done
+  find -P "$web_root" -xdev -type d -exec setfacl -m u:www-data:rx,d:u:www-data:rx {} +
+  find -P "$web_root" -xdev -type f -exec setfacl -m u:www-data:r {} +
+}
+
 # Every domain and subdomain has a flat, independent FQDN root below
 # public_html. A directory named "subdomains" inside a project is ordinary
 # user content and must not receive special treatment.
@@ -831,6 +849,9 @@ site_action() {
   # public_path can be created only now (for example when changing a Node site
   # to Laravel). Grant the account terminal and iKode access after it exists.
   grant_panel_file_access "$web_root"
+  if [[ "$type" == "php" || "$type" == "static" ]]; then
+    grant_web_server_file_access "$document_root" "$web_root"
+  fi
   if [[ "$type" == "php" ]]; then
     if [[ "$engine" != "openlitespeed" ]]; then
       [[ -f "$pool_source" ]] || fail "Staged PHP-FPM pool not found."
