@@ -1058,9 +1058,9 @@ ownership_sync_path() {
   chown --no-dereference "$site_user:$site_user" "$target"
   if [[ -d "$target" ]]; then
     chmod u+rwx,go-w,go+rx "$target"
-    setfacl -m "u:$SITE_USER:rwx" "d:u:$SITE_USER:rwx" "$target"
+    setfacl -m "u:$SITE_USER:rwx,d:u:$SITE_USER:rwx" "$target"
     if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
-      setfacl -m "u:$ACCOUNT_USER:rwx" "d:u:$ACCOUNT_USER:rwx" "$target"
+      setfacl -m "u:$ACCOUNT_USER:rwx,d:u:$ACCOUNT_USER:rwx" "$target"
     fi
   else
     chmod u+rw,go-w "$target"

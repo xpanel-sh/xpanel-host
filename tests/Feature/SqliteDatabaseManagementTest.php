@@ -46,7 +46,7 @@ class SqliteDatabaseManagementTest extends TestCase
         $user = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
 
         $this->actingAs($user)->post(route('sites.databases.sqlite.store', $site), [
-            'relative_path' => 'database/database.sqlite',
+            'file' => $site->id.'|database/database.sqlite',
         ])->assertRedirect()->assertSessionHasNoErrors();
         $database = $site->sqliteDatabases()->firstOrFail();
         $this->assertSame('database/database.sqlite', $database->relative_path);
@@ -72,14 +72,14 @@ class SqliteDatabaseManagementTest extends TestCase
         $user = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
 
         foreach (['../sqlite-two.example.com/database/database.sqlite', 'database/database.sqlite'] as $path) {
-            $this->actingAs($user)->post(route('sites.databases.sqlite.store', $site), ['relative_path' => $path])
-                ->assertSessionHasErrors('relative_path');
+            $this->actingAs($user)->post(route('sites.databases.sqlite.store', $site), ['file' => $site->id.'|'.$path])
+                ->assertSessionHasErrors('file');
         }
         $this->sqliteFile($site);
         $site->update(['public_path' => null]);
         $this->actingAs($user)->post(route('sites.databases.sqlite.store', $site), [
-            'relative_path' => 'database/database.sqlite',
-        ])->assertSessionHasErrors('relative_path');
+            'file' => $site->id.'|database/database.sqlite',
+        ])->assertSessionHasErrors('file');
         $this->assertDatabaseCount('site_sqlite_databases', 0);
     }
 
@@ -90,7 +90,7 @@ class SqliteDatabaseManagementTest extends TestCase
         $this->sqliteFile($site);
         $user = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
         $this->actingAs($user)->post(route('sites.databases.sqlite.store', $site), [
-            'relative_path' => 'database/database.sqlite',
+            'file' => $site->id.'|database/database.sqlite',
         ])->assertSessionHasNoErrors();
 
         $database = $site->sqliteDatabases()->firstOrFail();
@@ -105,14 +105,48 @@ class SqliteDatabaseManagementTest extends TestCase
         $user = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
 
         $this->actingAs($user)->post(route('sites.databases.sqlite.store', $site), [
-            'relative_path' => 'database/database.sqlite',
-        ])->assertSessionHasErrors('relative_path');
+            'file' => $site->id.'|database/database.sqlite',
+        ])->assertSessionHasErrors('file');
 
         $site->update(['public_path' => 'public']);
         File::put($file, 'not a SQLite database');
         $this->actingAs($user)->post(route('sites.databases.sqlite.store', $site), [
-            'relative_path' => 'database/database.sqlite',
-        ])->assertSessionHasErrors('relative_path');
+            'file' => $site->id.'|database/database.sqlite',
+        ])->assertSessionHasErrors('file');
+        $this->assertDatabaseCount('site_sqlite_databases', 0);
+    }
+
+    public function test_parent_hosting_lists_and_registers_a_subdomain_sqlite_file(): void
+    {
+        $parent = $this->site('family.example.com');
+        $child = $this->site('app.family.example.com');
+        $child->update(['parent_site_id' => $parent->id, 'type' => 'node', 'public_path' => null]);
+        $file = $this->sqliteFile($child);
+        $user = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
+
+        $this->actingAs($user)->get(route('sites.databases.general', $child))
+            ->assertRedirect(route('sites.databases.general', $parent));
+        $this->actingAs($user)->get(route('sites.databases.general', $parent))
+            ->assertOk()->assertSee('app.family.example.com')->assertSee('database/database.sqlite');
+        $this->actingAs($user)->post(route('sites.databases.sqlite.store', $parent), [
+            'file' => $child->id.'|database/database.sqlite',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame($child->id, $parent->subdomains()->firstOrFail()->sqliteDatabases()->firstOrFail()->site_id);
+        app(DbGateManager::class)->synchronize();
+        $this->assertStringContainsString('='.str_replace('\\', '/', $file), File::get(storage_path('app/dbgate/runtime.env')));
+    }
+
+    public function test_parent_hosting_cannot_register_an_unrelated_site_file(): void
+    {
+        $parent = $this->site('owner.example.com');
+        $other = $this->site('foreign.example.com');
+        $this->sqliteFile($other);
+        $user = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
+
+        $this->actingAs($user)->post(route('sites.databases.sqlite.store', $parent), [
+            'file' => $other->id.'|database/database.sqlite',
+        ])->assertNotFound();
         $this->assertDatabaseCount('site_sqlite_databases', 0);
     }
 }

@@ -28,6 +28,8 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- Las bases del dominio principal y sus subdominios se administran desde una sola sección del hosting. SQLite detecta archivos existentes de proyectos PHP y Node.js, configura su conexión DbGate sin pedir rutas del servidor y conserva el límite y aislamiento de cada cuenta.
+- La sincronización puntual de permisos usa la sintaxis correcta de `setfacl` para ACL actuales y heredadas; conectar un archivo SQLite ya no falla al interpretar una regla como ruta inexistente.
 - La configuración PHP global enumera las extensiones de la versión del sitio y, cuando puede inspeccionar PHP-FPM, distingue módulos activos de paquetes solo instalados. Aclara que el perfil es opcional y que un perfil compartido afecta a varios sitios; los perfiles nuevos incluyen SQLite si está instalado.
 - Los ajustes PHP del dominio principal Node.js enlazan a los subdominios PHP independientes; la ficha de cada subdominio ofrece acceso directo a su configuración PHP y aclara cuándo se necesita un perfil aislado o basta el PHP global.
 - En Host independiente, la instalación de motores de bases corre en segundo plano con estado visible para evitar `502` y reintentos mientras `apt` sigue activo; una instancia administrada continúa usando los motores compartidos del VPS.

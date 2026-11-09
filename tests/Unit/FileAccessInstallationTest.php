@@ -71,6 +71,7 @@ class FileAccessInstallationTest extends TestCase
         $this->assertStringContainsString('ownership_sync_path()', $helper);
         $this->assertStringContainsString('grant_panel_file_access "$web_root"', $helper);
         $this->assertStringContainsString('ownership-sync-path) ownership_sync_path "$@"', $helper);
+        $this->assertStringContainsString('setfacl -m "u:$SITE_USER:rwx,d:u:$SITE_USER:rwx" "$target"', $helper);
     }
 
     public function test_managed_ssl_grants_nginx_access_only_to_the_acme_challenge(): void

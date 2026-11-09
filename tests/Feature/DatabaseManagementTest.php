@@ -43,6 +43,41 @@ class DatabaseManagementTest extends TestCase
             ->assertOk()->assertSee('xp_one')->assertDontSee('xp_other');
     }
 
+    public function test_parent_database_page_includes_subdomain_bases_and_child_url_redirects(): void
+    {
+        $parent = $this->site('family.example.com');
+        $child = $this->site('app.family.example.com');
+        $child->update(['parent_site_id' => $parent->id]);
+        SiteDatabase::create(['site_id' => $child->id, 'name' => 'xp_child', 'username' => 'xp_child', 'status' => 'active']);
+        $user = $this->user('owner');
+
+        $this->actingAs($user)->get(route('sites.databases.general', $parent))
+            ->assertOk()->assertSee('xp_child')->assertSee($child->domain);
+        $this->actingAs($user)->get(route('sites.databases.general', $child))
+            ->assertRedirect(route('sites.databases.general', $parent));
+    }
+
+    public function test_database_creation_from_parent_can_select_a_subdomain_but_not_an_unrelated_site(): void
+    {
+        $parent = $this->site('family.example.com');
+        $child = $this->site('app.family.example.com');
+        $child->update(['parent_site_id' => $parent->id]);
+        $other = $this->site('unrelated.example.com');
+        $user = $this->user('developer');
+
+        $this->actingAs($user)->post(route('sites.databases.general.store', $parent), [
+            'target_site_id' => $child->id, 'name' => 'app', 'username' => 'app',
+            'password' => 'Strong-Database_2026!',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($child->id, SiteDatabase::firstOrFail()->site_id);
+
+        $this->actingAs($user)->post(route('sites.databases.general.store', $parent), [
+            'target_site_id' => $other->id, 'name' => 'foreign', 'username' => 'foreign',
+            'password' => 'Strong-Database_2026!',
+        ])->assertNotFound();
+        $this->assertDatabaseCount('site_databases', 1);
+    }
+
     public function test_developer_can_stage_a_prefixed_database_and_user(): void
     {
         $site = $this->site();

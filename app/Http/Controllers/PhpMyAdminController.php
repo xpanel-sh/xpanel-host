@@ -5,13 +5,22 @@ namespace App\Http\Controllers;
 use App\Models\Site;
 use App\Services\DatabaseEngineManager;
 use App\Services\DbGateManager;
+use App\Services\HostingDatabaseScope;
+use App\Models\SiteDatabase;
+use App\Models\SiteSqliteDatabase;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Throwable;
 
 class PhpMyAdminController extends Controller
 {
-    public function __invoke(Site $site, DatabaseEngineManager $engines, DbGateManager $dbGate): View
+    public function __invoke(Site $site, DatabaseEngineManager $engines, DbGateManager $dbGate, HostingDatabaseScope $scope): View|RedirectResponse
     {
+        $root = $scope->root($site);
+        if ($site->id !== $root->id) {
+            return redirect()->route('sites.database-manager', $root);
+        }
+        $siteIds = $scope->sites($root)->modelKeys();
         $status = $engines->statuses()['dbgate'];
 
         $enabled = (bool) $status['installed'] && (bool) ($status['enabled'] ?? true);
@@ -28,9 +37,9 @@ class PhpMyAdminController extends Controller
             }
         }
         return view('sites.database.phpmyadmin', [
-            'site' => $site,
-            'databases' => $site->databases()->orderBy('name')->get(),
-            'sqliteDatabases' => $site->sqliteDatabases()->orderBy('relative_path')->get(),
+            'site' => $root,
+            'databases' => SiteDatabase::query()->with('site')->whereIn('site_id', $siteIds)->orderBy('name')->get(),
+            'sqliteDatabases' => SiteSqliteDatabase::query()->with('site')->whereIn('site_id', $siteIds)->orderBy('relative_path')->get(),
             'dbGateUrl' => url('/dbgate/'),
             'enabled' => $enabled,
             'ready' => $ready,
