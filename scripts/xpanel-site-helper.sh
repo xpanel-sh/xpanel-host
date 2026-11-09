@@ -2440,12 +2440,30 @@ access_sync() {
   domain_label="$(basename -- "$document_root")"
   if [[ "$terminal_scope" == "family" ]]; then
     # /family is root-owned so it can safely contain bind mounts for several
-    # sites. Start in the writable primary project, which is also HOME; its
-    # sibling subdomains remain available with `cd ..`.
+    # sites. Show the primary domain and subdomains as siblings on login.
+    # HOME still points to the writable primary project so npm can cache there.
     shell_home="/family/$domain_label"
-    shell_start="$shell_home"
+    shell_start="/family"
   fi
   printf 'export HOME=%q\ncd -- %q\nexport PS1="xpanel@%s:\\w\\$ "\n' "$shell_home" "$shell_start" "$domain_label" > "$jail/etc/profile"
+  if [[ "$terminal_scope" == "family" ]]; then
+    cat >> "$jail/etc/profile" <<'FAMILY_PROMPT'
+# The family root is a workspace view, while HOME must remain writable for
+# npm and other tools. Display that root as ~ without changing either path.
+xpanel_prompt_directory() {
+  if [[ "$PWD" == /family ]]; then
+    printf '~'
+  elif [[ "$PWD" == "$HOME" ]]; then
+    printf '~'
+  elif [[ "$PWD" == "$HOME/"* ]]; then
+    printf '~/%s' "${PWD#"$HOME/"}"
+  else
+    printf '%s' "$PWD"
+  fi
+}
+FAMILY_PROMPT
+    printf 'PS1='\''xpanel@%s:$(xpanel_prompt_directory)\$ '\''\n' "$domain_label" >> "$jail/etc/profile"
+  fi
   cat >> "$jail/etc/profile" <<'TERMINAL_COLORS'
 # XPANEL_TERMINAL_STYLE_V2
 if [[ "${XPANEL_TERMINAL_COLORS:-0}" == "1" ]]; then
