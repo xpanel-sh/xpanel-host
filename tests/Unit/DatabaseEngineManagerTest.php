@@ -38,16 +38,27 @@ class DatabaseEngineManagerTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    public function test_install_rejects_a_false_success_status(): void
+    public function test_standalone_installation_starts_in_background(): void
     {
         config()->set('xpanel.apply_system_changes', true);
         config()->set('xpanel.management_mode', 'standalone');
         config()->set('xpanel.site_helper', '/opt/xpanel-host/scripts/xpanel-site-helper.sh');
         $runner = Mockery::mock(ServerCommandRunner::class);
-        $runner->shouldReceive('run')->once()->andReturn("installed=false\nenabled=true\nversion=");
+        $runner->shouldReceive('run')->once()->with([
+            'sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'database-engine-install-start', 'postgresql',
+        ], null, 30)->andReturn("state=queued\nengine=postgresql");
+
+        (new DatabaseEngineManager($runner))->startInstallation('postgresql');
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_managed_host_cannot_install_shared_engine(): void
+    {
+        config()->set('xpanel.management_mode', 'vps-instance');
+        $runner = Mockery::mock(ServerCommandRunner::class);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('no quedó disponible');
-        (new DatabaseEngineManager($runner))->install('dbgate');
+        $this->expectExceptionMessage('XPanel VPS');
+        (new DatabaseEngineManager($runner))->startInstallation('postgresql');
     }
 }

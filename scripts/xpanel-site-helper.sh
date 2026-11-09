@@ -3087,6 +3087,12 @@ case "$ACTION" in
   engine-install) engine_install "$@" ;;
   database-engine-status) database_engine_status "$@" ;;
   database-engine-install) database_engine_install "$@" ;;
+  database-engine-install-start)
+    [[ "${XPANEL_MANAGEMENT_MODE:-}" != vps-instance ]] || fail "Database engines are installed from XPanel VPS."
+    bash "$ROOT/scripts/xpanel-database-engine-install.sh" start "${2:-}" ;;
+  database-engine-install-status)
+    [[ "${XPANEL_MANAGEMENT_MODE:-}" != vps-instance ]] || fail "Database engines are installed from XPanel VPS."
+    bash "$ROOT/scripts/xpanel-database-engine-install.sh" status ;;
   dbgate-set-enabled) dbgate_set_enabled "$@" ;;
   dbgate-sync) dbgate_sync ;;
   database-create|database-password|database-remove) database_action "$@" ;;

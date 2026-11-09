@@ -53,7 +53,18 @@ class DatabaseEngineManager
         return isset($this->available()[$engine]);
     }
 
-    public function install(string $engine): void
+    /** @return array<string, string> */
+    public function installationStatus(): array
+    {
+        if (config('xpanel.management_mode') === 'vps-instance' || ! config('xpanel.apply_system_changes')) {
+            return ['state' => 'idle'];
+        }
+        return $this->metadata($this->commands->run([
+            'sudo', '-n', (string) config('xpanel.site_helper'), 'database-engine-install-status',
+        ], null, 15));
+    }
+
+    public function startInstallation(string $engine): void
     {
         if (! isset(self::ENGINES[$engine])) {
             throw new RuntimeException('Motor de base de datos no compatible.');
@@ -65,13 +76,11 @@ class DatabaseEngineManager
             throw new RuntimeException('La instalación solo está disponible en el servidor Linux.');
         }
         $output = $this->commands->run([
-            'sudo', '-n', (string) config('xpanel.site_helper'), 'database-engine-install', $engine,
-        ], null, 1800);
+            'sudo', '-n', (string) config('xpanel.site_helper'), 'database-engine-install-start', $engine,
+        ], null, 30);
         $metadata = $this->metadata($output);
-        if (($metadata['installed'] ?? 'false') !== 'true') {
-            throw new RuntimeException($engine === 'dbgate'
-                ? 'npm terminó, pero DbGate no quedó disponible en /usr/local/bin/dbgate-serve.'
-                : 'La instalación terminó, pero el motor no quedó disponible.');
+        if (($metadata['state'] ?? '') !== 'queued') {
+            throw new RuntimeException('No se pudo iniciar la instalación del motor.');
         }
     }
 

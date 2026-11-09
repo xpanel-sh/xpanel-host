@@ -10,6 +10,15 @@
    @include('settings._navigation')
    @if(session('status'))<div class="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ session('status') }}</div>@endif
    @if($errors->any())<div class="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{{ $errors->first() }}</div>@endif
+   @php($installing = in_array($installation['state'] ?? 'idle', ['queued', 'running'], true))
+   @if($installing)
+    <div class="rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-mono">Instalando {{ $engines[$installation['engine']]['label'] ?? 'motor de base de datos' }} en segundo plano. Puedes salir de esta página; aquí aparecerá el resultado.</div>
+    <script>setTimeout(() => window.location.reload(), 5000);</script>
+   @elseif(($installation['state'] ?? '') === 'failed')
+    <div class="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">La instalación de {{ $engines[$installation['engine']]['label'] ?? 'un motor' }} falló: {{ $installation['error'] ?? 'Consulta el registro del servidor.' }} <span class="text-secondary-foreground">Registro: /var/lib/xpanel-host/database-engine-install/install.log</span></div>
+   @elseif(($installation['state'] ?? '') === 'success')
+    <div class="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{{ $engines[$installation['engine']]['label'] ?? 'El motor' }} quedó disponible.</div>
+   @endif
    <div class="grid gap-5 md:grid-cols-3">
     @foreach(collect($engines)->except('dbgate') as $slug => $engine)
      <section class="kt-card"><div class="kt-card-content p-6 flex h-full flex-col gap-4">
@@ -18,7 +27,7 @@
       @if($engine['error'])<div class="rounded-lg bg-danger/10 p-3 text-xs text-danger break-words">{{ $engine['error'] }}</div>@endif
       @if($engine['installed'])<button class="kt-btn kt-btn-outline w-full" disabled>Disponible</button>
       @elseif(config('xpanel.management_mode') === 'vps-instance')<div class="text-xs text-secondary-foreground">No habilitado en el servidor VPS.</div>
-      @elseif(config('xpanel.apply_system_changes'))<form method="post" action="{{ route('settings.database-engines.install', $slug) }}" onsubmit="return confirm('¿Instalar {{ $engine['label'] }} en este servidor?');">@csrf<button class="kt-btn kt-btn-primary w-full">Instalar {{ $engine['label'] }}</button></form>
+      @elseif(config('xpanel.apply_system_changes'))<form method="post" action="{{ route('settings.database-engines.install', $slug) }}" onsubmit="return confirm('¿Instalar {{ $engine['label'] }} en este servidor?');">@csrf<button class="kt-btn kt-btn-primary w-full" @disabled($installing)>Instalar {{ $engine['label'] }}</button></form>
       @else<button class="kt-btn kt-btn-outline w-full" disabled>Solo disponible en Linux</button>@endif
      </div></section>
     @endforeach
@@ -27,7 +36,7 @@
    <div class="grid gap-3"><div><h2 class="text-lg font-semibold text-mono">Administrador visual</h2><p class="mt-1 text-sm text-secondary-foreground">Herramientas para consultar los motores disponibles. No almacenan las bases ni sustituyen a MariaDB, PostgreSQL o MongoDB.</p></div>
     <section class="kt-card"><div class="kt-card-content p-6 flex items-center justify-between gap-5">
      <div><div class="flex items-center gap-2"><h3 class="font-semibold text-mono">DbGate</h3><span class="kt-badge {{ $dbGate['installed'] && $dbGate['enabled'] ? 'kt-badge-success' : 'kt-badge-outline' }}">{{ ! $dbGate['installed'] ? 'Requiere reparación' : ($dbGate['enabled'] ? 'Habilitado' : 'Deshabilitado') }}</span></div><p class="mt-2 text-sm text-secondary-foreground">Se instala automáticamente con XPanel. Permite administrar MariaDB, PostgreSQL y MongoDB y solicita la contraseña del usuario al conectar.</p>@if($dbGate['version'])<div class="mt-1 text-xs text-secondary-foreground">Versión {{ $dbGate['version'] }}</div>@endif @if($dbGate['error'])<div class="mt-3 rounded-lg bg-danger/10 p-3 text-xs text-danger break-words">{{ $dbGate['error'] }}</div>@endif</div>
-     <div class="shrink-0">@if(config('xpanel.management_mode') === 'vps-instance')<div class="text-xs text-secondary-foreground">{{ $dbGate['installed'] ? ($dbGate['enabled'] ? 'Habilitado por el VPS' : 'Deshabilitado por el VPS') : 'La actualización del VPS debe reparar DbGate.' }}</div>@elseif($dbGate['installed'] && config('xpanel.apply_system_changes'))<form method="post" action="{{ route('settings.database-engines.dbgate-state') }}" onsubmit="return confirm('¿{{ $dbGate['enabled'] ? 'Deshabilitar' : 'Habilitar' }} DbGate en este servidor?');">@csrf<input type="hidden" name="enabled" value="{{ $dbGate['enabled'] ? '0' : '1' }}"><button class="kt-btn kt-btn-outline">{{ $dbGate['enabled'] ? 'Deshabilitar' : 'Habilitar' }}</button></form>@elseif(! $dbGate['installed'] && config('xpanel.apply_system_changes'))<form method="post" action="{{ route('settings.database-engines.install', 'dbgate') }}">@csrf<button class="kt-btn kt-btn-primary">Reparar DbGate</button></form>@else<button class="kt-btn kt-btn-outline" disabled>No administrable aquí</button>@endif</div>
+     <div class="shrink-0">@if(config('xpanel.management_mode') === 'vps-instance')<div class="text-xs text-secondary-foreground">{{ $dbGate['installed'] ? ($dbGate['enabled'] ? 'Habilitado por el VPS' : 'Deshabilitado por el VPS') : 'La actualización del VPS debe reparar DbGate.' }}</div>@elseif($dbGate['installed'] && config('xpanel.apply_system_changes'))<form method="post" action="{{ route('settings.database-engines.dbgate-state') }}" onsubmit="return confirm('¿{{ $dbGate['enabled'] ? 'Deshabilitar' : 'Habilitar' }} DbGate en este servidor?');">@csrf<input type="hidden" name="enabled" value="{{ $dbGate['enabled'] ? '0' : '1' }}"><button class="kt-btn kt-btn-outline" @disabled($installing)>{{ $dbGate['enabled'] ? 'Deshabilitar' : 'Habilitar' }}</button></form>@elseif(! $dbGate['installed'] && config('xpanel.apply_system_changes'))<form method="post" action="{{ route('settings.database-engines.install', 'dbgate') }}">@csrf<button class="kt-btn kt-btn-primary" @disabled($installing)>Reparar DbGate</button></form>@else<button class="kt-btn kt-btn-outline" disabled>No administrable aquí</button>@endif</div>
     </div></section>
    </div>
    <div class="rounded-xl border border-border bg-muted/30 p-5 text-sm text-secondary-foreground">MariaDB permanece como motor predeterminado. PostgreSQL y MongoDB pueden convivir con él. XPanel conserva la creación, permisos, límites y copias.</div>

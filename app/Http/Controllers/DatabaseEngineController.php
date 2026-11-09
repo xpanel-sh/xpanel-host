@@ -10,18 +10,21 @@ class DatabaseEngineController extends Controller
 {
     public function index(DatabaseEngineManager $manager): View
     {
-        return view('settings.database-engines', ['engines' => $manager->statuses()]);
+        return view('settings.database-engines', [
+            'engines' => $manager->statuses(),
+            'installation' => $manager->installationStatus(),
+        ]);
     }
 
     public function install(string $engine, DatabaseEngineManager $manager): RedirectResponse
     {
         try {
-            $manager->install($engine);
+            $manager->startInstallation($engine);
         } catch (\Throwable $exception) {
             return back()->withErrors(['server' => $exception->getMessage()]);
         }
 
-        return back()->with('status', DatabaseEngineManager::ENGINES[$engine]['label'].' quedó disponible.');
+        return back()->with('status', DatabaseEngineManager::ENGINES[$engine]['label'].' se está instalando. Aquí aparecerá el resultado al terminar.');
     }
 
     public function dbGateState(DatabaseEngineManager $manager): RedirectResponse
