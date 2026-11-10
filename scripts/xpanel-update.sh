@@ -34,6 +34,32 @@ stage_end() {
   printf 'XPANEL_PROGRESS:%s:%ss\n' "$label" "$elapsed"
 }
 
+normalize_bootstrap_cache() {
+  local cache="$ROOT/bootstrap/cache"
+  [[ -d "$cache" && ! -L "$cache" ]] || {
+    echo "La caché de Laravel no es un directorio seguro: $cache" >&2
+    return 1
+  }
+  if [[ -n "$(find -P "$cache" -xdev -type l -print -quit)" ]]; then
+    echo "La caché de Laravel contiene enlaces simbólicos inesperados." >&2
+    return 1
+  fi
+  # Composer runs as root and regenerates packages.php/services.php. A
+  # restrictive caller umask must not leave those files unreadable by PHP-FPM.
+  chown -R "$site_user:$site_group" "$cache"
+  find -P "$cache" -xdev -type d -exec chmod 0750 {} +
+  find -P "$cache" -xdev -type f -exec chmod 0640 {} +
+}
+
+make_generated_code_readable() {
+  local directory="$1"
+  [[ -d "$directory" && ! -L "$directory" ]] || return 0
+  # Composer and Vite output is application code served or loaded by the
+  # panel. Preserve executable bits while restoring read/traverse access.
+  find -P "$directory" -xdev -type d -exec chmod a+rx {} +
+  find -P "$directory" -xdev -type f -exec chmod a+r {} +
+}
+
 # A panel-triggered update can inherit a restrictive umask from systemd. Git
 # then creates new PHP classes as root-only files. Restore the repository modes
 # before Composer or PHP-FPM attempts to load the freshly pulled code.
@@ -326,12 +352,14 @@ else
 fi
 
 stage_begin php
-composer --working-dir="$ROOT" install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+(umask 022; composer --working-dir="$ROOT" install --no-dev --optimize-autoloader --no-interaction --prefer-dist)
+normalize_bootstrap_cache
+make_generated_code_readable "$ROOT/vendor"
 stage_end php
 
 stage_begin javascript
 if [[ ! -d "$ROOT/node_modules" ]] || changed_matches '^(package(-lock)?\.json)$'; then
-  npm --prefix "$ROOT" ci --no-audit --no-fund
+  (umask 022; npm --prefix "$ROOT" ci --no-audit --no-fund)
 else
   echo "Dependencias JavaScript sin cambios; etapa omitida."
 fi
@@ -340,10 +368,11 @@ stage_end javascript
 stage_begin build
 if [[ ! -f "$ROOT/public/build/manifest.json" ]] \
   || changed_matches '^(package(-lock)?\.json|vite\.config\.|resources/(css|js|fonts|views)/)'; then
-  npm --prefix "$ROOT" run build
+  (umask 022; npm --prefix "$ROOT" run build)
 else
   echo "Recursos del panel sin cambios; compilación omitida."
 fi
+make_generated_code_readable "$ROOT/public/build"
 stage_end build
 
 stage_begin applying

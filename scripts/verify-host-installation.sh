@@ -64,6 +64,11 @@ sudo -u "$site_user" test -r "$ROOT/app/Services/HostUpdateManager.php" || fail 
 sudo -u "$site_user" test -r "$ENV_FILE" || fail "$site_user cannot read .env"
 sudo -u "$site_user" test -w "$ROOT/storage" || fail "$site_user cannot write storage"
 sudo -u "$site_user" test -w "$ROOT/bootstrap/cache" || fail "$site_user cannot write bootstrap/cache"
+for cache_file in "$ROOT/bootstrap/cache/"*.php; do
+  [[ -e "$cache_file" ]] || continue
+  [[ ! -L "$cache_file" ]] || fail "Laravel cache contains an unexpected symbolic link: $cache_file"
+  sudo -u "$site_user" test -r "$cache_file" || fail "$site_user cannot read Laravel cache: $cache_file"
+done
 sudo -u "$site_user" php "$ROOT/artisan" migrate:status --no-interaction >/dev/null \
   || fail "Laravel cannot read its migration state as $site_user"
 sudo -u "$site_user" php "$ROOT/artisan" route:list --path=login --json --no-interaction \
