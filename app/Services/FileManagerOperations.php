@@ -146,7 +146,7 @@ class FileManagerOperations
         $walk = function (string $path) use (&$walk, &$count, &$bytes): void {
             abort_if(is_link($path), 422, 'No se pueden copiar ni comprimir enlaces simbólicos.');
             $count++;
-            abort_if($count > self::MAX_ENTRIES, 422, 'La operación supera 5000 elementos.');
+            abort_if($count > self::MAX_ENTRIES, 422, 'La operación supera 5000 archivos y carpetas, incluido el contenido de las carpetas seleccionadas. Divide la selección para comprimirla desde el panel.');
             if (is_dir($path)) {
                 foreach (new \FilesystemIterator($path) as $child) {
                     $walk($child->getPathname());

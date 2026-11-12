@@ -2845,8 +2845,12 @@
                 finishSelection(entry);
             };
             const selectAllInCurrentFolder = async () => {
-                let directory = uiState.ui.fileView === 'grid' ? state.currentPath
-                    : (state.selected ? (state.selected.is_dir ? state.selected.path : dirname(state.selected.path)) : (state.currentPath || '/'));
+                const selected = selectedEntries();
+                const parents = new Set(selected.map((entry) => dirname(entry.path)));
+                let directory = state.currentPath || '/';
+                if (uiState.ui.fileView !== 'grid' && selected.length && parents.size === 1) {
+                    directory = parents.values().next().value;
+                }
                 if (directory === '/' && isGlobalSitesRoot()) {
                     const roots = entriesFor('/').filter((entry) => entry.is_dir && entry.available !== false);
                     const expanded = roots.filter((entry) => state.expanded.has(entry.path));
@@ -2857,9 +2861,10 @@
                 await ensureDirectory(directory);
                 const entries = entriesFor(directory).filter((entry) => entry.deletable !== false && entry.available !== false);
                 if (!entries.length) return toast('Esta carpeta no contiene elementos seleccionables.', 'error');
-                state.selectedPaths = new Set(entries.map((entry) => entry.path));
+                entries.forEach((entry) => state.selectedPaths.add(entry.path));
                 state.selectionAnchor = entries[0]?.path || null;
                 setCurrentPath(directory);
+                renderTree();
                 finishSelection(entries.at(-1) || null);
             };
             const attachTreeEvents = () => {
@@ -4440,23 +4445,31 @@
 
             const bindMarqueeSelection = () => {
                 const pane = $('#xpanel_left_files_pane');
-                if (!pane) return;
+                const list = $('#xpanel_file_list');
+                if (!pane || !list) return;
                 let drag = null;
                 const updateMarquee = () => {
                     if (!drag) return;
+                    const viewport = list.getBoundingClientRect();
+                    const endY = Math.max(viewport.top, Math.min(drag.nextY, viewport.bottom));
                     const left = Math.min(drag.startX, drag.nextX);
-                    const top = Math.min(drag.startY, drag.nextY);
+                    const top = Math.min(drag.startY, endY);
                     const width = Math.abs(drag.nextX - drag.startX);
-                    const height = Math.abs(drag.nextY - drag.startY);
+                    const height = Math.abs(endY - drag.startY);
                     if (!drag.moved && width < 4 && height < 4) return;
                     drag.moved = true;
                     Object.assign(drag.box.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
                     const right = left + width;
-                    const bottom = top + height;
+                    const contentStart = drag.startY - viewport.top + drag.startScrollTop;
+                    const contentEnd = endY - viewport.top + list.scrollTop;
+                    const contentTop = Math.min(contentStart, contentEnd);
+                    const contentBottom = Math.max(contentStart, contentEnd);
                     state.selectedPaths = new Set(drag.base);
                     $$('.xpanel-file-row[data-path]:not(.is-renaming)').forEach((row) => {
                         const rect = row.getBoundingClientRect();
-                        const intersects = rect.right >= left && rect.left <= right && rect.bottom >= top && rect.top <= bottom;
+                        const rowTop = rect.top - viewport.top + list.scrollTop;
+                        const rowBottom = rect.bottom - viewport.top + list.scrollTop;
+                        const intersects = rect.right >= left && rect.left <= right && rowBottom >= contentTop && rowTop <= contentBottom;
                         const entry = getEntry(row.dataset.path);
                         if (intersects && entry?.deletable !== false) state.selectedPaths.add(entry.path);
                         row.classList.toggle('active', state.selectedPaths.has(row.dataset.path));
@@ -4464,6 +4477,31 @@
                         if (checkbox) checkbox.checked = state.selectedPaths.has(row.dataset.path);
                     });
                     renderInfo(selectedEntries().at(-1) || null);
+                };
+                const scrollWhileSelecting = () => {
+                    if (!drag || !drag.moved) return false;
+                    const viewport = list.getBoundingClientRect();
+                    const edge = 36;
+                    const distance = drag.nextY < viewport.top + edge
+                        ? drag.nextY - (viewport.top + edge)
+                        : drag.nextY > viewport.bottom - edge
+                            ? drag.nextY - (viewport.bottom - edge)
+                            : 0;
+                    if (!distance) return false;
+                    const previous = list.scrollTop;
+                    list.scrollTop += Math.max(-18, Math.min(18, distance / 2));
+                    if (list.scrollTop !== previous) updateMarquee();
+                    return list.scrollTop !== previous;
+                };
+                const scheduleMarquee = () => {
+                    if (!drag || drag.frame) return;
+                    const current = drag;
+                    drag.frame = requestAnimationFrame(() => {
+                        if (drag !== current) return;
+                        drag.frame = null;
+                        updateMarquee();
+                        if (scrollWhileSelecting()) scheduleMarquee();
+                    });
                 };
                 const stop = (event) => {
                     if (!drag) return;
@@ -4485,6 +4523,7 @@
                 };
                 pane.addEventListener('pointerdown', (event) => {
                     if (!$('#xpanel_trash_view').hidden) return;
+                    if (!event.target.closest('#xpanel_file_list')) return;
                     if (event.button !== 0 || event.target.closest('.xpanel-file-row, button, input, textarea, a')) return;
                     const box = document.createElement('div');
                     box.className = 'xpanel-selection-box';
@@ -4493,6 +4532,7 @@
                         pointerId: event.pointerId,
                         startX: event.clientX,
                         startY: event.clientY,
+                        startScrollTop: list.scrollTop,
                         nextX: event.clientX,
                         nextY: event.clientY,
                         moved: false,
@@ -4506,13 +4546,7 @@
                     if (!drag || drag.pointerId !== event.pointerId) return;
                     drag.nextX = event.clientX;
                     drag.nextY = event.clientY;
-                    if (drag.frame) return;
-                    const current = drag;
-                    drag.frame = requestAnimationFrame(() => {
-                        if (drag !== current) return;
-                        drag.frame = null;
-                        updateMarquee();
-                    });
+                    scheduleMarquee();
                 });
                 pane.addEventListener('pointerup', stop);
                 pane.addEventListener('pointercancel', stop);
