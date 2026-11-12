@@ -349,6 +349,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/extract', [GlobalFileManagerController::class, 'extract'])->name('extract');
                 Route::post('/copy', [GlobalFileManagerController::class, 'copy'])->name('copy');
                 Route::post('/compress', [GlobalFileManagerController::class, 'compress'])->name('compress');
+                Route::get('/compress/{task}', [GlobalFileManagerController::class, 'compressStatus'])->name('compress.status');
                 Route::post('/trash', [GlobalFileManagerController::class, 'trash'])->name('trash');
                 Route::post('/trash/restore', [GlobalFileManagerController::class, 'restore'])->name('trash.restore');
                 Route::post('/trash/purge', [GlobalFileManagerController::class, 'purge'])->name('trash.purge');
@@ -369,6 +370,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/extract', [FileManagerController::class, 'extract'])->name('extract');
                 Route::post('/copy', [FileManagerController::class, 'copy'])->name('copy');
                 Route::post('/compress', [FileManagerController::class, 'compress'])->name('compress');
+                Route::get('/compress/{task}', [FileManagerController::class, 'compressStatus'])->name('compress.status');
                 Route::post('/trash', [FileManagerController::class, 'trash'])->name('trash');
                 Route::post('/trash/restore', [FileManagerController::class, 'restore'])->name('trash.restore');
                 Route::post('/trash/purge', [FileManagerController::class, 'purge'])->name('trash.purge');

@@ -209,6 +209,27 @@ class GlobalFileManagerTest extends TestCase
             ->assertJsonFragment(['name' => 'index.php', 'path' => "/public_html/{$site->domain}/index.php", 'is_dir' => false]);
     }
 
+    public function test_global_editor_queues_and_completes_zip_inside_account_home(): void
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is not installed.');
+        }
+        $site = $this->site('archive-'.uniqid().'.example.com');
+        $directory = $this->siteDirectory($site->domain);
+        file_put_contents($directory.'/readme.txt', 'archive content');
+        $developer = $this->userWithRole('developer');
+
+        $id = $this->actingAs($developer)->postJson(route('sites.ikode.api.compress'), [
+            'paths' => ["/public_html/{$site->domain}/readme.txt"],
+            'destination' => "/public_html/{$site->domain}/files.zip",
+        ])->assertStatus(202)->json('id');
+
+        \Illuminate\Support\Facades\Artisan::call('xpanel:archives-run');
+        $this->actingAs($developer)->getJson(route('sites.ikode.api.compress.status', $id))
+            ->assertOk()->assertJson(['status' => 'completed', 'entries' => 1]);
+        $this->assertFileExists($directory.'/files.zip');
+    }
+
     public function test_global_mutation_at_the_bare_root_is_rejected(): void
     {
         $developer = $this->userWithRole('developer');

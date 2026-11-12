@@ -420,9 +420,13 @@ class FileManagerTest extends TestCase
         ])->assertOk()->assertJson(['status' => 'copied']);
         $this->assertSame('hello', file_get_contents($root.'/copies/assets/readme.txt'));
 
-        $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
+        $archiveId = $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
             'paths' => ['/assets', '/copies'], 'destination' => '/bundle.zip',
-        ])->assertOk()->assertJson(['status' => 'compressed']);
+        ])->assertStatus(202)->assertJson(['status' => 'queued'])->json('id');
+        $this->assertFileDoesNotExist($root.'/bundle.zip');
+        \Illuminate\Support\Facades\Artisan::call('xpanel:archives-run');
+        $this->actingAs($user)->getJson(route('sites.files.api.compress.status', [$site, $archiveId]))
+            ->assertOk()->assertJson(['status' => 'completed']);
         $zip = new \ZipArchive;
         $this->assertTrue($zip->open($root.'/bundle.zip') === true);
         $this->assertSame('hello', $zip->getFromName('assets/readme.txt'));
@@ -471,9 +475,39 @@ class FileManagerTest extends TestCase
         $paths = array_map(fn (int $index) => '/'.$site->domain.'/part-'.$index.'.txt', range(0, 124));
         $this->actingAs($user)->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
             ->assertOk()->assertJsonCount(350, 'entries');
-        $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
+        $archiveId = $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
             'paths' => $paths, 'destination' => '/'.$site->domain.'/parts.zip',
-        ])->assertOk()->assertJson(['count' => 125]);
+        ])->assertStatus(202)->json('id');
+        \Illuminate\Support\Facades\Artisan::call('xpanel:archives-run');
+        $this->actingAs($user)->getJson(route('sites.files.api.compress.status', [$site, $archiveId]))
+            ->assertOk()->assertJson(['status' => 'completed', 'entries' => 125]);
+    }
+
+    public function test_archive_runs_in_background_with_more_than_five_thousand_entries(): void
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is not installed.');
+        }
+        $site = $this->site();
+        $user = $this->userWithRole('developer');
+        $root = $site->localRoot();
+        mkdir($root.'/bulk');
+        for ($index = 0; $index < 5001; $index++) {
+            file_put_contents($root.'/bulk/'.$index.'.txt', 'x');
+        }
+
+        $id = $this->actingAs($user)->postJson(route('sites.files.api.compress', $site), [
+            'paths' => ['/bulk'], 'destination' => '/bulk.zip',
+        ])->assertStatus(202)->json('id');
+        $this->assertFileDoesNotExist($root.'/bulk.zip');
+        \Illuminate\Support\Facades\Artisan::call('xpanel:archives-run');
+        $this->actingAs($user)->getJson(route('sites.files.api.compress.status', [$site, $id]))
+            ->assertOk()->assertJson(['status' => 'completed', 'entries' => 5002]);
+
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($root.'/bulk.zip') === true);
+        $this->assertSame(5002, $zip->numFiles);
+        $zip->close();
     }
 
     public function test_trash_cannot_be_restored_from_another_site_or_overwrite_a_replacement(): void

@@ -40,9 +40,9 @@ class FileManagerOperations
     }
 
     /** @param list<string> $sources */
-    public function compress(array $sources, string $target): int
+    public function compress(array $sources, string $target, ?callable $progress = null): int
     {
-        $this->inspect($sources);
+        abort_if($sources === [], 422, 'Selecciona archivos o carpetas para comprimir.');
         abort_if(file_exists($target) || is_link($target), 422, 'El archivo comprimido ya existe.');
         abort_unless(strtolower(pathinfo($target, PATHINFO_EXTENSION)) === 'zip', 422, 'Solo se admite ZIP.');
         abort_unless(is_dir(dirname($target)), 422, 'La carpeta destino no existe.');
@@ -56,7 +56,10 @@ class FileManagerOperations
         $count = 0;
         try {
             foreach ($sources as $source) {
-                $this->appendZipEntry($zip, $source, basename($source), $count);
+                $this->appendZipEntry($zip, $source, basename($source), $count, $progress);
+            }
+            if ($progress !== null) {
+                $progress($count);
             }
         } catch (\Throwable $exception) {
             $zip->close();
@@ -67,10 +70,14 @@ class FileManagerOperations
             @unlink($temporary);
             abort(500, 'No se pudo finalizar el ZIP.');
         }
-        if (! @rename($temporary, $target)) {
+        // Both files share a directory/filesystem. A hard link publishes the
+        // completed ZIP atomically and never overwrites a file created while
+        // the background task was running.
+        if (! @link($temporary, $target)) {
             @unlink($temporary);
-            abort(500, 'No se pudo guardar el ZIP.');
+            abort(500, 'No se pudo guardar el ZIP; comprueba que el nombre siga libre y haya espacio disponible.');
         }
+        @unlink($temporary);
 
         return $count;
     }
@@ -174,16 +181,23 @@ class FileManagerOperations
         abort_unless(@copy($source, $target), 500, 'No se pudo copiar un archivo.');
     }
 
-    private function appendZipEntry(ZipArchive $zip, string $source, string $name, int &$count): void
+    private function appendZipEntry(ZipArchive $zip, string $source, string $name, int &$count, ?callable $progress = null): void
     {
+        abort_if(is_link($source), 422, 'No se pueden comprimir enlaces simbólicos.');
         $count++;
+        if ($count % 100 === 0) {
+            if ($progress !== null) {
+                $progress($count);
+            }
+        }
         if (is_dir($source)) {
             abort_unless($zip->addEmptyDir($name), 500, 'No se pudo añadir una carpeta al ZIP.');
             foreach (new \FilesystemIterator($source) as $child) {
-                $this->appendZipEntry($zip, $child->getPathname(), $name.'/'.$child->getFilename(), $count);
+                $this->appendZipEntry($zip, $child->getPathname(), $name.'/'.$child->getFilename(), $count, $progress);
             }
             return;
         }
+        abort_unless(is_file($source), 422, 'La selección contiene un elemento no admitido.');
         abort_unless($zip->addFile($source, $name), 500, 'No se pudo añadir un archivo al ZIP.');
     }
 

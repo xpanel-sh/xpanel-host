@@ -13,6 +13,7 @@ Schedule::command('xpanel:backups-run')->hourly()->withoutOverlapping();
 Schedule::command('xpanel:ssl-sync')->daily()->withoutOverlapping();
 Schedule::command('xpanel:resources-collect')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('xpanel:xflow-run')->everyMinute()->withoutOverlapping();
+Schedule::command('xpanel:archives-run')->everyMinute()->withoutOverlapping(360)->runInBackground();
 Schedule::command('xpanel:telemetry-send')->twiceDaily(2, 14)->withoutOverlapping();
 Schedule::call(fn () => DB::table('notifications')
     ->whereNotNull('read_at')

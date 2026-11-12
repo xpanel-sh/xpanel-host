@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
+use App\Models\FileArchiveTask;
+use App\Services\FileArchiveManager;
 use App\Services\FileManagerOperations;
 use App\Services\HostingAccountWorkspace;
 use App\Services\IkodeConsoleData;
@@ -30,6 +32,7 @@ class GlobalFileManagerController extends Controller
         private readonly HostingAccountWorkspace $workspace,
         private readonly OwnershipRepairer $ownership,
         private readonly FileManagerOperations $operations,
+        private readonly FileArchiveManager $archives,
     ) {}
 
     public function ikode(): View
@@ -221,7 +224,7 @@ class GlobalFileManagerController extends Controller
 
     public function compress(Request $request): JsonResponse
     {
-        $data = $request->validate(['paths' => 'required|array|min:1|max:500', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        $data = $request->validate(['paths' => 'required|array|min:1', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
         $root = $this->workspace->localRoot();
         $target = $this->resolveWithinRoot($root, $data['destination']);
         $this->assertSafeName(basename($target));
@@ -231,10 +234,16 @@ class GlobalFileManagerController extends Controller
             abort_if($source === $root || $this->isProtectedRoot($root, $source), 422, 'Esta carpeta forma parte de la estructura de la cuenta.');
             $sources[] = $source;
         }
-        $count = $this->operations->compress($sources, $target);
-        $this->ownership->synchronizeManagedPath($target);
+        $task = $this->archives->queue(null, null, $sources, $target, $request->user()?->id);
 
-        return response()->json(['status' => 'compressed', 'count' => $count]);
+        return response()->json(['status' => 'queued', 'id' => $task->id], 202);
+    }
+
+    public function compressStatus(FileArchiveTask $task): JsonResponse
+    {
+        abort_unless($task->site_id === null, 404);
+
+        return response()->json($task->only(['id', 'status', 'entries', 'error']));
     }
 
     public function trash(Request $request): JsonResponse

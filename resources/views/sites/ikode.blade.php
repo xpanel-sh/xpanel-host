@@ -3513,22 +3513,61 @@
                 try { await showMoveFolder(initial); }
                 catch (error) { closeMovePicker(); throw error; }
             };
+            const archiveStorageKey = `xpanel:archive:${config.baseUrl}`;
+            let archiveBusy = false;
+            const watchArchive = async (id, parent, name) => {
+                if (archiveBusy) return;
+                archiveBusy = true;
+                showProgress(`ZIP en cola: ${name}`, null);
+                let taskFailed = false;
+                try {
+                    while (true) {
+                        const task = await api('GET', `/compress/${encodeURIComponent(id)}`);
+                        if (task.status === 'failed') {
+                            taskFailed = true;
+                            throw new Error(task.error || 'No se pudo crear el ZIP.');
+                        }
+                        if (task.status === 'completed') {
+                            try { localStorage.removeItem(archiveStorageKey); } catch (_) {}
+                            await loadDirectory(parent);
+                            toast(`ZIP creado: ${name}`);
+                            log(`ZIP creado: ${pathJoin(parent, name)} (${task.entries} elementos)`);
+                            return;
+                        }
+                        showProgress(task.status === 'queued'
+                            ? `ZIP en cola: ${name}`
+                            : `Comprimiendo ${name}: ${task.entries} elementos añadidos`, null);
+                        await new Promise((resolve) => setTimeout(resolve, 2000));
+                    }
+                } catch (error) {
+                    if (taskFailed) {
+                        try { localStorage.removeItem(archiveStorageKey); } catch (_) {}
+                    }
+                    toast(error.message, 'error');
+                    log(`ZIP: ${error.message}`);
+                } finally {
+                    archiveBusy = false;
+                    hideProgress();
+                }
+            };
             const compressSelection = () => {
+                if (archiveBusy) return toast('Ya se está creando un ZIP. Espera a que termine.', 'error');
+                try {
+                    const pending = JSON.parse(localStorage.getItem(archiveStorageKey) || 'null');
+                    if (pending?.id && pending?.parent && pending?.name) {
+                        watchArchive(pending.id, pending.parent, pending.name);
+                        return toast('Comprobando el ZIP anterior.', 'info');
+                    }
+                } catch (_) {}
                 const entries = actionableEntries();
                 if (!entries.length) return toast('Selecciona archivos o carpetas primero.', 'error');
                 const parent = dirname(entries[0].path);
                 if (entries.some((entry) => dirname(entry.path) !== parent)) return toast('Selecciona elementos de una misma carpeta.', 'error');
                 promptInput('Nombre del archivo ZIP', uniqueName(parent, 'file', entries.length === 1 ? `${entries[0].name}.zip` : 'archivos.zip'), async (name) => {
                     if (!/^[^\\/]+\.zip$/i.test(name)) throw new Error('Escribe un nombre terminado en .zip');
-                    showProgress('Comprimiendo archivos... Este proceso puede tardar con carpetas grandes.', null);
-                    try {
-                        await api('POST', '/compress', { domain: config.domain, paths: entries.map((entry) => entry.path), destination: pathJoin(parent, name) });
-                        await loadDirectory(parent);
-                        toast('ZIP creado');
-                        log(`ZIP creado: ${pathJoin(parent, name)} (${entries.length} elementos seleccionados)`);
-                    } finally {
-                        hideProgress();
-                    }
+                    const task = await api('POST', '/compress', { domain: config.domain, paths: entries.map((entry) => entry.path), destination: pathJoin(parent, name) });
+                    try { localStorage.setItem(archiveStorageKey, JSON.stringify({ id: task.id, parent, name })); } catch (_) {}
+                    await watchArchive(task.id, parent, name);
                 });
             };
             const closeTrash = () => {
@@ -4855,6 +4894,12 @@
                 applyEditorSettings();
                 layoutEditor();
                 loadDirectory('/');
+                try {
+                    const pendingArchive = JSON.parse(localStorage.getItem(archiveStorageKey) || 'null');
+                    if (pendingArchive?.id && pendingArchive?.parent && pendingArchive?.name) {
+                        watchArchive(pendingArchive.id, pendingArchive.parent, pendingArchive.name);
+                    }
+                } catch (_) {}
             });
 
             applyStoredLayout();

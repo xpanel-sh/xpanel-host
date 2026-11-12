@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
+use App\Models\FileArchiveTask;
+use App\Services\FileArchiveManager;
 use App\Services\FileManagerOperations;
 use App\Services\HostingAccountWorkspace;
 use App\Services\IkodeConsoleData;
@@ -23,6 +25,7 @@ class FileManagerController extends Controller
         private readonly OwnershipRepairer $ownership,
         private readonly FileManagerOperations $operations,
         private readonly HostingAccountWorkspace $workspace,
+        private readonly FileArchiveManager $archives,
     ) {}
 
     public function index(Site $site): View
@@ -239,7 +242,7 @@ class FileManagerController extends Controller
 
     public function compress(Request $request, Site $site): JsonResponse
     {
-        $data = $request->validate(['paths' => 'required|array|min:1|max:500', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
+        $data = $request->validate(['paths' => 'required|array|min:1', 'paths.*' => 'required|string|distinct', 'destination' => 'required|string']);
         [$targetSite, $target] = $this->resolveTarget($site, $data['destination']);
         $this->assertSafeName(basename($target));
         $this->ensureWritable($targetSite, dirname($target), 'crear el ZIP');
@@ -250,10 +253,16 @@ class FileManagerController extends Controller
             abort_if($this->isSiteRoot($sourceSite, $source), 422, 'No se puede comprimir la raíz de un sitio.');
             $sources[] = $source;
         }
-        $count = $this->operations->compress($sources, $target);
-        $this->ownership->synchronizePath($targetSite, $target);
+        $task = $this->archives->queue($site, $targetSite, $sources, $target, $request->user()?->id);
 
-        return response()->json(['status' => 'compressed', 'count' => $count]);
+        return response()->json(['status' => 'queued', 'id' => $task->id], 202);
+    }
+
+    public function compressStatus(Site $site, FileArchiveTask $task): JsonResponse
+    {
+        abort_unless($task->site_id === $site->id, 404);
+
+        return response()->json($task->only(['id', 'status', 'entries', 'error']));
     }
 
     public function trash(Request $request, Site $site): JsonResponse
