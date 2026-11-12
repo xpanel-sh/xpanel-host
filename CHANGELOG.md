@@ -8,6 +8,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- iKode permite elegir el dominio o un subdominio del mismo hosting para el chat API; separa historial y contexto por sitio y rechaza sitios ajenos. La conexión API se identifica como tal mientras la integración de sesión Codex para servicios alojados no esté habilitada.
 - Las instancias administradas aceptan la creación idempotente del primer sitio PHP solicitada por VPS, respetando el límite del plan. El ajuste de acceso al panel muestra por separado el dominio propio, la dirección técnica y la recuperación por IP:puerto; Host independiente mantiene su configuración autónoma.
 - Bases y usuarios nuevos usan el prefijo corto de la cuenta (`xp_<instancia>_`) también al importar sitios o instalar WordPress. Las bases existentes conservan su nombre.
 - La conexión SQLite registrada muestra la sincronización con DbGate junto a Desconectar y aclara que hay que cargarla antes de verla en el gestor.
@@ -31,6 +32,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- Host independiente conserva `/terminal-ws` al cambiar la dirección del panel; las actualizaciones reparan la ruta WebSocket si una configuración anterior la había omitido, sin rehacer los vhosts de los sitios.
 - La actualización rápida repara la propiedad y lectura de `bootstrap/cache` después de Composer y vuelve legibles el código generado de `vendor` y los recursos de `public/build`. Composer y npm crean sus archivos con una umask adecuada aunque el proceso de actualización herede una restrictiva.
 - Los sitios PHP y estáticos conceden a Nginx acceso de solo lectura a la subcarpeta pública y permiso de atravesar sus directorios padres. Se conserva privado el resto del proyecto y se evita el 403 tras publicar Laravel en `public`. Una actualización del helper reaplica los permisos a los sitios existentes también en el modo de actualización rápida.
 - La terminal del dominio principal inicia en `/family`, donde `ls` muestra el dominio y sus subdominios como carpetas hermanas. El prompt distingue la raíz (`~`) de cada proyecto (`~/dominio`), incluido el dominio principal. `HOME` apunta por separado al proyecto escribible del dominio principal para que npm y otras herramientas no intenten crear su caché en la raíz protegida `/family`. La actualización vuelve a generar los perfiles de terminal al cambiar su helper.

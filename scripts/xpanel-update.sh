@@ -406,6 +406,9 @@ if [[ "$terminal_enabled" == "true" ]] && changed_matches '^(app/.*(Terminal|Acc
   [[ -f "$key_stage/authorized_keys" ]] || install -o "$site_user" -g "$site_group" -m 0640 /dev/null "$key_stage/authorized_keys"
   bash "$ROOT/scripts/xpanel-site-helper.sh" access-sync "$account_user" "$account_home" 0 0 0 1
 fi
+if [[ "$terminal_enabled" == "true" ]]; then
+  bash "$ROOT/scripts/sync-panel-terminal-route.sh"
+fi
 if changed_matches '^(app/.*(Access|Terminal|HostingAccountWorkspace)|database/migrations/.*(access|terminal)|scripts/xpanel-site-helper\.sh$)'; then
   sudo -u "$site_user" php "$ROOT/artisan" xpanel:access-sync
 else

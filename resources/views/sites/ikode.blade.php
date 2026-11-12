@@ -1312,6 +1312,7 @@
                             <div class="xpanel-agent-tabs" id="xpanel_agent_tabs">
                                 <span class="xpanel-agent-section-label">Chat</span>
                             </div>
+                            <select class="kt-input text-xs max-w-36" id="xpanel_agent_site" aria-label="Sitio del chat" title="Sitio del chat" hidden></select>
                             <button class="ikode_left_action_btn" type="button" id="xpanel_agent_add" title="Añadir agente" aria-label="Añadir agente">
                                 <i class="ki-filled ki-plus"></i>
                             </button>
@@ -1328,13 +1329,13 @@
                                 </div>
                             </div>
                             <div class="xpanel-agent-chat" id="xpanel_agent_chat" aria-live="polite">
-                                <div class="xpanel-agent-empty">Añade Claude o Codex para conversar con el contexto de {{ $site ? 'este sitio' : 'toda la cuenta' }}.</div>
+                                <div class="xpanel-agent-empty">Añade una conexión API para conversar con el contexto de {{ $site ? 'este sitio' : 'toda la cuenta' }}.</div>
                             </div>
                             <form class="xpanel-agent-composer" id="xpanel_agent_form">
                                 <textarea class="kt-input" id="xpanel_agent_prompt" rows="1" maxlength="12000" placeholder="Pregunta sobre el proyecto…" aria-label="Mensaje para el agente"></textarea>
                                 <div class="xpanel-agent-composer-actions">
                                     <button class="ikode_left_action_btn" type="button" title="Adjuntos próximamente" aria-label="Adjuntos próximamente" disabled><i class="ki-filled ki-plus"></i></button>
-                                    <span class="xpanel-agent-context-label" title="{{ $scopeLabel }}"><i class="ki-filled ki-code"></i> {{ $site ? $site->domain : 'Cuenta completa' }}</span>
+                                    <span class="xpanel-agent-context-label" id="xpanel_agent_scope" title="{{ $scopeLabel }}"><i class="ki-filled ki-code"></i> {{ $site ? $site->domain : 'Cuenta completa' }}</span>
                                     <button class="ikode_left_action_btn" type="submit" id="xpanel_agent_send" title="Enviar" aria-label="Enviar mensaje" disabled><i class="ki-filled ki-arrow-up"></i></button>
                                 </div>
                             </form>
@@ -1361,8 +1362,8 @@
                                 </div>
                                 <p class="text-[10px] leading-4 text-secondary-foreground mb-4">La clave utiliza la facturación API del proveedor; no abre ni reutiliza tu sesión, suscripción o historial de ChatGPT/Claude.</p>
                                 <div class="grid gap-3">
-                                    <label class="xpanel-setting-control"><span>Proveedor</span><select id="xpanel_agent_provider" required><option value="openai">Codex / OpenAI</option><option value="anthropic">Claude / Anthropic</option></select></label>
-                                    <label class="xpanel-setting-control"><span>Nombre</span><input class="kt-input" id="xpanel_agent_name" value="Codex" maxlength="80" required></label>
+                                    <label class="xpanel-setting-control"><span>Proveedor</span><select id="xpanel_agent_provider" required><option value="openai">OpenAI API</option><option value="anthropic">Anthropic API</option></select></label>
+                                    <label class="xpanel-setting-control"><span>Nombre</span><input class="kt-input" id="xpanel_agent_name" value="OpenAI" maxlength="80" required></label>
                                     <label class="xpanel-setting-control"><span>Modelo</span><input class="kt-input" id="xpanel_agent_model" value="gpt-5-mini" maxlength="100" required></label>
                                     <label class="xpanel-setting-control"><span>Clave API</span><input class="kt-input" id="xpanel_agent_key" type="password" autocomplete="new-password" maxlength="500"><small class="text-secondary-foreground" id="xpanel_agent_key_help">Obligatoria al crear la conexión.</small></label>
                                 </div>
@@ -1490,6 +1491,8 @@
                 searchResults: [],
                 pendingRename: null,
                 agentConnections: [],
+                agentSites: [],
+                agentSiteId: null,
                 agentConversations: [],
                 agentMessages: [],
                 activeAgentId: null,
@@ -1839,11 +1842,12 @@
                 $('#xpanel_agent_conversation_title').textContent = conversation?.title || (active ? 'Nuevo chat' : 'Selecciona un agente');
 
                 if (!active) {
-                    chat.innerHTML = `<div class="xpanel-agent-empty">Añade Claude o Codex para conversar con el contexto de ${config.domain ? 'este sitio' : 'toda la cuenta'}.</div>`;
+                    chat.innerHTML = `<div class="xpanel-agent-empty">Añade una conexión API para conversar con el contexto de ${config.domain ? 'este sitio' : 'toda la cuenta'}.</div>`;
                     return;
                 }
                 if (!state.agentMessages.length) {
-                    chat.innerHTML = `<div class="xpanel-agent-empty">${escapeHtml(active.name)} está listo. El contexto queda limitado a ${config.domain ? escapeHtml(config.domain) : 'la cuenta completa'} y los secretos se excluyen automáticamente.</div>`;
+                    const selectedSite = state.agentSites.find((site) => Number(site.id) === Number(state.agentSiteId));
+                    chat.innerHTML = `<div class="xpanel-agent-empty">${escapeHtml(active.name)} está listo. El contexto queda limitado a ${selectedSite ? escapeHtml(selectedSite.domain) : 'la cuenta completa'} y los secretos se excluyen automáticamente.</div>`;
                     return;
                 }
                 chat.innerHTML = state.agentMessages.map((message) => `<div class="xpanel-agent-message ${message.role === 'user' ? 'user' : 'assistant'}">${escapeHtml(message.content)}</div>`).join('');
@@ -1853,8 +1857,17 @@
                 const params = new URLSearchParams();
                 if (connectionId) params.set('connection_id', connectionId);
                 if (conversationId) params.set('conversation_id', conversationId);
+                if (state.agentSiteId) params.set('target_site_id', state.agentSiteId);
                 const query = params.size ? `?${params}` : '';
                 const payload = await api('GET', `/agents${query}`);
+                state.agentSites = payload.sites || [];
+                state.agentSiteId = payload.active_site_id || null;
+                const sitePicker = $('#xpanel_agent_site');
+                sitePicker.hidden = state.agentSites.length < 2;
+                sitePicker.innerHTML = state.agentSites.map((site) => `<option value="${site.id}">${escapeHtml(site.domain)}</option>`).join('');
+                if (state.agentSiteId) sitePicker.value = String(state.agentSiteId);
+                const selectedSite = state.agentSites.find((site) => Number(site.id) === Number(state.agentSiteId));
+                $('#xpanel_agent_scope').innerHTML = `<i class="ki-filled ki-code"></i> ${selectedSite ? escapeHtml(selectedSite.domain) : 'Cuenta completa'}`;
                 state.agentConnections = payload.connections || [];
                 state.activeAgentId = payload.active_connection_id || null;
                 state.agentConversations = payload.conversations || [];
@@ -1869,7 +1882,7 @@
                 $('#xpanel_agent_settings_title').textContent = editing ? `Ajustes · ${editing.name}` : 'Añadir agente';
                 $('#xpanel_agent_provider').disabled = Boolean(editing);
                 $('#xpanel_agent_provider').value = editing?.provider || 'openai';
-                $('#xpanel_agent_name').value = editing?.name || 'Codex';
+                $('#xpanel_agent_name').value = editing?.name || 'OpenAI';
                 $('#xpanel_agent_model').value = editing?.model || 'gpt-5-mini';
                 $('#xpanel_agent_key').value = '';
                 $('#xpanel_agent_key').required = !editing;
@@ -1883,7 +1896,7 @@
                     openAgentSettings();
                     return;
                 }
-                const payload = await api('POST', '/agents/conversations', { connection_id: state.activeAgentId });
+                const payload = await api('POST', '/agents/conversations', { connection_id: state.activeAgentId, target_site_id: state.agentSiteId });
                 await loadAgents(state.activeAgentId, payload.conversation.id);
                 switchAgentScreen('chat');
                 $('#xpanel_agent_prompt').focus();
@@ -1903,11 +1916,18 @@
                 chat.append(waiting);
                 chat.scrollTop = chat.scrollHeight;
                 try {
+                    const selectedSite = state.agentSites.find((site) => Number(site.id) === Number(state.agentSiteId));
+                    const editorPath = activeTab()?.path || state.selected?.path || null;
+                    const prefix = selectedSite ? `/${selectedSite.domain}` : null;
+                    const activePath = config.familyRoot && editorPath
+                        ? (editorPath.startsWith(`${prefix}/`) ? editorPath.slice(prefix.length) : null)
+                        : editorPath;
                     const payload = await api('POST', '/agents/chat', {
                         connection_id: state.activeAgentId,
                         conversation_id: state.activeConversationId,
+                        target_site_id: state.agentSiteId,
                         message,
-                        active_path: activeTab()?.path || state.selected?.path || null,
+                        active_path: activePath,
                     });
                     state.agentMessages.push(payload.message);
                     state.activeConversationId = payload.conversation.id;
@@ -4565,6 +4585,10 @@
             $$('[data-console-tab]').forEach((button) => button.addEventListener('click', () => switchConsoleTab(button.dataset.consoleTab, true)));
             $$('[data-right-tab]').forEach((button) => button.addEventListener('click', () => switchRightTab(button.dataset.rightTab)));
             $('#xpanel_agent_add')?.addEventListener('click', () => openAgentSettings());
+            $('#xpanel_agent_site')?.addEventListener('change', (event) => {
+                state.agentSiteId = Number(event.target.value);
+                loadAgents(state.activeAgentId).then(() => switchAgentScreen('chat')).catch((error) => toast(error.message, 'error'));
+            });
             $('#xpanel_agent_tabs')?.addEventListener('click', (event) => {
                 const tab = event.target.closest('[data-agent-connection]');
                 if (!tab) return;
@@ -4580,7 +4604,7 @@
                 if (remove) {
                     if (!window.confirm('¿Eliminar este chat?')) return;
                     try {
-                        await api('DELETE', `/agents/conversations/${remove.dataset.agentConversationDelete}`);
+                        await api('DELETE', `/agents/conversations/${remove.dataset.agentConversationDelete}`, { target_site_id: state.agentSiteId });
                         await loadAgents(state.activeAgentId);
                     } catch (error) {
                         toast(error.message, 'error');
@@ -4595,7 +4619,7 @@
             });
             $('#xpanel_agent_provider')?.addEventListener('change', (event) => {
                 const anthropic = event.target.value === 'anthropic';
-                $('#xpanel_agent_name').value = anthropic ? 'Claude' : 'Codex';
+                $('#xpanel_agent_name').value = anthropic ? 'Claude' : 'OpenAI';
                 $('#xpanel_agent_model').value = anthropic ? 'claude-sonnet-4-20250514' : 'gpt-5-mini';
             });
             $('#xpanel_agent_connection_form')?.addEventListener('submit', async (event) => {

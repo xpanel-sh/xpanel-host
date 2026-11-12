@@ -17,6 +17,8 @@ class IkodeAgentController extends Controller
 {
     public function state(Request $request, ?Site $site = null): JsonResponse
     {
+        $routeSite = $site;
+        $site = $this->selectedSite($request, $site);
         $connections = AiConnection::query()->whereBelongsTo($request->user())->latest()->get();
         $selected = $connections->firstWhere('id', (int) $request->query('connection_id')) ?? $connections->first();
         $conversations = $selected ? $this->conversations($request, $selected, $site)->get() : collect();
@@ -24,6 +26,8 @@ class IkodeAgentController extends Controller
 
         return response()->json([
             'scope' => $site ? ['type' => 'site', 'label' => $site->domain] : ['type' => 'account', 'label' => 'Cuenta completa'],
+            'sites' => $routeSite ? $this->family($routeSite)->map(fn (Site $item): array => ['id' => $item->id, 'domain' => $item->domain])->values() : [],
+            'active_site_id' => $site?->id,
             'connections' => $connections->map(fn (AiConnection $connection): array => $this->connectionData($connection))->values(),
             'active_connection_id' => $selected?->id,
             'conversations' => $conversations->map(fn (AiConversation $item): array => $this->conversationData($item))->values(),
@@ -73,6 +77,7 @@ class IkodeAgentController extends Controller
 
     public function storeConversation(Request $request, ?Site $site = null): JsonResponse
     {
+        $site = $this->selectedSite($request, $site);
         $data = $request->validate(['connection_id' => 'required|integer']);
         $connection = AiConnection::query()->whereBelongsTo($request->user())->findOrFail($data['connection_id']);
         $conversation = AiConversation::create([
@@ -88,6 +93,7 @@ class IkodeAgentController extends Controller
 
     public function destroyConversation(Request $request, int $conversation, ?Site $site = null): JsonResponse
     {
+        $site = $this->selectedSite($request, $site);
         $owned = AiConversation::query()
             ->where('user_id', $request->user()->id)
             ->where('scope_key', $this->scopeKey($site))
@@ -99,6 +105,7 @@ class IkodeAgentController extends Controller
 
     public function chat(Request $request, AiProviderClient $client, IkodeProjectContext $context, ?Site $site = null): JsonResponse
     {
+        $site = $this->selectedSite($request, $site);
         $data = $request->validate([
             'connection_id' => 'required|integer',
             'conversation_id' => 'nullable|integer',
@@ -152,6 +159,27 @@ class IkodeAgentController extends Controller
     private function scopeKey(?Site $site): string
     {
         return $site ? 'site:'.$site->id : 'account';
+    }
+
+    private function selectedSite(Request $request, ?Site $site): ?Site
+    {
+        if ($site === null) {
+            abort_if($request->filled('target_site_id'), 422, 'La vista general no acepta otro sitio.');
+            return null;
+        }
+        if (! $request->filled('target_site_id')) {
+            return $site;
+        }
+        $selected = $this->family($site)->firstWhere('id', (int) $request->input('target_site_id'));
+        abort_unless($selected && (string) $selected->id === (string) $request->input('target_site_id'), 422, 'El sitio no pertenece a este hosting.');
+        return $selected;
+    }
+
+    private function family(Site $site): \Illuminate\Support\Collection
+    {
+        return $site->parent_site_id === null
+            ? collect([$site])->concat($site->subdomains()->get())
+            : collect([$site]);
     }
 
     private function connectionData(AiConnection $connection): array

@@ -517,7 +517,7 @@ site_root_migrate() {
 
 panel_access_apply() {
   local mode="$2" value="$3" port="${4:-80}"
-  local panel_host panel_listen panel_url php_version
+  local panel_host panel_listen panel_url php_version terminal_nginx_block=""
   php_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
   [[ -S "/run/php/php$php_version-fpm.sock" ]] || fail "PHP-FPM socket is not available."
 
@@ -537,6 +537,26 @@ panel_access_apply() {
       ;;
     *) fail "Invalid panel access mode." ;;
   esac
+
+  if [[ "$(grep '^XPANEL_TERMINAL_ENABLED=' "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '"' || true)" == "true" ]]; then
+    local terminal_port
+    terminal_port="$(grep '^XPANEL_TERMINAL_AGENT_PORT=' "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
+    terminal_port="${terminal_port:-7092}"
+    [[ "$terminal_port" =~ ^[0-9]{1,5}$ ]] && (( terminal_port >= 1 && terminal_port <= 65535 )) || fail "Invalid terminal agent port."
+    terminal_nginx_block="$(cat <<NGINX
+    location /terminal-ws {
+        proxy_pass http://127.0.0.1:$terminal_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_read_timeout 3600s;
+    }
+
+    location = /internal/terminal/consume { return 404; }
+NGINX
+)"
+  fi
 
   local target="/etc/nginx/sites-available/xpanel-host-panel.conf"
   local temporary backup=""
@@ -559,6 +579,7 @@ server {
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_read_timeout 1250s;
     }
+$terminal_nginx_block
     location ~ /\. { deny all; }
 }
 EOF

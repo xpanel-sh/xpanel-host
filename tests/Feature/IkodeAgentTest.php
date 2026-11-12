@@ -100,6 +100,34 @@ class IkodeAgentTest extends TestCase
             ->assertOk()->assertJsonFragment(['content' => 'Mensaje del sitio'])->assertJsonMissing(['content' => 'Mensaje global']);
     }
 
+    public function test_parent_site_can_select_a_subdomain_without_mixing_or_exposing_other_sites(): void
+    {
+        $user = $this->developer();
+        $parent = $this->site('parent-'.uniqid().'.example.com');
+        $child = $this->site('child.'.$parent->domain);
+        $child->update(['parent_site_id' => $parent->id]);
+        $other = $this->site('other-'.uniqid().'.example.com');
+        $connection = AiConnection::create([
+            'user_id' => $user->id, 'provider' => 'openai', 'name' => 'OpenAI',
+            'model' => 'gpt-5-mini', 'api_key' => 'openai-test-secret-key',
+        ]);
+
+        $this->actingAs($user)->postJson(route('sites.files.api.agents.conversations.store', $parent), [
+            'connection_id' => $connection->id, 'target_site_id' => $child->id,
+        ])->assertCreated();
+        $this->assertDatabaseHas('ai_conversations', ['site_id' => $child->id, 'scope_key' => 'site:'.$child->id]);
+
+        $this->actingAs($user)->getJson(route('sites.files.api.agents.state', [$parent, 'target_site_id' => $child->id]))
+            ->assertOk()->assertJsonPath('active_site_id', $child->id)
+            ->assertJsonCount(2, 'sites')->assertJsonCount(1, 'conversations');
+        $this->actingAs($user)->getJson(route('sites.files.api.agents.state', $parent))
+            ->assertOk()->assertJsonCount(0, 'conversations');
+        $this->actingAs($user)->getJson(route('sites.files.api.agents.state', [$parent, 'target_site_id' => $other->id]))
+            ->assertStatus(422);
+        $this->actingAs($user)->getJson(route('sites.files.api.agents.state', [$child, 'target_site_id' => $parent->id]))
+            ->assertStatus(422);
+    }
+
     public function test_anthropic_connections_use_the_messages_api_without_exposing_the_key(): void
     {
         Http::fake([
