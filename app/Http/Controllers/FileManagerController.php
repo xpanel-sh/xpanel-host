@@ -261,8 +261,9 @@ class FileManagerController extends Controller
     public function compressStatus(Site $site, FileArchiveTask $task): JsonResponse
     {
         abort_unless($task->site_id === $site->id, 404);
+        $task = $this->archives->retryQueued($task);
 
-        return response()->json($task->only(['id', 'status', 'entries', 'error']));
+        return response()->json($task->only(['id', 'status', 'entries', 'progress_percent', 'created_at', 'error']));
     }
 
     public function trash(Request $request, Site $site): JsonResponse

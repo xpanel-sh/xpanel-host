@@ -3124,6 +3124,11 @@ backup_delete() {
 }
 
 case "$ACTION" in
+  archive-worker-start)
+    [[ $# -eq 1 ]] || fail "Invalid archive worker arguments."
+    systemctl enable --now xpanel-host-scheduler.timer
+    systemctl --no-block start xpanel-host-scheduler.service
+    ;;
   panel-update-status) panel_update_status "$@" ;;
   panel-update-start) panel_update_start "$@" ;;
   panel-update-run) panel_update_run "$@" ;;

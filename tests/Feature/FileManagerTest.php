@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\Site;
 use App\Models\User;
+use App\Services\FileArchiveManager;
+use App\Services\ServerCommandRunner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -426,7 +428,7 @@ class FileManagerTest extends TestCase
         $this->assertFileDoesNotExist($root.'/bundle.zip');
         \Illuminate\Support\Facades\Artisan::call('xpanel:archives-run');
         $this->actingAs($user)->getJson(route('sites.files.api.compress.status', [$site, $archiveId]))
-            ->assertOk()->assertJson(['status' => 'completed']);
+            ->assertOk()->assertJson(['status' => 'completed', 'progress_percent' => 100]);
         $zip = new \ZipArchive;
         $this->assertTrue($zip->open($root.'/bundle.zip') === true);
         $this->assertSame('hello', $zip->getFromName('assets/readme.txt'));
@@ -440,6 +442,26 @@ class FileManagerTest extends TestCase
         $this->actingAs($user)->postJson(route('sites.files.api.trash.restore', $site), ['id' => $trash['id']])
             ->assertOk();
         $this->assertSame('hello', file_get_contents($root.'/assets/readme.txt'));
+    }
+
+    public function test_queued_archive_starts_standalone_worker_without_waiting_for_timer(): void
+    {
+        $directory = storage_path('framework/testing/archive-worker-'.uniqid());
+        mkdir($directory, 0700, true);
+        file_put_contents($directory.'/source.txt', 'content');
+        config(['xpanel.apply_system_changes' => true, 'xpanel.management_mode' => 'standalone', 'xpanel.site_helper' => '/opt/xpanel-host/scripts/xpanel-site-helper.sh']);
+        $this->mock(ServerCommandRunner::class)->shouldReceive('run')->once()
+            ->with(['sudo', '-n', '/opt/xpanel-host/scripts/xpanel-site-helper.sh', 'archive-worker-start'])
+            ->andReturn('');
+
+        try {
+            $task = app(FileArchiveManager::class)->queue(null, null, [$directory.'/source.txt'], $directory.'/archive.zip', null);
+            $this->assertSame('queued', $task->status);
+            $this->assertSame(1, \App\Models\FileArchiveTask::whereKey($task->id)->count());
+        } finally {
+            unlink($directory.'/source.txt');
+            rmdir($directory);
+        }
     }
 
     public function test_site_file_operations_reject_other_site_paths_and_root_deletion(): void

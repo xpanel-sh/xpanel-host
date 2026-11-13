@@ -6,6 +6,7 @@ use App\Models\FileArchiveTask;
 use App\Models\Site;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Throwable;
 
 class FileArchiveManager
@@ -14,6 +15,8 @@ class FileArchiveManager
         private readonly FileManagerOperations $operations,
         private readonly HostingAccountWorkspace $workspace,
         private readonly OwnershipRepairer $ownership,
+        private readonly ServerCommandRunner $commands,
+        private readonly HostBrokerClient $broker,
     ) {}
 
     /** @param list<string> $sources */
@@ -29,7 +32,7 @@ class FileArchiveManager
             abort_if(is_dir($source) && str_starts_with(str_replace('\\', '/', $target), rtrim(str_replace('\\', '/', $source), '/').'/'), 422, 'El ZIP no puede crearse dentro de una carpeta seleccionada.');
         }
 
-        return FileArchiveTask::create([
+        $task = FileArchiveTask::create([
             'id' => (string) Str::uuid(),
             'site_id' => $scope?->id,
             'target_site_id' => $targetSite?->id,
@@ -38,6 +41,54 @@ class FileArchiveManager
             'target' => $target,
             'status' => 'queued',
         ]);
+
+        if (config('xpanel.apply_system_changes')) {
+            try {
+                $this->startWorker();
+            } catch (Throwable $exception) {
+                $task->update([
+                    'status' => 'failed',
+                    'error' => 'No se pudo iniciar la compresión: '.$exception->getMessage(),
+                    'finished_at' => now(),
+                ]);
+                throw new ServiceUnavailableHttpException(null, 'No se pudo iniciar la compresión. Pide al administrador que revise el servicio de tareas de Host.', $exception);
+            }
+        }
+
+        return $task;
+    }
+
+    public function retryQueued(FileArchiveTask $task): FileArchiveTask
+    {
+        if (! config('xpanel.apply_system_changes') || $task->status !== 'queued'
+            || $task->updated_at->gt(now()->subSeconds(30))) {
+            return $task;
+        }
+        $claimed = FileArchiveTask::whereKey($task->id)->where('status', 'queued')
+            ->where('updated_at', '<=', now()->subSeconds(30))
+            ->update(['updated_at' => now()]);
+        if ($claimed) {
+            try {
+                $this->startWorker();
+            } catch (Throwable $exception) {
+                $task->update([
+                    'status' => 'failed',
+                    'error' => 'No se pudo iniciar la compresión: '.$exception->getMessage(),
+                    'finished_at' => now(),
+                ]);
+            }
+        }
+
+        return $task->fresh();
+    }
+
+    private function startWorker(): void
+    {
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            $this->broker->execute('host-archive-worker-start', [], null);
+        } else {
+            $this->commands->run(['sudo', '-n', (string) config('xpanel.site_helper'), 'archive-worker-start']);
+        }
     }
 
     public function run(FileArchiveTask $task): void
@@ -61,10 +112,16 @@ class FileArchiveManager
                 $sources[] = $real;
             }
             $lastUpdate = 0;
+            $lastPercent = -1;
             $count = $this->operations->compress($sources, $target, function (int $entries) use ($task, &$lastUpdate): void {
                 if ($entries - $lastUpdate >= 100) {
                     $task->update(['entries' => $entries]);
                     $lastUpdate = $entries;
+                }
+            }, function (int $percent) use ($task, &$lastPercent): void {
+                if ($percent >= $lastPercent + 2 || $percent === 0) {
+                    $task->update(['progress_percent' => $percent]);
+                    $lastPercent = $percent;
                 }
             });
             if ($task->target_site_id !== null) {
@@ -72,7 +129,7 @@ class FileArchiveManager
             } else {
                 $this->ownership->synchronizeManagedPath($target);
             }
-            $task->update(['status' => 'completed', 'entries' => $count, 'finished_at' => now()]);
+            $task->update(['status' => 'completed', 'entries' => $count, 'progress_percent' => 100, 'finished_at' => now()]);
         } catch (Throwable $exception) {
             $task->update([
                 'status' => 'failed', 'error' => Str::limit($exception->getMessage(), 500, ''),

@@ -3534,9 +3534,16 @@
                             log(`ZIP creado: ${pathJoin(parent, name)} (${task.entries} elementos)`);
                             return;
                         }
-                        showProgress(task.status === 'queued'
-                            ? `ZIP en cola: ${name}`
-                            : `Comprimiendo ${name}: ${task.entries} elementos añadidos`, null);
+                        if (task.status === 'queued') {
+                            const waiting = Date.now() - Date.parse(task.created_at || '');
+                            showProgress(Number.isFinite(waiting) && waiting > 90000
+                                ? `ZIP en cola desde hace más de 90 segundos. El programador de Host no ha iniciado la tarea; pide al administrador que revise el servicio.`
+                                : `ZIP en cola: ${name}. Iniciando el servicio de compresión…`, null);
+                        } else if (task.progress_percent === null || task.progress_percent === undefined) {
+                            showProgress(`Preparando ${name}: ${task.entries} elementos añadidos`, null);
+                        } else {
+                            showProgress(`Escribiendo ${name}: ${task.progress_percent}% · ${task.entries} elementos`, task.progress_percent);
+                        }
                         await new Promise((resolve) => setTimeout(resolve, 2000));
                     }
                 } catch (error) {

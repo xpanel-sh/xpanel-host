@@ -8,6 +8,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- La compresión ZIP inicia el servicio de tareas al enviarse desde iKode, tanto en Host independiente como en una instancia de VPS. Si una tarea antigua sigue en cola, la consulta de estado intenta reactivarla; el panel muestra el avance real de escritura y avisa cuando el servicio no la recoge.
 - iKode comprime ZIP en una tarea de fondo en Host independiente o administrado. El panel muestra entradas procesadas, recupera el estado tras recargar y publica el archivo completo sin sobrescribir uno creado entretanto. La compresión ya no tiene topes fijos de 5000 entradas ni 512 MB; siguen aplicándose la cuota de espacio y la capacidad real del servidor. Copiar archivos conserva sus límites preventivos.
 - iKode permite elegir el dominio o un subdominio del mismo hosting para el chat API; separa historial y contexto por sitio y rechaza sitios ajenos. La conexión API se identifica como tal mientras la integración de sesión Codex para servicios alojados no esté habilitada.
 - Las instancias administradas aceptan la creación idempotente del primer sitio PHP solicitada por VPS, respetando el límite del plan. El ajuste de acceso al panel muestra por separado el dominio propio, la dirección técnica y la recuperación por IP:puerto; Host independiente mantiene su configuración autónoma.

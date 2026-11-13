@@ -382,7 +382,7 @@ else
   install -d -o "$site_user" -g "$site_group" -m 0750 "$ROOT/storage" "$ROOT/bootstrap/cache" "$ROOT/database"
 fi
 sudo -u "$site_user" php "$ROOT/artisan" migrate --force
-if [[ "$UPDATE_MODE" == "repair" || ! -f /etc/systemd/system/xpanel-host-scheduler.service ]] \
+if [[ "$UPDATE_MODE" == "repair" || ! -f /etc/systemd/system/xpanel-host-scheduler.service || ! -f /etc/systemd/system/xpanel-host-scheduler.timer ]] \
   || changed_matches '^scripts/xpanel-update\.sh$'; then
   configure_backup_runtime
 fi

@@ -40,7 +40,7 @@ class FileManagerOperations
     }
 
     /** @param list<string> $sources */
-    public function compress(array $sources, string $target, ?callable $progress = null): int
+    public function compress(array $sources, string $target, ?callable $progress = null, ?callable $writeProgress = null): int
     {
         abort_if($sources === [], 422, 'Selecciona archivos o carpetas para comprimir.');
         abort_if(file_exists($target) || is_link($target), 422, 'El archivo comprimido ya existe.');
@@ -53,6 +53,11 @@ class FileManagerOperations
         $temporary = dirname($target).'/.xpanel-'.Str::uuid().'.zip';
         $zip = new ZipArchive;
         abort_unless($zip->open($temporary, ZipArchive::CREATE | ZipArchive::EXCL) === true, 500, 'No se pudo crear el ZIP.');
+        if ($writeProgress !== null && method_exists($zip, 'registerProgressCallback')) {
+            $zip->registerProgressCallback(0.02, static function (float $ratio) use ($writeProgress): void {
+                $writeProgress((int) floor(max(0, min(1, $ratio)) * 100));
+            });
+        }
         $count = 0;
         try {
             foreach ($sources as $source) {
@@ -66,7 +71,16 @@ class FileManagerOperations
             @unlink($temporary);
             throw $exception;
         }
-        if (! $zip->close()) {
+        try {
+            if ($writeProgress !== null) {
+                $writeProgress(0);
+            }
+            $closed = $zip->close();
+        } catch (\Throwable $exception) {
+            @unlink($temporary);
+            throw $exception;
+        }
+        if (! $closed) {
             @unlink($temporary);
             abort(500, 'No se pudo finalizar el ZIP.');
         }
