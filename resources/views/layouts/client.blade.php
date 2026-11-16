@@ -64,7 +64,7 @@
                                 <div class="kt-menu-dropdown w-64 py-2">
                                     @forelse ($clientSites as $clientSite)
                                         <div class="kt-menu-item {{ $selectedPrimarySite?->is($clientSite) ? 'active' : '' }}">
-                                            <a class="kt-menu-link" href="{{ route('sites.show', $clientSite) }}">
+                                            <a class="kt-menu-link" href="{{ \App\Support\SiteSwitchUrl::for($clientSite, request()) }}">
                                                 <span class="kt-menu-icon"><i class="ki-filled ki-click"></i></span>
                                                 <span class="kt-menu-title">{{ $clientSite->domain }}</span>
                                             </a>

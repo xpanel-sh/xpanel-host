@@ -61,6 +61,30 @@ class ExampleTest extends TestCase
         $this->assertStringContainsString('ki-click', $response->getContent());
     }
 
+    public function test_site_selector_keeps_the_current_file_manager_view(): void
+    {
+        $owner = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
+        $first = Site::create(['domain' => 'first.example.com', 'document_root' => '/var/www/first.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+        $second = Site::create(['domain' => 'second.example.com', 'document_root' => '/var/www/second.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+
+        $this->actingAs($owner)->get(route('sites.files.index', $first))
+            ->assertOk()
+            ->assertSee('href="'.route('sites.files.index', $second).'"', false);
+    }
+
+    public function test_site_selector_falls_back_to_site_home_for_a_specific_subdomain(): void
+    {
+        $owner = User::factory()->create(['role_id' => Role::where('slug', 'owner')->firstOrFail()->id]);
+        $first = Site::create(['domain' => 'first.example.com', 'document_root' => '/var/www/first.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+        $child = Site::create(['parent_site_id' => $first->id, 'domain' => 'app.first.example.com', 'document_root' => '/var/www/app.first.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+        $second = Site::create(['domain' => 'second.example.com', 'document_root' => '/var/www/second.example.com', 'php_version' => '8.3', 'type' => 'php', 'web_server' => 'nginx', 'status' => 'active']);
+
+        $this->actingAs($owner)->get(route('sites.subdomains.edit', [$first, 'app']))
+            ->assertOk()
+            ->assertSee('href="'.route('sites.show', $second).'"', false)
+            ->assertDontSee('href="'.route('sites.subdomains.edit', [$second, 'app']).'"', false);
+    }
+
     public function test_first_boot_redirects_to_setup(): void
     {
         $response = $this->get('/login');
