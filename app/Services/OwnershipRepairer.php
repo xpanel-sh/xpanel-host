@@ -6,7 +6,46 @@ use App\Models\Site;
 
 class OwnershipRepairer
 {
-    public function __construct(private readonly ServerCommandRunner $commands) {}
+    public function __construct(
+        private readonly ServerCommandRunner $commands,
+        private readonly HostBrokerClient $broker,
+    ) {}
+
+    public function setPermissions(Site $site, string $path, string $mode): string
+    {
+        $siteRoot = config('xpanel.apply_system_changes') ? $site->document_root : $site->localRoot();
+        $root = str_replace('\\', '/', realpath($siteRoot) ?: $siteRoot);
+        $target = str_replace('\\', '/', realpath($path) ?: $path);
+        if ($target === $root || ! str_starts_with($target, $root.'/') || ! preg_match('/^[0-7]{3}$/', $mode)) {
+            throw new \RuntimeException('La ruta o los permisos no son válidos.');
+        }
+        if (config('xpanel.apply_system_changes')) {
+            $arguments = [$site->domain, $site->document_root, $site->systemUser(), $target, $mode];
+            $output = config('xpanel.management_mode') === 'vps-instance'
+                ? $this->broker->execute('file-permissions-set', $arguments, null)
+                : $this->commands->run(['sudo', '-n', (string) config('xpanel.site_helper'), 'file-permissions-set', ...$arguments]);
+            if (! preg_match('/^mode=([0-7]{3})$/m', $output, $matches)) {
+                throw new \RuntimeException('El servidor no confirmó los permisos del archivo.');
+            }
+            return $matches[1];
+        }
+        abort_unless(@chmod($target, octdec($mode)), 422, 'No se pudieron cambiar los permisos.');
+        clearstatcache(true, $target);
+        return sprintf('%03o', fileperms($target) & 0777);
+    }
+
+    public function setManagedPermissions(string $path, string $mode): string
+    {
+        $target = str_replace('\\', '/', realpath($path) ?: $path);
+        $site = Site::query()->get()->sortByDesc(fn (Site $candidate): int => strlen($candidate->document_root))
+            ->first(function (Site $candidate) use ($target): bool {
+                $siteRoot = config('xpanel.apply_system_changes') ? $candidate->document_root : $candidate->localRoot();
+                $root = str_replace('\\', '/', realpath($siteRoot) ?: $siteRoot);
+                return $target !== $root && str_starts_with($target, $root.'/');
+            });
+        abort_unless($site, 422, 'Selecciona un archivo dentro de un sitio para cambiar sus permisos.');
+        return $this->setPermissions($site, $target, $mode);
+    }
 
     /** @return array{files: int, directories: int} */
     public function repair(Site $site): array

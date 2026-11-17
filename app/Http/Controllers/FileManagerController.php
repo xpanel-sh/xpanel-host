@@ -94,6 +94,7 @@ class FileManagerController extends Controller
                 'deletable' => true,
                 'size' => $isDir ? null : filesize($full),
                 'modified' => date('Y-m-d H:i', filemtime($full)),
+                'mode' => sprintf('%03o', fileperms($full) & 0777),
             ];
         }
 
@@ -401,6 +402,14 @@ class FileManagerController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    public function permissions(Request $request, Site $site): JsonResponse
+    {
+        $data = $request->validate(['path' => 'required|string', 'mode' => ['required', 'regex:/^[0-7]{3}$/']]);
+        [$targetSite, $path] = $this->resolveTarget($site, $data['path'], mustExist: true);
+        abort_if($this->isSiteRoot($targetSite, $path) || is_link($path), 422, 'No se pueden cambiar los permisos de esta ruta.');
+        return response()->json(['mode' => $this->ownership->setPermissions($targetSite, $path, $data['mode'])]);
     }
 
     /** @return array{0: Site, 1: string} */

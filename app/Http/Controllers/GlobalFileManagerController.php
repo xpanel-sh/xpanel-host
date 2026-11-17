@@ -82,6 +82,7 @@ class GlobalFileManagerController extends Controller
                 'deletable' => ! $this->isProtectedRoot($accountRoot, $full),
                 'size' => is_int($size) ? $size : null,
                 'modified' => is_int($modified) ? date('Y-m-d H:i', $modified) : null,
+                'mode' => sprintf('%03o', fileperms($full) & 0777),
             ];
         }
 
@@ -363,6 +364,15 @@ class GlobalFileManagerController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    public function permissions(Request $request): JsonResponse
+    {
+        $data = $request->validate(['path' => 'required|string', 'mode' => ['required', 'regex:/^[0-7]{3}$/']]);
+        $root = $this->workspace->localRoot();
+        $path = $this->resolveWithinRoot($root, $data['path'], mustExist: true);
+        abort_if($path === $root || $this->isProtectedRoot($root, $path) || is_link($path), 422, 'No se pueden cambiar los permisos de esta ruta.');
+        return response()->json(['mode' => $this->ownership->setManagedPermissions($path, $data['mode'])]);
     }
 
     private function isProtectedRoot(string $root, string $path): bool

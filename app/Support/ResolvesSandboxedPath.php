@@ -169,7 +169,18 @@ trait ResolvesSandboxedPath
     private function extractArchive(string $path, bool $overwrite = false): array
     {
         abort_if(is_dir($path), 422, 'Selecciona un archivo comprimido.');
-        abort_unless(in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['zip', 'jar']), 422, 'Solo se puede descomprimir ZIP/JAR.');
+        if (preg_match('/\.(tar\.gz|tgz)$/i', $path)) {
+            $process = new \Symfony\Component\Process\Process([
+                'python3', base_path('scripts/extract-tar-gz.py'), $path, $overwrite ? '1' : '0',
+            ]);
+            $process->setTimeout(600);
+            $process->run();
+            $result = json_decode($process->getOutput(), true);
+            abort_unless(is_array($result), 422, trim($process->getErrorOutput()) ?: 'No se pudo descomprimir el archivo.');
+            abort_if(($result['status'] ?? '') === 'error', 422, (string) ($result['message'] ?? 'No se pudo descomprimir el archivo.'));
+            return $result;
+        }
+        abort_unless(in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['zip', 'jar']), 422, 'Solo se puede descomprimir ZIP/JAR, TAR.GZ o TGZ.');
 
         $zip = new \ZipArchive;
         abort_unless($zip->open($path) === true, 422, 'No se pudo abrir el archivo comprimido.');

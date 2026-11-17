@@ -10,7 +10,7 @@ class RunFileArchives extends Command
 {
     protected $signature = 'xpanel:archives-run';
 
-    protected $description = 'Process the next queued iKode ZIP archive';
+    protected $description = 'Process queued iKode ZIP archives';
 
     public function handle(FileArchiveManager $archives): int
     {
@@ -21,13 +21,13 @@ class RunFileArchives extends Command
             $running->update(['status' => 'failed', 'error' => 'La tarea se interrumpió. Vuelve a intentarlo.', 'finished_at' => now()]);
         }
 
-        $task = FileArchiveTask::where('status', 'queued')->oldest()->first();
-        if (! $task || FileArchiveTask::where('status', 'queued')->whereKey($task->id)
-            ->update(['status' => 'running', 'started_at' => now(), 'worker_pid' => getmypid()]) !== 1) {
-            return self::SUCCESS;
+        while ($task = FileArchiveTask::where('status', 'queued')->oldest()->first()) {
+            if (FileArchiveTask::whereKey($task->id)->where('status', 'queued')
+                ->update(['status' => 'running', 'started_at' => now(), 'worker_pid' => getmypid()]) !== 1) {
+                continue;
+            }
+            $archives->run($task);
         }
-
-        $archives->run($task);
 
         return self::SUCCESS;
     }

@@ -60,6 +60,12 @@ class FileArchiveManager
 
     public function retryQueued(FileArchiveTask $task): FileArchiveTask
     {
+        if ($task->status === 'queued' && $task->created_at->lt(now()->subMinutes(5))
+            && ! FileArchiveTask::where('status', 'running')->exists()) {
+            $task->update(['status' => 'failed', 'error' => 'La compresión no pudo iniciarse. Vuelve a intentarlo desde iKode.', 'finished_at' => now()]);
+
+            return $task->fresh();
+        }
         if (! config('xpanel.apply_system_changes') || $task->status !== 'queued'
             || $task->updated_at->gt(now()->subSeconds(30))) {
             return $task;

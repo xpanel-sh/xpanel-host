@@ -347,6 +347,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/delete', [GlobalFileManagerController::class, 'destroy'])->name('delete');
                 Route::post('/upload', [GlobalFileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [GlobalFileManagerController::class, 'extract'])->name('extract');
+                Route::post('/permissions', [GlobalFileManagerController::class, 'permissions'])->name('permissions');
                 Route::post('/copy', [GlobalFileManagerController::class, 'copy'])->name('copy');
                 Route::post('/compress', [GlobalFileManagerController::class, 'compress'])->name('compress');
                 Route::get('/compress/{task}', [GlobalFileManagerController::class, 'compressStatus'])->name('compress.status');
@@ -368,6 +369,7 @@ Route::middleware('setup.complete')->group(function () {
                 Route::post('/delete', [FileManagerController::class, 'destroy'])->name('delete');
                 Route::post('/upload', [FileManagerController::class, 'upload'])->name('upload');
                 Route::post('/extract', [FileManagerController::class, 'extract'])->name('extract');
+                Route::post('/permissions', [FileManagerController::class, 'permissions'])->name('permissions');
                 Route::post('/copy', [FileManagerController::class, 'copy'])->name('copy');
                 Route::post('/compress', [FileManagerController::class, 'compress'])->name('compress');
                 Route::get('/compress/{task}', [FileManagerController::class, 'compressStatus'])->name('compress.status');

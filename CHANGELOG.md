@@ -8,6 +8,10 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Añadido
 
+- iKode muestra y permite cambiar los permisos octales de archivos y carpetas mediante un modal centrado; conserva las ACL necesarias para que el panel siga gestionándolos. También permite descomprimir TAR.GZ y TGZ con validación de rutas, enlaces y tamaño.
+- La preferencia «Mostrar ocultos» filtra el árbol y la cuadrícula y se conserva al volver. La selección completa incluye la carpeta contenedora, y arrastrar una selección desplaza el listado cerca de sus bordes.
+- Los diálogos de archivos se centran sobre todo iKode y desplazan internamente el contenido largo; la vista de pantalla completa tiene prioridad visual sobre el resto del panel.
+- La compresión ZIP inicia un worker dedicado para esta tarea, procesa las tareas pendientes consecutivamente y marca como fallida una cola que no arranca, evitando que quede indefinidamente en espera.
 - El selector de sitios del encabezado conserva la vista actual al cambiar entre dominios principales, por ejemplo Archivos, Analítica o Bases de datos. En páginas ligadas a un subdominio o recurso concreto abre el inicio del sitio elegido.
 - La compresión ZIP inicia el servicio de tareas al enviarse desde iKode, tanto en Host independiente como en una instancia de VPS. Si una tarea antigua sigue en cola, la consulta de estado intenta reactivarla; el panel muestra el avance real de escritura y avisa cuando el servicio no la recoge.
 - iKode comprime ZIP en una tarea de fondo en Host independiente o administrado. El panel muestra entradas procesadas, recupera el estado tras recargar y publica el archivo completo sin sobrescribir uno creado entretanto. La compresión ya no tiene topes fijos de 5000 entradas ni 512 MB; siguen aplicándose la cuota de espacio y la capacidad real del servidor. Copiar archivos conserva sus límites preventivos.

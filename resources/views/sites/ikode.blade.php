@@ -25,6 +25,7 @@
     <link href="{{ asset('assets/files/editor.css') }}" rel="stylesheet" />
     <style>
         .xpanel-file-shell {
+            position: relative;
             height: 100%;
             min-height: 620px;
             grid-template-rows: 46px minmax(0, 1fr);
@@ -149,10 +150,26 @@
         .xpanel-file-shell.xpanel-fullscreen {
             position: fixed;
             inset: 10px;
-            z-index: 80;
+            z-index: 130;
             height: calc(100dvh - 20px);
             min-height: 0;
             border-radius: 10px;
+        }
+        .xpanel-file-shell .xpanel-file-dialog {
+            position: absolute;
+            inset: 0;
+            z-index: 140;
+            padding: 16px;
+        }
+        .xpanel-file-shell .xpanel-file-dialog-panel {
+            display: flex;
+            flex-direction: column;
+            max-height: min(560px, calc(100% - 16px));
+            min-height: 0;
+        }
+        .xpanel-file-shell .xpanel-file-dialog-body {
+            min-height: 0;
+            overflow-y: auto;
         }
         .xpanel-file-shell .xpanel-site-select {
             width: min(240px, 28vw);
@@ -1104,7 +1121,7 @@
                             <div class="ikode_panel_title">Preferencias</div>
                             <label class="ikode_setting_row">
                                 <span class="ikode_setting_label"><i class="ki-filled ki-eye"></i> Mostrar ocultos</span>
-                                <span class="ikode_setting_check"><input type="checkbox" disabled></span>
+                                <span class="ikode_setting_check"><input type="checkbox" id="xpanel_show_hidden"></span>
                             </label>
                             <label class="ikode_setting_row">
                                 <span class="ikode_setting_label"><i class="ki-filled ki-shield-tick"></i> Edicion segura</span>
@@ -1387,6 +1404,7 @@
     <button type="button" data-fm-action="open" data-context="single" class="w-full text-left px-4 py-2 hover:bg-muted">Abrir / editar</button>
     <button type="button" data-fm-action="extract" data-context="single" data-archive-only class="w-full text-left px-4 py-2 hover:bg-muted">Descomprimir aquí</button>
     <button type="button" data-fm-action="rename" data-context="single" class="w-full text-left px-4 py-2 hover:bg-muted">Renombrar</button>
+    <button type="button" data-fm-action="permissions" data-context="single" class="w-full text-left px-4 py-2 hover:bg-muted">Permisos</button>
     <button type="button" data-fm-action="download" data-context="file" class="w-full text-left px-4 py-2 hover:bg-muted">Descargar</button>
     <button type="button" data-fm-action="copy" data-context="selection" class="w-full text-left px-4 py-2 hover:bg-muted">Copiar</button>
     <button type="button" data-fm-action="cut" data-context="selection" class="w-full text-left px-4 py-2 hover:bg-muted">Mover...</button>
@@ -1399,8 +1417,8 @@
 
 <input type="file" id="xpanel_upload_input" class="hidden" multiple>
 
-<div id="xpanel_input_modal" class="fixed inset-0 hidden z-[110] items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="w-full max-w-sm bg-background border border-border rounded-md p-6 shadow-2xl">
+<div id="xpanel_input_modal" class="xpanel-file-dialog hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="xpanel-file-dialog-panel w-full max-w-sm bg-background border border-border rounded-md p-6 shadow-2xl">
         <h3 id="xpanel_input_title" class="text-base font-semibold text-mono mb-4"></h3>
         <input id="xpanel_input_value" type="text" class="kt-input w-full mb-4">
         <div class="flex gap-2 justify-end">
@@ -1410,19 +1428,39 @@
     </div>
 </div>
 
-<div id="xpanel_move_modal" class="fixed inset-0 hidden z-[110] items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="w-full max-w-sm rounded-md border border-border bg-background p-5 shadow-2xl">
+<div id="xpanel_move_modal" class="xpanel-file-dialog hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="xpanel-file-dialog-panel w-full max-w-sm rounded-md border border-border bg-background p-5 shadow-2xl">
         <h3 class="text-base font-semibold text-mono">Mover seleccionados</h3>
         <p class="mt-1 text-xs text-secondary-foreground">Elige la carpeta de destino. No se moverá nada hasta confirmar.</p>
         <div class="mt-4 flex items-center gap-2 border-b border-border pb-2">
             <button class="ikode_left_action_btn" type="button" id="xpanel_move_up" title="Subir una carpeta" aria-label="Subir una carpeta"><i class="ki-filled ki-arrow-left"></i></button>
             <span class="min-w-0 truncate text-xs text-mono" id="xpanel_move_path">/</span>
         </div>
-        <div class="max-h-56 min-h-24 overflow-y-auto py-2 text-xs" id="xpanel_move_folders"></div>
+        <div class="xpanel-file-dialog-body min-h-24 py-2 text-xs" id="xpanel_move_folders"></div>
         <div class="mt-3 flex justify-end gap-2">
             <button class="kt-btn kt-btn-outline" type="button" id="xpanel_move_cancel">Cancelar</button>
             <button class="kt-btn kt-btn-primary" type="button" id="xpanel_move_confirm">Mover aquí</button>
         </div>
+    </div>
+</div>
+
+<div id="xpanel_permissions_modal" class="xpanel-file-dialog hidden items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="xpanel_permissions_title">
+    <div class="xpanel-file-dialog-panel w-full max-w-sm rounded-md border border-border bg-background shadow-2xl">
+        <div class="border-b border-border px-5 py-4"><h3 id="xpanel_permissions_title" class="text-base font-semibold">Permisos</h3><p id="xpanel_permissions_path" class="mt-1 truncate text-xs text-secondary-foreground"></p></div>
+        <div class="xpanel-file-dialog-body p-5">
+            <div class="grid grid-cols-4 gap-3 text-xs" id="xpanel_permissions_grid">
+                <span></span><strong>Dueño</strong><strong>Grupo</strong><strong>Otros</strong>
+                @foreach (['Leer' => 4, 'Escribir' => 2, 'Ejecutar' => 1] as $label => $bit)
+                    <span>{{ $label }}</span>
+                    @foreach ([0, 1, 2] as $column)
+                        <label class="flex items-center"><input type="checkbox" data-permission-column="{{ $column }}" data-permission-bit="{{ $bit }}" aria-label="{{ $label }}: {{ ['dueño', 'grupo', 'otros'][$column] }}"></label>
+                    @endforeach
+                @endforeach
+            </div>
+            <label class="mt-4 flex items-center gap-2 text-xs">Modo octal <input id="xpanel_permissions_mode" class="kt-input w-20" inputmode="numeric" maxlength="3" pattern="[0-7]{3}"></label>
+            <p class="mt-2 text-xs text-secondary-foreground">XPanel conserva el acceso del panel mediante ACL. El modo efectivo puede ajustarse para mantenerlo.</p>
+        </div>
+        <div class="flex justify-end gap-2 border-t border-border px-5 py-3"><button type="button" class="kt-btn kt-btn-outline" id="xpanel_permissions_cancel">Cancelar</button><button type="button" class="kt-btn kt-btn-primary" id="xpanel_permissions_save">Guardar</button></div>
     </div>
 </div>
 
@@ -1514,7 +1552,7 @@
             const defaultUiState = {
                 layout: { left: true, right: false, bottom: true },
                 split: { mainThree: [24, 52, 24], mainTwo: [28, 72], center: [68, 32], left: [68, 32], editor: [50, 50], terminal: [30, 70] },
-                ui: { leftMode: 'explorer', fileView: 'list', rightTab: 'info', outlineTab: 'outline', consoleTab: 'terminal' },
+                ui: { leftMode: 'explorer', fileView: 'list', showHidden: true, rightTab: 'info', outlineTab: 'outline', consoleTab: 'terminal' },
                 editor: { fontSize: 14, fontFamily: 'jetbrains', theme: 'auto', wordWrap: true, minimap: false },
                 search: { includeContent: true, caseSensitive: false },
                 terminal: {
@@ -1547,6 +1585,7 @@
                         ui: {
                             leftMode: parsed?.ui?.leftMode || defaultUiState.ui.leftMode,
                             fileView: parsed?.ui?.fileView === 'grid' ? 'grid' : 'list',
+                            showHidden: parsed?.ui?.showHidden !== false,
                             rightTab: ['info', 'agents'].includes(parsed?.ui?.rightTab) ? parsed.ui.rightTab : defaultUiState.ui.rightTab,
                             outlineTab: parsed?.ui?.outlineTab || defaultUiState.ui.outlineTab,
                             consoleTab: parsed?.ui?.consoleTab || defaultUiState.ui.consoleTab,
@@ -1641,14 +1680,22 @@
                 const wordWrap = $('#xpanel_editor_word_wrap');
                 const minimap = $('#xpanel_editor_minimap');
                 const terminalColors = $('#xpanel_terminal_colors');
+                const showHidden = $('#xpanel_show_hidden');
                 if (fontSize) fontSize.value = uiState.editor.fontSize;
                 if (fontFamily) fontFamily.value = uiState.editor.fontFamily;
                 if (theme) theme.value = uiState.editor.theme;
                 if (wordWrap) wordWrap.checked = uiState.editor.wordWrap !== false;
                 if (minimap) minimap.checked = uiState.editor.minimap === true;
                 if (terminalColors) terminalColors.checked = uiState.terminal.colors === true;
+                if (showHidden) showHidden.checked = uiState.ui.showHidden !== false;
             };
             const bindSettings = () => {
+                $('#xpanel_show_hidden')?.addEventListener('change', (event) => {
+                    uiState.ui.showHidden = event.target.checked;
+                    persistUiState();
+                    renderTree();
+                    updateSummary();
+                });
                 $('#xpanel_editor_font_size')?.addEventListener('input', (event) => {
                     uiState.editor.fontSize = Number(event.target.value) || 14;
                     persistUiState();
@@ -1770,7 +1817,7 @@
             const isVideo = (name) => /^(mp4|webm|ogg|mov|m4v)$/i.test(ext(name));
             const isPdf = (name) => ext(name) === 'pdf';
             const isArchive = (name) => /^(zip|jar|zipx|rar|7z|tar|gz|tgz)$/i.test(ext(name));
-            const isExtractable = (name) => /^(zip|jar)$/i.test(ext(name));
+            const isExtractable = (name) => /\.(zip|jar|tar\.gz|tgz)$/i.test(name);
             const codeExtensions = new Set(['php', 'js', 'ts', 'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'json', 'yml', 'yaml', 'py', 'sh', 'bash', 'md', 'xml', 'sql', 'c', 'h', 'cpp', 'cc', 'cxx', 'hpp', 'hh', 'hxx', 'java', 'cs', 'txt', 'env', 'gitignore', 'htaccess', 'ini', 'conf', 'log']);
             const isCode = (name, entry = null) => {
                 const normalized = String(name || '').toLowerCase();
@@ -2669,7 +2716,7 @@
             };
             const renderDirectoryRows = (parentPath = '/', depth = 0) => {
                 const filter = ($('#xpanel_file_filter').value || '').toLowerCase();
-                const entries = entriesFor(parentPath).filter((entry) => !filter || entry.name.toLowerCase().includes(filter) || entry.is_dir);
+                const entries = entriesFor(parentPath).filter((entry) => (uiState.ui.showHidden !== false || !entry.name.startsWith('.')) && (!filter || entry.name.toLowerCase().includes(filter) || entry.is_dir));
                 const limit = state.visibleLimit[parentPath] || 200;
                 let html = renderInlineCreate(parentPath, depth);
                 if (entries.length === 0 && !state.pendingCreate) {
@@ -2695,7 +2742,7 @@
                              data-dir="${entry.is_dir ? '1' : '0'}"
                             draggable="true">
                             <span class="xpanel-file-toggle">${entry.is_dir ? `<i class="ki-filled ${toggle}"></i>` : ''}</span>
-                            <input class="xpanel-file-check" type="checkbox" tabindex="-1" aria-label="Seleccionar ${escapeHtml(entry.name)}" ${selected ? 'checked' : ''} ${entry.deletable === false ? 'disabled' : ''}>
+                            <input class="xpanel-file-check" type="checkbox" tabindex="-1" aria-label="Seleccionar ${escapeHtml(entry.name)}" ${selected ? 'checked' : ''}>
                             <i class="ki-filled ${icon(entry)}"></i>
                             <span class="xpanel-file-name ${entry.is_dir ? 'font-semibold text-mono' : ''}" title="${entry.available === false ? 'Raíz física pendiente de sincronización' : escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>
                             ${entry.available === false ? '<span class="xpanel-file-size">Sin sincronizar</span>' : ''}
@@ -2727,7 +2774,7 @@
                 const list = $('#xpanel_file_list');
                 const path = state.currentPath || '/';
                 const filter = ($('#xpanel_file_filter').value || '').toLowerCase();
-                const entries = entriesFor(path).filter((entry) => !filter || entry.name.toLowerCase().includes(filter));
+                const entries = entriesFor(path).filter((entry) => (uiState.ui.showHidden !== false || !entry.name.startsWith('.')) && (!filter || entry.name.toLowerCase().includes(filter)));
                 const limit = state.visibleLimit[path] || 200;
                 const help = accountEmptyDirectoryHelp(path);
                 const tiles = entries.slice(0, limit).map((entry) => {
@@ -2736,7 +2783,7 @@
                     return `
                         <div class="xpanel-file-row xpanel-file-tile ${selected ? 'active' : ''} ${renaming ? 'is-renaming' : ''} ${entry.available === false ? 'xpanel-file-row-muted' : ''}"
                              data-path="${escapeHtml(entry.path)}" data-dir="${entry.is_dir ? '1' : '0'}" draggable="${renaming ? 'false' : 'true'}">
-                            ${renaming ? '' : `<input class="xpanel-file-check" type="checkbox" tabindex="-1" aria-label="Seleccionar ${escapeHtml(entry.name)}" ${selected ? 'checked' : ''} ${entry.deletable === false ? 'disabled' : ''}>`}
+                            ${renaming ? '' : `<input class="xpanel-file-check" type="checkbox" tabindex="-1" aria-label="Seleccionar ${escapeHtml(entry.name)}" ${selected ? 'checked' : ''}>`}
                             <i class="ki-filled ${icon(entry)}"></i>
                             ${renaming ? `<input class="xpanel-file-rename-input" data-inline-rename="true" value="${escapeHtml(entry.name)}" autocomplete="off">` : `<span class="xpanel-file-name" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>`}
                         </div>
@@ -2818,7 +2865,7 @@
                 finishSelection(entry);
             };
             const toggleSelection = (entry) => {
-                if (!entry || entry.deletable === false) {
+                if (!entry) {
                     replaceSelection(entry);
                     return;
                 }
@@ -2845,11 +2892,11 @@
                 finishSelection(entry);
             };
             const selectAllInCurrentFolder = async () => {
-                const selected = selectedEntries();
-                const parents = new Set(selected.map((entry) => dirname(entry.path)));
                 let directory = state.currentPath || '/';
-                if (uiState.ui.fileView !== 'grid' && selected.length && parents.size === 1) {
-                    directory = parents.values().next().value;
+                const selected = selectedEntries();
+                if (uiState.ui.fileView !== 'grid' && selected.length) {
+                    const parents = [...new Set(selected.map((entry) => dirname(entry.path)))];
+                    if (parents.length === 1) directory = parents[0];
                 }
                 if (directory === '/' && isGlobalSitesRoot()) {
                     const roots = entriesFor('/').filter((entry) => entry.is_dir && entry.available !== false);
@@ -2859,9 +2906,10 @@
                     else return toast('Abre o selecciona una carpeta para seleccionar su contenido.', 'error');
                 }
                 await ensureDirectory(directory);
-                const entries = entriesFor(directory).filter((entry) => entry.deletable !== false && entry.available !== false);
+                const entries = entriesFor(directory).filter((entry) => (uiState.ui.showHidden !== false || !entry.name.startsWith('.')) && entry.available !== false);
                 if (!entries.length) return toast('Esta carpeta no contiene elementos seleccionables.', 'error');
                 entries.forEach((entry) => state.selectedPaths.add(entry.path));
+                if (directory !== '/' && getEntry(directory)?.available !== false) state.selectedPaths.add(directory);
                 state.selectionAnchor = entries[0]?.path || null;
                 setCurrentPath(directory);
                 renderTree();
@@ -3251,6 +3299,32 @@
                 state.inputCallback = null;
             };
 
+            let permissionEntry = null;
+            const permissionsModal = $('#xpanel_permissions_modal');
+            const permissionsInput = $('#xpanel_permissions_mode');
+            const permissionChecks = Array.from(permissionsModal.querySelectorAll('[data-permission-column]'));
+            const setPermissionChecks = (mode) => {
+                if (!/^[0-7]{3}$/.test(mode)) return;
+                permissionChecks.forEach((check) => {
+                    check.checked = (Number(mode[Number(check.dataset.permissionColumn)]) & Number(check.dataset.permissionBit)) !== 0;
+                });
+            };
+            const closePermissions = () => {
+                permissionEntry = null;
+                permissionsModal.classList.add('hidden');
+                permissionsModal.classList.remove('flex');
+            };
+            const openPermissions = (entry) => {
+                if (!entry || entry.deletable === false) return;
+                permissionEntry = entry;
+                $('#xpanel_permissions_path').textContent = entry.path;
+                permissionsInput.value = /^[0-7]{3}$/.test(entry.mode || '') ? entry.mode : (entry.is_dir ? '755' : '644');
+                setPermissionChecks(permissionsInput.value);
+                permissionsModal.classList.remove('hidden');
+                permissionsModal.classList.add('flex');
+                permissionsInput.focus();
+            };
+
             const uniqueName = (parentPath, type, preferred = '') => {
                 const fallback = type === 'folder' ? 'nueva-carpeta' : 'nuevo-archivo.txt';
                 const initial = (preferred || '').trim() || fallback;
@@ -3535,10 +3609,7 @@
                             return;
                         }
                         if (task.status === 'queued') {
-                            const waiting = Date.now() - Date.parse(task.created_at || '');
-                            showProgress(Number.isFinite(waiting) && waiting > 90000
-                                ? `ZIP en cola desde hace más de 90 segundos. El programador de Host no ha iniciado la tarea; pide al administrador que revise el servicio.`
-                                : `ZIP en cola: ${name}. Iniciando el servicio de compresión…`, null);
+                            showProgress(`ZIP en cola: ${name}. Iniciando la compresión…`, null);
                         } else if (task.progress_percent === null || task.progress_percent === undefined) {
                             showProgress(`Preparando ${name}: ${task.entries} elementos añadidos`, null);
                         } else {
@@ -3693,7 +3764,7 @@
             const extractArchive = async (entry = state.selected || state.ctxEntry) => {
                 if (!entry || entry.is_dir) return;
                 if (!isExtractable(entry.name)) {
-                    toast('Por ahora solo se puede descomprimir ZIP/JAR', 'error');
+                    toast('Se puede descomprimir ZIP, JAR, TAR.GZ o TGZ.', 'error');
                     return;
                 }
                 const parent = dirname(entry.path);
@@ -3871,7 +3942,7 @@
                         kind === 'paste' ? Boolean(state.clipboard?.paths?.length) : kind === 'file' ? Boolean(entry && !entry.is_dir && !multiple) :
                         Boolean(entry && !multiple);
                     if (item.hasAttribute('data-archive-only')) visible = visible && !entry.is_dir && isExtractable(entry.name);
-                    if (kind === 'single' && entry?.deletable === false && item.dataset.fmAction === 'rename') visible = false;
+                    if (kind === 'single' && entry?.deletable === false && ['rename', 'permissions'].includes(item.dataset.fmAction)) visible = false;
                     item.classList.toggle('hidden', !visible);
                 });
                 const menu = $('#xpanel_ctx_menu');
@@ -3896,6 +3967,7 @@
                     if (name === 'trash-list') await loadTrash();
                     if (name === 'refresh') await loadDirectory(state.currentPath);
                     if (name === 'rename') startInlineRename();
+                    if (name === 'permissions') openPermissions(state.selected || state.ctxEntry);
                     if (name === 'select-all') await selectAllInCurrentFolder();
                     if (name === 'delete' || name === 'delete-selected') await remove();
                 } catch (error) {
@@ -4622,6 +4694,39 @@
                 },
             };
 
+            // Put dialogs inside the editor so fullscreen and normal mode share
+            // the same centered overlay instead of anchoring to the page.
+            ['xpanel_ctx_menu', 'xpanel_input_modal', 'xpanel_move_modal', 'xpanel_permissions_modal'].forEach((id) => {
+                $('#xpanel_file_shell').appendChild(document.getElementById(id));
+            });
+            permissionChecks.forEach((check) => check.addEventListener('change', () => {
+                const digits = [0, 1, 2].map((column) => permissionChecks
+                    .filter((item) => Number(item.dataset.permissionColumn) === column && item.checked)
+                    .reduce((sum, item) => sum + Number(item.dataset.permissionBit), 0));
+                permissionsInput.value = digits.join('');
+            }));
+            permissionsInput.addEventListener('input', () => setPermissionChecks(permissionsInput.value));
+            $('#xpanel_permissions_cancel').addEventListener('click', closePermissions);
+            permissionsModal.addEventListener('click', (event) => {
+                if (event.target === permissionsModal) closePermissions();
+            });
+            $('#xpanel_permissions_save').addEventListener('click', async () => {
+                if (!permissionEntry) return;
+                const mode = permissionsInput.value.trim();
+                if (!/^[0-7]{3}$/.test(mode)) return toast('Escribe tres dígitos octales entre 0 y 7.', 'error');
+                const button = $('#xpanel_permissions_save');
+                button.disabled = true;
+                try {
+                    const entry = permissionEntry;
+                    const result = await api('POST', '/permissions', { domain: config.domain, path: entry.path, mode });
+                    entry.mode = result.mode;
+                    closePermissions();
+                    renderInfo(entry);
+                    toast(`Permisos efectivos: ${result.mode}`);
+                    log(`Permisos ${result.mode}: ${entry.path}`);
+                } catch (error) { toast(error.message, 'error'); }
+                finally { button.disabled = false; }
+            });
             $$('[data-fm-action]').forEach((button) => button.addEventListener('click', () => {
                 $('#xpanel_file_actions_menu').open = false;
                 action(button.dataset.fmAction, Boolean(button.closest('#xpanel_ctx_menu')));
@@ -4853,6 +4958,10 @@
                 if (!event.target.closest('.xpanel-search-wrap')) closeSearchLauncher();
             });
             document.addEventListener('keydown', (event) => {
+                if (!permissionsModal.classList.contains('hidden')) {
+                    if (event.key === 'Escape') { event.preventDefault(); closePermissions(); }
+                    return;
+                }
                 if (!$('#xpanel_move_modal').classList.contains('hidden')) {
                     if (event.key === 'Escape') {
                         event.preventDefault();

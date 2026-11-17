@@ -309,6 +309,30 @@ class FileManagerTest extends TestCase
             ->assertJsonFragment(['name' => 'moveme.txt', 'path' => '/archive/moveme.txt']);
     }
 
+    public function test_permissions_can_be_changed_for_a_file_but_not_the_site_root(): void
+    {
+        $site = $this->site();
+        $developer = $this->userWithRole('developer');
+
+        $this->actingAs($developer)->postJson(route('sites.files.api.create', $site), [
+            'path' => '/', 'name' => 'permissions.txt', 'type' => 'file',
+        ])->assertOk();
+
+        $response = $this->actingAs($developer)->postJson(route('sites.files.api.permissions', $site), [
+            'path' => '/permissions.txt', 'mode' => '640',
+        ])->assertOk();
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $response->assertJson(['mode' => '640']);
+        }
+
+        $this->actingAs($developer)->getJson(route('sites.files.api.list', [$site, 'path' => '/'.$site->domain]))
+            ->assertJsonFragment(['name' => 'permissions.txt']);
+
+        $this->actingAs($developer)->postJson(route('sites.files.api.permissions', $site), [
+            'path' => '/', 'mode' => '777',
+        ])->assertStatus(422);
+    }
+
     public function test_path_traversal_outside_the_site_root_is_blocked(): void
     {
         $site = $this->site();

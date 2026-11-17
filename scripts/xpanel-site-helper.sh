@@ -1139,6 +1139,37 @@ ownership_sync_tree() {
   fi
 }
 
+file_permissions_set() {
+  [[ $# -eq 6 ]] || fail "Invalid file permission arguments."
+  local domain="$2" document_root="$3" site_user="$4" target="$5" mode="$6"
+  valid_domain "$domain" || fail "Invalid permission domain."
+  valid_document_root "$document_root" || fail "Invalid permission site root."
+  valid_site_identity "$site_user" || fail "Invalid permission site user."
+  [[ "$mode" =~ ^[0-7]{3}$ ]] || fail "Invalid permission mode."
+  [[ "$target" == "$document_root/"* && "$target" != *".."* && "$target" != *'\\'* ]] || fail "Permission target escaped the site."
+  [[ -e "$target" && ! -L "$target" && -d "$document_root" && ! -L "$document_root" ]] || fail "Permission target is unavailable."
+  local resolved_root resolved_target
+  resolved_root="$(realpath -e -- "$document_root")"
+  resolved_target="$(realpath -e -- "$target")"
+  [[ "$resolved_target" == "$resolved_root/"* ]] || fail "Permission target follows a link outside the site."
+  [[ "$(stat -c %U -- "$target")" == "$site_user" ]] || fail "Permission target has an unexpected owner."
+  chmod "0$mode" -- "$target"
+  # POSIX ACLs allow the panel account to keep managing site-owned files.
+  # Reapplying them can widen the effective group mask; report actual mode.
+  if [[ -d "$target" ]]; then
+    setfacl -m "u:$SITE_USER:rwx,d:u:$SITE_USER:rwx" -- "$target"
+    if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
+      setfacl -m "u:$ACCOUNT_USER:rwx,d:u:$ACCOUNT_USER:rwx" -- "$target"
+    fi
+  else
+    setfacl -m "u:$SITE_USER:rw" -- "$target"
+    if [[ -n "$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" && id "$ACCOUNT_USER" >/dev/null 2>&1; then
+      setfacl -m "u:$ACCOUNT_USER:rw" -- "$target"
+    fi
+  fi
+  printf 'mode=%s\n' "$(stat -c %a -- "$target" | tail -c 4)"
+}
+
 malware_scan() {
   local domain="$2" document_root="$3"
   valid_domain "$domain" || fail "Invalid malware scan domain."
@@ -3126,8 +3157,15 @@ backup_delete() {
 case "$ACTION" in
   archive-worker-start)
     [[ $# -eq 1 ]] || fail "Invalid archive worker arguments."
-    systemctl enable --now xpanel-host-scheduler.timer
-    systemctl --no-block start xpanel-host-scheduler.service
+    site_user="$(sed -n 's/^XPANEL_SITE_USER=//p' "$ROOT/.env" | tail -n 1 | tr -d '"')"
+    site_group="$(id -gn "${site_user:-www-data}")"
+    [[ -f "$ROOT/artisan" ]] || fail "Host artisan is unavailable."
+    unit="xpanel-host-archive-$(date +%s%N)"
+    systemd-run --quiet --collect --unit="$unit" \
+      --property="User=${site_user:-www-data}" --property="Group=$site_group" \
+      --property="WorkingDirectory=$ROOT" \
+      "$(command -v php)" "$ROOT/artisan" xpanel:archives-run --no-interaction
+    printf 'started=%s\n' "$unit"
     ;;
   panel-update-status) panel_update_status "$@" ;;
   panel-update-start) panel_update_start "$@" ;;
@@ -3147,6 +3185,7 @@ case "$ACTION" in
   ownership-fix) ownership_fix "$@" ;;
   ownership-sync-path) ownership_sync_path "$@" ;;
   ownership-sync-tree) ownership_sync_tree "$@" ;;
+  file-permissions-set) file_permissions_set "$@" ;;
   malware-scan) MALWARE_FINDINGS=(); malware_scan "$@" ;;
   malware-quarantine) malware_quarantine "$@" ;;
   wordpress-install) wordpress_install "$@" ;;
