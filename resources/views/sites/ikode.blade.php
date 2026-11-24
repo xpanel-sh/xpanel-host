@@ -1061,6 +1061,7 @@
                                 <i class="ki-filled ki-trash"></i>
                             </button>
                             <button class="ikode_left_action_btn" type="button" id="xpanel_trash_back" title="Volver a archivos" aria-label="Volver a archivos" hidden><i class="ki-filled ki-arrow-left"></i></button>
+                            <button class="ikode_left_action_btn" type="button" id="xpanel_trash_refresh" title="Refrescar papelera" aria-label="Refrescar papelera" hidden><i class="ki-filled ki-arrows-circle"></i></button>
                         </div>
                     </div>
                     <div class="xpanel-file-progress-wrap" id="xpanel_file_progress_wrap" hidden>
@@ -1075,11 +1076,6 @@
                             <div class="p-3 text-xs text-secondary-foreground">Cargando...</div>
                         </div>
                         <div id="xpanel_trash_view" hidden>
-                            <div class="flex items-center justify-between gap-2 px-3 py-2 border-b border-border">
-                                <span class="flex items-center gap-2 text-xs font-semibold"><i class="ki-filled ki-trash"></i> Papelera</span>
-                                <button class="ikode_left_action_btn" type="button" id="xpanel_trash_refresh" title="Refrescar papelera" aria-label="Refrescar papelera"><i class="ki-filled ki-arrows-circle"></i></button>
-                            </div>
-                            <p class="px-3 py-2 text-[11px] text-secondary-foreground">Restaura o elimina definitivamente.</p>
                             <div id="xpanel_trash_list" class="xpanel-trash-list text-xs"></div>
                         </div>
                         <div class="xpanel-selection-toolbar" id="xpanel_selection_toolbar" hidden>
@@ -1088,6 +1084,12 @@
                             <button type="button" data-fm-action="cut" title="Mover seleccionados" aria-label="Mover seleccionados"><i class="ki-filled ki-arrow-right"></i></button>
                             <button type="button" data-fm-action="compress" title="Comprimir ZIP" aria-label="Comprimir seleccionados en ZIP"><i class="ki-filled ki-archive"></i></button>
                             <button class="text-destructive" type="button" data-fm-action="delete-selected" title="Enviar a papelera" aria-label="Enviar seleccionados a papelera"><i class="ki-filled ki-trash"></i></button>
+                        </div>
+                        <div class="xpanel-selection-toolbar" id="xpanel_trash_toolbar" hidden>
+                            <input type="checkbox" id="xpanel_trash_select_all" aria-label="Seleccionar toda la papelera" title="Seleccionar toda la papelera">
+                            <strong id="xpanel_trash_count">0 seleccionados</strong>
+                            <button type="button" id="xpanel_trash_restore_selected" title="Restaurar seleccionados" aria-label="Restaurar seleccionados"><i class="ki-filled ki-arrows-circle"></i></button>
+                            <button class="text-destructive" type="button" id="xpanel_trash_purge_selected" title="Eliminar seleccionados definitivamente" aria-label="Eliminar seleccionados definitivamente"><i class="ki-filled ki-trash"></i></button>
                         </div>
                     </div>
 
@@ -1400,6 +1402,8 @@
 <div id="xpanel_ctx_menu" class="fixed hidden z-[105] w-48 max-h-[calc(100vh-16px)] overflow-y-auto rounded-md border border-border bg-background shadow-2xl py-1 text-sm">
     <button type="button" data-fm-action="new-file" data-context="blank" class="w-full text-left px-4 py-2 hover:bg-muted">Nuevo archivo</button>
     <button type="button" data-fm-action="new-folder" data-context="blank" class="w-full text-left px-4 py-2 hover:bg-muted">Nueva carpeta</button>
+    <button type="button" data-fm-action="new-file" data-context="directory" class="w-full text-left px-4 py-2 hover:bg-muted">Nuevo archivo aquí</button>
+    <button type="button" data-fm-action="new-folder" data-context="directory" class="w-full text-left px-4 py-2 hover:bg-muted">Nueva carpeta aquí</button>
     <div class="border-t border-border my-1"></div>
     <button type="button" data-fm-action="open" data-context="single" class="w-full text-left px-4 py-2 hover:bg-muted">Abrir / editar</button>
     <button type="button" data-fm-action="extract" data-context="single" data-archive-only class="w-full text-left px-4 py-2 hover:bg-muted">Descomprimir aquí</button>
@@ -2894,9 +2898,12 @@
             const selectAllInCurrentFolder = async () => {
                 let directory = state.currentPath || '/';
                 const selected = selectedEntries();
-                if (uiState.ui.fileView !== 'grid' && selected.length) {
-                    const parents = [...new Set(selected.map((entry) => dirname(entry.path)))];
-                    if (parents.length === 1) directory = parents[0];
+                if (selected.length) {
+                    if (selected.length === 1 && selected[0].is_dir) directory = selected[0].path;
+                    else {
+                        const parents = [...new Set(selected.map((entry) => dirname(entry.path)))];
+                        if (parents.length === 1) directory = parents[0];
+                    }
                 }
                 if (directory === '/' && isGlobalSitesRoot()) {
                     const roots = entriesFor('/').filter((entry) => entry.is_dir && entry.available !== false);
@@ -2906,10 +2913,10 @@
                     else return toast('Abre o selecciona una carpeta para seleccionar su contenido.', 'error');
                 }
                 await ensureDirectory(directory);
-                const entries = entriesFor(directory).filter((entry) => (uiState.ui.showHidden !== false || !entry.name.startsWith('.')) && entry.available !== false);
+                const entries = entriesFor(directory).filter((entry) => (uiState.ui.showHidden !== false || !entry.name.startsWith('.')) && entry.available !== false && entry.deletable !== false);
                 if (!entries.length) return toast('Esta carpeta no contiene elementos seleccionables.', 'error');
+                state.selectedPaths.clear();
                 entries.forEach((entry) => state.selectedPaths.add(entry.path));
-                if (directory !== '/' && getEntry(directory)?.available !== false) state.selectedPaths.add(directory);
                 state.selectionAnchor = entries[0]?.path || null;
                 setCurrentPath(directory);
                 renderTree();
@@ -3657,8 +3664,20 @@
                 $('#xpanel_file_view_toggle').hidden = false;
                 $('#xpanel_trash_open').hidden = false;
                 $('#xpanel_trash_back').hidden = true;
+                $('#xpanel_trash_refresh').hidden = true;
+                $('#xpanel_trash_toolbar').hidden = true;
                 syncSelectionControls();
                 $('#xpanel_trash_open').focus();
+            };
+            const trashSelected = new Set();
+            const syncTrashSelection = () => {
+                const checks = $$('#xpanel_trash_list [data-trash-check]');
+                const count = trashSelected.size;
+                $('#xpanel_trash_count').textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+                $('#xpanel_trash_select_all').checked = checks.length > 0 && count === checks.length;
+                $('#xpanel_trash_select_all').indeterminate = count > 0 && count < checks.length;
+                $('#xpanel_trash_restore_selected').disabled = count === 0;
+                $('#xpanel_trash_purge_selected').disabled = count === 0;
             };
             const loadTrash = async () => {
                 const list = $('#xpanel_trash_list');
@@ -3671,14 +3690,19 @@
                     $('#xpanel_file_view_toggle').hidden = true;
                     $('#xpanel_trash_open').hidden = true;
                     $('#xpanel_trash_back').hidden = false;
+                    $('#xpanel_trash_refresh').hidden = false;
+                    $('#xpanel_trash_toolbar').hidden = false;
                     $('#xpanel_trash_back').focus();
                     syncSelectionControls();
                 }
                 let payload;
                 try { payload = await api('GET', '/trash'); }
                 catch (error) { list.textContent = error.message; throw error; }
+                const present = new Set(payload.entries.map((item) => String(item.id)));
+                for (const id of trashSelected) if (!present.has(id)) trashSelected.delete(id);
                 list.innerHTML = payload.entries.length ? payload.entries.map((item) => `
                     <div class="xpanel-trash-row" data-trash-id="${escapeHtml(item.id)}">
+                        <input type="checkbox" data-trash-check aria-label="Seleccionar ${escapeHtml(item.name)}" ${trashSelected.has(String(item.id)) ? 'checked' : ''}>
                         <i class="ki-filled ${item.is_dir ? 'ki-folder' : 'ki-document'} text-primary"></i>
                         <div class="min-w-0 flex-1"><div class="truncate font-medium" title="${escapeHtml(item.path)}">${escapeHtml(item.name)}</div><div class="truncate text-[10px] text-secondary-foreground" title="${escapeHtml(item.path)} · ${escapeHtml(item.trashed_at || '')}">${escapeHtml(item.path)}</div></div>
                         <div class="xpanel-trash-actions">
@@ -3687,6 +3711,30 @@
                         </div>
                     </div>
                 `).join('') : '<p class="py-6 text-center text-secondary-foreground">La papelera está vacía.</p>';
+                syncTrashSelection();
+            };
+            const trashSelectedAction = async (actionName) => {
+                const ids = [...trashSelected];
+                if (!ids.length) return;
+                if (actionName === 'purge' && !confirm(`¿Eliminar definitivamente ${ids.length} elemento(s)? No se podrán recuperar.`)) return;
+                const button = actionName === 'purge' ? $('#xpanel_trash_purge_selected') : $('#xpanel_trash_restore_selected');
+                button.disabled = true;
+                const failures = [];
+                showProgress(`${actionName === 'purge' ? 'Eliminando' : 'Restaurando'} 0 de ${ids.length}...`, 0);
+                try {
+                    for (const [index, id] of ids.entries()) {
+                        try {
+                            await api('POST', actionName === 'restore' ? '/trash/restore' : '/trash/purge', { id });
+                            trashSelected.delete(id);
+                        } catch (error) { failures.push(error.message); }
+                        setProgress((index + 1) / ids.length * 100, `${index + 1} de ${ids.length} procesados`);
+                    }
+                    clearCachedBranch('/');
+                    await loadDirectory('/', { render: false, setCurrent: false });
+                    await loadDirectory(state.currentPath);
+                    await loadTrash();
+                    toast(failures.length ? `${failures.length} elemento(s) no se pudieron procesar: ${failures[0]}` : `${ids.length} elemento(s) procesados`, failures.length ? 'error' : 'success');
+                } finally { hideProgress(); syncTrashSelection(); }
             };
             const trashAction = async (event) => {
                 const button = event.target.closest('[data-trash-action]');
@@ -3697,6 +3745,7 @@
                 button.disabled = true;
                 try {
                     await api('POST', actionName === 'restore' ? '/trash/restore' : '/trash/purge', { id });
+                    trashSelected.delete(id);
                     clearCachedBranch('/');
                     await loadDirectory('/', { render: false, setCurrent: false });
                     await loadDirectory(state.currentPath);
@@ -3768,28 +3817,37 @@
                     return;
                 }
                 const parent = dirname(entry.path);
-                showProgress(`Descomprimiendo ${entry.name}... Este proceso puede tardar con archivos grandes.`, null);
+                let startedAt = Date.now();
+                let phase = 'Procesando';
+                const report = () => showProgress(`${phase} ${entry.name} · ${Math.floor((Date.now() - startedAt) / 1000)} s. Esperando al servidor...`, null);
+                report();
+                let timer = window.setInterval(report, 1000);
                 try {
                     let response = await api('POST', '/extract', { domain: config.domain, path: entry.path });
                     if (response.status === 'conflict') {
                         const preview = response.conflicts.slice(0, 10).join('\n');
                         const more = response.conflict_count > response.conflicts.length ? `\n... y ${response.conflict_count - response.conflicts.length} mas` : '';
-                        hideProgress();
+                        window.clearInterval(timer);
                         const confirmed = confirm(`Esto reemplazara ${response.conflict_count} archivo(s) existente(s):\n\n${preview}${more}\n\nContinuar?`);
                         if (!confirmed) {
                             log(`Descompresion cancelada (${response.conflict_count} archivo(s) en conflicto): ${entry.path}`);
                             return;
                         }
-                        showProgress(`Descomprimiendo ${entry.name}... Este proceso puede tardar con archivos grandes.`, null);
+                        phase = 'Descomprimiendo';
+                        startedAt = Date.now();
+                        report();
+                        timer = window.setInterval(report, 1000);
                         response = await api('POST', '/extract', { domain: config.domain, path: entry.path, overwrite: true });
                     }
-                    setProgress(100, `Descompresion completada (${response.count || 0} archivo(s))`);
+                    window.clearInterval(timer);
+                    setProgress(100, `Descompresión completada (${response.count || 0} archivo(s))`);
                     state.expanded.add(parent);
                     clearCachedBranch(parent);
                     await loadDirectory(parent);
                     toast('Archivo descomprimido');
                     log(`Descomprimido: ${entry.path}`);
                 } finally {
+                    window.clearInterval(timer);
                     hideProgress(700);
                 }
             };
@@ -3938,8 +3996,10 @@
                 const multiple = entry && state.selectedPaths.size > 1;
                 $$('#xpanel_ctx_menu [data-context]').forEach((item) => {
                     const kind = item.dataset.context;
-                    let visible = kind === 'blank' ? !entry : kind === 'selection' ? Boolean(entry?.deletable !== false && entry) :
-                        kind === 'paste' ? Boolean(state.clipboard?.paths?.length) : kind === 'file' ? Boolean(entry && !entry.is_dir && !multiple) :
+                    const concreteTarget = !isGlobalSitesRoot() || (entry?.is_dir ? entry.path !== '/' : (state.currentPath || '/') !== '/');
+                    let visible = kind === 'blank' ? !entry && (item.dataset.fmAction === 'trash-list' || concreteTarget) : kind === 'directory' ? Boolean(entry?.is_dir && !multiple && entry.available !== false) :
+                        kind === 'selection' ? Boolean(entry?.deletable !== false && entry) :
+                        kind === 'paste' ? Boolean(concreteTarget && state.clipboard?.paths?.length && (!entry || entry.is_dir) && (!entry || !multiple)) : kind === 'file' ? Boolean(entry && !entry.is_dir && !multiple) :
                         Boolean(entry && !multiple);
                     if (item.hasAttribute('data-archive-only')) visible = visible && !entry.is_dir && isExtractable(entry.name);
                     if (kind === 'single' && entry?.deletable === false && ['rename', 'permissions'].includes(item.dataset.fmAction)) visible = false;
@@ -4666,6 +4726,7 @@
                     drag.nextY = event.clientY;
                     scheduleMarquee();
                 });
+                list.addEventListener('scroll', () => { if (drag) scheduleMarquee(); });
                 pane.addEventListener('pointerup', stop);
                 pane.addEventListener('pointercancel', stop);
             };
@@ -4763,6 +4824,24 @@
             $('#xpanel_trash_back')?.addEventListener('click', closeTrash);
             $('#xpanel_trash_refresh')?.addEventListener('click', () => loadTrash().catch((error) => toast(error.message, 'error')));
             $('#xpanel_trash_list')?.addEventListener('click', trashAction);
+            $('#xpanel_trash_list')?.addEventListener('change', (event) => {
+                if (!event.target.matches('[data-trash-check]')) return;
+                const id = event.target.closest('[data-trash-id]')?.dataset.trashId;
+                if (!id) return;
+                if (event.target.checked) trashSelected.add(id);
+                else trashSelected.delete(id);
+                syncTrashSelection();
+            });
+            $('#xpanel_trash_select_all')?.addEventListener('change', (event) => {
+                trashSelected.clear();
+                $$('#xpanel_trash_list [data-trash-check]').forEach((check) => {
+                    check.checked = event.target.checked;
+                    if (check.checked) trashSelected.add(check.closest('[data-trash-id]').dataset.trashId);
+                });
+                syncTrashSelection();
+            });
+            $('#xpanel_trash_restore_selected')?.addEventListener('click', () => trashSelectedAction('restore').catch((error) => toast(error.message, 'error')));
+            $('#xpanel_trash_purge_selected')?.addEventListener('click', () => trashSelectedAction('purge').catch((error) => toast(error.message, 'error')));
             $$('[data-left-mode]').forEach((button) => button.addEventListener('click', () => switchLeftMode(button.dataset.leftMode)));
             $$('[data-layout-toggle]').forEach((button) => button.addEventListener('click', () => toggleLayoutPane(button.dataset.layoutToggle)));
             $$('[data-layout-action="fullscreen"]').forEach((button) => button.addEventListener('click', () => toggleFullscreen(button)));

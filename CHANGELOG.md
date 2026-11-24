@@ -39,6 +39,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 
 ### Corregido
 
+- iKode selecciona el contenido de la carpeta indicada sin incluir la raíz protegida del dominio. El menú contextual muestra creación dentro de carpetas y limita pegar a carpetas o espacios vacíos. La Papelera permite seleccionar, restaurar o eliminar varios elementos, con refrescar junto a Volver. La descompresión muestra la etapa y el tiempo transcurrido mientras el servidor procesa el archivo.
 - El cortafuegos del acceso remoto a bases de datos conserva las conexiones por loopback de VPS y de las aplicaciones Host antes de rechazar orígenes no autorizados. El formulario aclara qué IP corresponde autorizar y por qué solicita una contraseña.
 - iKode conserva los elementos ya marcados al seleccionar todo el contenido de la carpeta, actualiza el árbol tras cargarla y desplaza la lista mientras se arrastra una selección hacia sus bordes. El límite de compresión indica ahora que cuenta también el contenido de las carpetas.
 - Host independiente conserva `/terminal-ws` al cambiar la dirección del panel; las actualizaciones reparan la ruta WebSocket si una configuración anterior la había omitido, sin rehacer los vhosts de los sitios.
