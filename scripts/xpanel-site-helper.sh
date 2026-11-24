@@ -2297,6 +2297,9 @@ EOF
     printf 'table inet xpanel_host_mysql {\n'
     printf '  chain input {\n'
     printf '    type filter hook input priority -10; policy accept;\n'
+    # The control plane and hosted applications use the local database ports.
+    # An exact remote allowlist must never reject loopback connections.
+    printf '    iifname "lo" accept\n'
     printf '    ct state established,related accept\n'
     local address
     local index port

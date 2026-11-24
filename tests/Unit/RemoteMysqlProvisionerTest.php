@@ -11,6 +11,18 @@ use Tests\TestCase;
 
 class RemoteMysqlProvisionerTest extends TestCase
 {
+    public function test_remote_database_firewall_keeps_local_database_connections_available(): void
+    {
+        $helper = file_get_contents(base_path('scripts/xpanel-site-helper.sh'));
+        $sync = substr($helper, strpos($helper, 'database_remote_sync() {'));
+        $loopback = strpos($sync, 'iifname "lo" accept');
+        $reject = strpos($sync, 'tcp dport { 3306, 5432, 27017 } reject');
+
+        $this->assertNotFalse($loopback);
+        $this->assertNotFalse($reject);
+        $this->assertLessThan($reject, $loopback);
+    }
+
     public function test_remote_password_is_only_sent_over_stdin(): void
     {
         config()->set('xpanel.apply_system_changes', true);
