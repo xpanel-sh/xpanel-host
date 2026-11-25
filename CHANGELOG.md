@@ -9,6 +9,7 @@ Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferior
 ### Añadido
 
 - iKode integra Codex CLI con inicio de sesión de ChatGPT por código de dispositivo para cada cuenta Host. Las consultas se ejecutan como el usuario Linux del hosting, en segundo plano, con progreso recuperable tras recargar; cada sitio y subdominio conserva su historial y la sesión de Codex se comparte dentro de la cuenta.
+- En instancias administradas, el inicio de sesión y las tareas Codex pasan por el broker de VPS, compatible con el aislamiento `NoNewPrivileges` del panel.
 - iKode muestra y permite cambiar los permisos octales de archivos y carpetas mediante un modal centrado; conserva las ACL necesarias para que el panel siga gestionándolos. También permite descomprimir TAR.GZ y TGZ con validación de rutas, enlaces y tamaño.
 - La preferencia «Mostrar ocultos» filtra el árbol y la cuadrícula y se conserva al volver. La selección completa incluye la carpeta contenedora, y arrastrar una selección desplaza el listado cerca de sus bordes.
 - Los diálogos de archivos se centran sobre todo iKode y desplazan internamente el contenido largo; la vista de pantalla completa tiene prioridad visual sobre el resto del panel.

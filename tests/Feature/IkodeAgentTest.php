@@ -7,6 +7,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Services\CodexSessionManager;
 use App\Services\HostingAccountWorkspace;
+use App\Services\HostBrokerClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -66,6 +67,17 @@ class IkodeAgentTest extends TestCase
             ->assertOk()->assertJsonCount(0, 'conversations');
         $this->actingAs($user)->getJson(route('sites.files.api.agents.state', [$parent, 'target_site_id' => $child->id]))
             ->assertOk()->assertJsonCount(1, 'conversations');
+    }
+
+    public function test_managed_codex_login_uses_the_broker(): void
+    {
+        config(['xpanel.apply_system_changes' => true, 'xpanel.management_mode' => 'vps-instance']);
+        $broker = $this->mock(HostBrokerClient::class);
+        $broker->shouldReceive('execute')->once()->with('codex-auth-start', [], null)->andReturn('started');
+        $broker->shouldReceive('execute')->once()->with('codex-auth-status', [], null)->andReturn('disconnected');
+
+        $this->actingAs($this->developer())->postJson(route('sites.ikode.api.agents.codex.login'))
+            ->assertOk()->assertJsonPath('auth.status', 'disconnected');
     }
 
     private function developer(): User

@@ -7,6 +7,8 @@ use RuntimeException;
 
 class CodexSessionManager
 {
+    public function __construct(private readonly HostBrokerClient $broker) {}
+
     public function authStatus(): array
     {
         $lines = preg_split('/\R/', trim($this->call('codex-auth-status')));
@@ -50,6 +52,9 @@ class CodexSessionManager
     {
         if (! config('xpanel.apply_system_changes')) {
             throw new RuntimeException('Codex requiere XPanel Host instalado en Linux.');
+        }
+        if (config('xpanel.management_mode') === 'vps-instance') {
+            return trim($this->broker->execute($action, $args, $input));
         }
         $command = ['sudo', '-n', (string) config('xpanel.site_helper'), $action, ...$args];
         $result = Process::input($input ?? '')->timeout(30)->run($command);
