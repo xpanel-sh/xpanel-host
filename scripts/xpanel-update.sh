@@ -251,6 +251,9 @@ getent passwd "$site_user" >/dev/null || { echo "Usuario del panel inválido: $s
 getent group "$site_group" >/dev/null || { echo "Grupo del panel inválido: $site_group" >&2; exit 1; }
 chown root:"$site_group" "$ROOT/scripts/xpanel-site-helper.sh"
 chmod 0750 "$ROOT/scripts/xpanel-site-helper.sh"
+bash "$ROOT/scripts/install-codex.sh"
+chown root:root "$ROOT/scripts/xpanel-codex-worker.sh"
+chmod 0755 "$ROOT/scripts/xpanel-codex-worker.sh"
 bash "$ROOT/scripts/install-dbgate.sh"
 bash "$ROOT/scripts/remove-legacy-phpmyadmin.sh"
 

@@ -76,6 +76,106 @@ valid_backup_token() { [[ "$1" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89a
 valid_php_profile() { [[ "$1" == "system" || "$1" =~ ^(local|i[a-f0-9]{12})-p[1-9][0-9]*$ ]]; }
 valid_php_extensions() { [[ "$1" == "-" || "$1" =~ ^(bcmath|curl|gd|imagick|intl|mbstring|mysql|opcache|pgsql|redis|soap|sqlite3|xml|zip)(,(bcmath|curl|gd|imagick|intl|mbstring|mysql|opcache|pgsql|redis|soap|sqlite3|xml|zip))*$ ]]; }
 
+codex_paths() {
+  [[ -n "$ACCOUNT_USER" && "$ACCOUNT_HOME" == "/home/$ACCOUNT_USER" ]] && valid_account_identity "$ACCOUNT_USER" || fail 'Invalid Codex account.'
+  [[ -d "$ACCOUNT_HOME/public_html" && ! -L "$ACCOUNT_HOME" ]] || fail 'Hosting workspace is unavailable.'
+  CODEX_STATE="$ACCOUNT_HOME/.xpanel/codex"
+  CODEX_JOBS="$CODEX_STATE/jobs"
+  [[ ! -L "$ACCOUNT_HOME/.xpanel" && ! -L "$CODEX_STATE" && ! -L "$CODEX_JOBS" ]] || fail 'Invalid Codex storage path.'
+  codex_as_account mkdir -p -m 0700 "$CODEX_JOBS" || fail 'Cannot prepare Codex storage.'
+  codex_as_account chmod 0700 "$CODEX_STATE" "$CODEX_JOBS"
+}
+
+codex_as_account() {
+  runuser -u "$ACCOUNT_USER" -- env -u OPENAI_API_KEY -u CODEX_API_KEY HOME="$ACCOUNT_HOME" CODEX_HOME="$CODEX_STATE" PATH="/usr/local/bin:/usr/bin:/bin" "$@"
+}
+
+codex_auth_start() {
+  [[ $# -eq 1 ]] || fail 'Invalid Codex arguments.'
+  codex_paths
+  command -v codex >/dev/null || fail 'Codex CLI is not installed.'
+  if codex_as_account codex login status >/dev/null 2>&1; then echo 'connected'; return; fi
+  local unit="xpanel-codex-login-$(date +%s%N)"
+  codex_as_account /bin/sh -c ': > "$1" && chmod 0600 "$1"' sh "$CODEX_STATE/login.log"
+  systemd-run --quiet --collect --unit="$unit" --property="User=$ACCOUNT_USER" --property="WorkingDirectory=$ACCOUNT_HOME" \
+    --setenv="HOME=$ACCOUNT_HOME" --setenv="CODEX_HOME=$CODEX_STATE" --setenv="PATH=/usr/local/bin:/usr/bin:/bin" \
+    /bin/bash -c 'unset OPENAI_API_KEY CODEX_API_KEY; exec codex login --device-auth > "$CODEX_HOME/login.log" 2>&1'
+  echo 'started'
+}
+
+codex_auth_status() {
+  [[ $# -eq 1 ]] || fail 'Invalid Codex arguments.'
+  codex_paths
+  if ! command -v codex >/dev/null; then echo 'missing'; return; fi
+  if codex_as_account codex login status >/dev/null 2>&1; then echo 'connected'; return; fi
+  echo 'disconnected'
+  if [[ -f "$CODEX_STATE/login.log" && ! -L "$CODEX_STATE/login.log" ]]; then
+    codex_as_account grep -Eo 'https://[^[:space:]]+|[A-Z0-9]{4,8}-[A-Z0-9]{4,8}' "$CODEX_STATE/login.log" | head -n 8 || true
+  fi
+}
+
+codex_auth_logout() {
+  [[ $# -eq 1 ]] || fail 'Invalid Codex arguments.'
+  codex_paths
+  codex_as_account codex logout >/dev/null 2>&1 || true
+  codex_as_account rm -f "$CODEX_STATE/login.log"
+  echo 'disconnected'
+}
+
+codex_job_start() {
+  [[ $# -eq 4 ]] || fail 'Invalid Codex job arguments.'
+  codex_paths
+  local requested="$2" job="$3" thread="$4" site_dir
+  [[ "$job" =~ ^[a-f0-9-]{36}$ ]] || fail 'Invalid Codex job ID.'
+  [[ "$thread" == new || "$thread" =~ ^[a-f0-9-]{36}$ ]] || fail 'Invalid Codex thread ID.'
+  site_dir="$(realpath -e -- "$requested")" || fail 'Codex workspace does not exist.'
+  [[ "$site_dir" == "$ACCOUNT_HOME/public_html" || "$site_dir" == "$ACCOUNT_HOME/public_html/"* ]] || fail 'Codex workspace is outside this account.'
+  [[ ! -e "$CODEX_JOBS/$job" ]] || fail 'Codex job already exists.'
+  codex_as_account codex login status >/dev/null 2>&1 || fail 'Sign in to Codex first.'
+  local job_dir="$CODEX_JOBS/$job"
+  codex_as_account mkdir -m 0700 "$job_dir"
+  codex_as_account tee "$job_dir/prompt" >/dev/null
+  codex_as_account chmod 0600 "$job_dir/prompt"
+  [[ -s "$job_dir/prompt" ]] || fail 'Codex prompt is empty.'
+  printf 'queued\n' | codex_as_account tee "$job_dir/state" >/dev/null
+  systemd-run --quiet --collect --unit="xpanel-codex-${job//-/}" \
+    --property="User=$ACCOUNT_USER" --property="WorkingDirectory=$site_dir" \
+    --property="RuntimeMaxSec=1800" \
+    --setenv="HOME=$ACCOUNT_HOME" --setenv="CODEX_HOME=$CODEX_STATE" --setenv="PATH=/usr/local/bin:/usr/bin:/bin" \
+    "$ROOT/scripts/xpanel-codex-worker.sh" "$job_dir" "$site_dir" "$thread" "$CODEX_STATE" "$ACCOUNT_HOME"
+  echo "$job"
+}
+
+codex_job_status() {
+  [[ $# -eq 2 ]] || fail 'Invalid Codex job arguments.'
+  codex_paths
+  [[ "$2" =~ ^[a-f0-9-]{36}$ ]] || fail 'Invalid Codex job ID.'
+  local job_dir="$CODEX_JOBS/$2"
+  [[ -d "$job_dir" && ! -L "$job_dir" ]] || fail 'Codex job does not exist.'
+  codex_as_account php -r '
+    $dir=$argv[1]; $state=trim((string)@file_get_contents("$dir/state"));
+    $eventFile="$dir/events"; $size=(int)@filesize($eventFile);
+    $head=$size ? (string)@file_get_contents($eventFile,false,null,0,min($size,8192)) : "";
+    $tail=$size ? (string)@file_get_contents($eventFile,false,null,max(0,$size-65536),min($size,65536)) : "";
+    $events=array_merge(array_slice(explode("\n",$head),0,8),explode("\n",$tail));
+    $thread=null; $stage="Preparando Codex";
+    foreach ($events as $line) {
+      $event=json_decode($line,true); if (($event["type"]??null)==="thread.started") $thread=$event["thread_id"]??null;
+      $type=$event["item"]["type"]??null;
+      if ($type==="command_execution") $stage="Ejecutando comando";
+      elseif ($type==="file_change") $stage="Editando archivos";
+      elseif ($type==="agent_message") $stage="Preparando respuesta";
+    }
+    if (in_array($state,["running","queued"],true) && time()-(int)@filemtime("$dir/state")>1900) {
+      $state="failed"; $stage="La tarea se interrumpió antes de terminar";
+    }
+    $answer=@file_get_contents("$dir/answer"); $error=@file_get_contents("$dir/error");
+    echo json_encode(["state"=>$state ?: "queued", "stage"=>$stage, "thread_id"=>$thread,
+      "answer"=>$state==="done" ? mb_substr((string)$answer,0,100000) : null,
+      "error"=>$state==="failed" ? mb_substr(trim((string)$error) ?: $stage,0,1000) : null], JSON_INVALID_UTF8_SUBSTITUTE);
+  ' "$job_dir"
+}
+
 set_root_env() {
   local key="$1" value="$2"
   if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
@@ -3158,6 +3258,11 @@ backup_delete() {
 }
 
 case "$ACTION" in
+  codex-auth-start) codex_auth_start "$@" ;;
+  codex-auth-status) codex_auth_status "$@" ;;
+  codex-auth-logout) codex_auth_logout "$@" ;;
+  codex-job-start) codex_job_start "$@" ;;
+  codex-job-status) codex_job_status "$@" ;;
   archive-worker-start)
     [[ $# -eq 1 ]] || fail "Invalid archive worker arguments."
     site_user="$(sed -n 's/^XPANEL_SITE_USER=//p' "$ROOT/.env" | tail -n 1 | tr -d '"')"

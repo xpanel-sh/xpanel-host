@@ -446,6 +446,8 @@ configure_site_helper() {
 
   chmod 0750 "$helper"
   chown root:"${XPANEL_SITE_GROUP:-www-data}" "$helper"
+  chown root:root "$ROOT/scripts/xpanel-codex-worker.sh"
+  chmod 0755 "$ROOT/scripts/xpanel-codex-worker.sh"
   printf '%s ALL=(root) NOPASSWD: %s *\n' "${XPANEL_SITE_USER:-www-data}" "$helper" > "$sudoers_file"
   chmod 0440 "$sudoers_file"
   visudo -cf "$sudoers_file" >/dev/null
@@ -859,6 +861,7 @@ chmod 0644 /var/lib/xpanel-host/language
 
 install_base_dependencies
 ensure_node_runtime
+bash "$ROOT/scripts/install-codex.sh"
 bash "$ROOT/scripts/install-dbgate.sh"
 bash "$ROOT/scripts/remove-legacy-phpmyadmin.sh"
 validate_php_runtime

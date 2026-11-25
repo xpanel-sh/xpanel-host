@@ -5,30 +5,31 @@ namespace App\Http\Controllers;
 use App\Models\AiConnection;
 use App\Models\AiConversation;
 use App\Models\Site;
-use App\Services\AiProviderClient;
-use App\Services\IkodeProjectContext;
+use App\Services\CodexSessionManager;
+use App\Services\HostingAccountWorkspace;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 class IkodeAgentController extends Controller
 {
-    public function state(Request $request, ?Site $site = null): JsonResponse
+    public function state(Request $request, CodexSessionManager $codex, ?Site $site = null): JsonResponse
     {
         $routeSite = $site;
         $site = $this->selectedSite($request, $site);
-        $connections = AiConnection::query()->whereBelongsTo($request->user())->latest()->get();
-        $selected = $connections->firstWhere('id', (int) $request->query('connection_id')) ?? $connections->first();
-        $conversations = $selected ? $this->conversations($request, $selected, $site)->get() : collect();
+        $selected = $this->connection($request);
+        $conversations = $this->conversations($request, $selected, $site)->get();
         $conversation = $conversations->firstWhere('id', (int) $request->query('conversation_id')) ?? $conversations->first();
 
         return response()->json([
             'scope' => $site ? ['type' => 'site', 'label' => $site->domain] : ['type' => 'account', 'label' => 'Cuenta completa'],
             'sites' => $routeSite ? $this->family($routeSite)->map(fn (Site $item): array => ['id' => $item->id, 'domain' => $item->domain])->values() : [],
             'active_site_id' => $site?->id,
-            'connections' => $connections->map(fn (AiConnection $connection): array => $this->connectionData($connection))->values(),
+            'connections' => [$this->connectionData($selected)],
+            'auth' => $this->safeAuthStatus($codex),
             'active_connection_id' => $selected?->id,
             'conversations' => $conversations->map(fn (AiConversation $item): array => $this->conversationData($item))->values(),
             'active_conversation_id' => $conversation?->id,
@@ -40,46 +41,24 @@ class IkodeAgentController extends Controller
 
     public function storeConnection(Request $request, ?Site $site = null): JsonResponse
     {
-        $data = $request->validate([
-            'provider' => ['required', Rule::in(['openai', 'anthropic'])],
-            'name' => 'required|string|max:80',
-            'model' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9._:-]+$/'],
-            'api_key' => 'required|string|min:16|max:500',
-        ]);
-        $connection = AiConnection::create([...$data, 'user_id' => $request->user()->id, 'status' => 'configured']);
-
-        return response()->json(['connection' => $this->connectionData($connection)], 201);
+        return response()->json(['message' => 'Usa Iniciar sesión con Codex. Las claves API ya no se utilizan.'], 410);
     }
 
     public function destroyConnection(Request $request, int $connection, ?Site $site = null): JsonResponse
     {
-        $owned = AiConnection::query()->whereBelongsTo($request->user())->findOrFail($connection);
-        $owned->delete();
-
-        return response()->json(['status' => 'deleted']);
+        return response()->json(['message' => 'La conexión Codex se cierra desde Ajustes.'], 410);
     }
 
     public function updateConnection(Request $request, int $connection, ?Site $site = null): JsonResponse
     {
-        $owned = AiConnection::query()->whereBelongsTo($request->user())->findOrFail($connection);
-        $data = $request->validate([
-            'name' => 'required|string|max:80',
-            'model' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9._:-]+$/'],
-            'api_key' => 'nullable|string|min:16|max:500',
-        ]);
-        if (! filled($data['api_key'] ?? null)) {
-            unset($data['api_key']);
-        }
-        $owned->update([...$data, 'status' => 'configured', 'last_error' => null]);
-
-        return response()->json(['connection' => $this->connectionData($owned->fresh())]);
+        return response()->json(['message' => 'Codex usa el inicio de sesión de la cuenta.'], 410);
     }
 
     public function storeConversation(Request $request, ?Site $site = null): JsonResponse
     {
         $site = $this->selectedSite($request, $site);
-        $data = $request->validate(['connection_id' => 'required|integer']);
-        $connection = AiConnection::query()->whereBelongsTo($request->user())->findOrFail($data['connection_id']);
+        $connection = $this->connection($request);
+        abort_if((int) $request->input('connection_id') !== $connection->id, 422, 'La conexión no pertenece a Codex.');
         $conversation = AiConversation::create([
             'user_id' => $request->user()->id,
             'ai_connection_id' => $connection->id,
@@ -98,21 +77,43 @@ class IkodeAgentController extends Controller
             ->where('user_id', $request->user()->id)
             ->where('scope_key', $this->scopeKey($site))
             ->findOrFail($conversation);
+        if ($owned->codex_job_id) {
+            return response()->json(['message' => 'Espera a que termine la respuesta antes de eliminar el chat.'], 409);
+        }
         $owned->delete();
 
         return response()->json(['status' => 'deleted']);
     }
 
-    public function chat(Request $request, AiProviderClient $client, IkodeProjectContext $context, ?Site $site = null): JsonResponse
+    public function login(Request $request, CodexSessionManager $codex, ?Site $site = null): JsonResponse
+    {
+        $this->selectedSite($request, $site);
+        try { return response()->json(['auth' => $codex->startLogin()]); }
+        catch (Throwable $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
+    }
+
+    public function authStatus(Request $request, CodexSessionManager $codex, ?Site $site = null): JsonResponse
+    {
+        $this->selectedSite($request, $site);
+        return response()->json(['auth' => $this->safeAuthStatus($codex)]);
+    }
+
+    public function logout(Request $request, CodexSessionManager $codex, ?Site $site = null): JsonResponse
+    {
+        $this->selectedSite($request, $site);
+        try { return response()->json(['auth' => $codex->logout()]); }
+        catch (Throwable $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
+    }
+
+    public function chat(Request $request, CodexSessionManager $codex, HostingAccountWorkspace $workspace, ?Site $site = null): JsonResponse
     {
         $site = $this->selectedSite($request, $site);
         $data = $request->validate([
-            'connection_id' => 'required|integer',
             'conversation_id' => 'nullable|integer',
             'message' => 'required|string|max:12000',
             'active_path' => 'nullable|string|max:2048',
         ]);
-        $connection = AiConnection::query()->whereBelongsTo($request->user())->findOrFail($data['connection_id']);
+        $connection = $this->connection($request);
         $conversation = isset($data['conversation_id'])
             ? $this->conversations($request, $connection, $site)->findOrFail($data['conversation_id'])
             : null;
@@ -123,28 +124,55 @@ class IkodeAgentController extends Controller
             'scope_key' => $this->scopeKey($site),
             'title' => 'Nuevo chat',
         ]);
-        $userMessage = $conversation->messages()->create(['role' => 'user', 'content' => $data['message']]);
-        $history = $conversation->messages()->latest()->limit(16)->get()->reverse()->values()->map(fn ($message): array => [
-            'role' => $message->role, 'content' => $message->content,
-        ])->all();
-
+        if ($conversation->codex_job_id) {
+            return response()->json(['message' => 'Este chat ya tiene una respuesta en curso.'], 409);
+        }
+        $job = (string) Str::uuid();
+        $directory = $site ? $site->document_root : $workspace->systemRoot().'/public_html';
+        $scope = $site ? "Trabaja únicamente en el sitio {$site->domain}. No modifiques otros sitios de esta cuenta." : 'Trabaja en los sitios de esta cuenta de hosting.';
+        $prompt = "Ámbito: {$scope}\nDirectorio de trabajo: {$directory}\nArchivo activo: ".($data['active_path'] ?? 'ninguno')."\n\nSolicitud del usuario:\n{$data['message']}";
         try {
-            $reply = $client->reply($connection, $context->build($site, $data['active_path'] ?? null), $history);
-            $assistant = $conversation->messages()->create(['role' => 'assistant', 'content' => $reply]);
+            $codex->startJob($directory, $job, $conversation->codex_thread_id, $prompt);
+            $conversation->messages()->create(['role' => 'user', 'content' => $data['message']]);
             $conversation->update(['title' => $conversation->title === 'Nuevo chat' ? mb_substr(trim($data['message']), 0, 72) : $conversation->title]);
-            $connection->update(['status' => 'connected', 'last_error' => null, 'last_used_at' => now()]);
+            $conversation->update(['codex_job_id' => $job]);
         } catch (Throwable $exception) {
-            $connection->update(['status' => 'error', 'last_error' => mb_substr($exception->getMessage(), 0, 1000)]);
-            $userMessage->delete();
-
             return response()->json(['message' => $exception->getMessage()], 422);
         }
 
         return response()->json([
-            'message' => ['id' => $assistant->id, 'role' => 'assistant', 'content' => $assistant->content],
-            'connection' => $this->connectionData($connection->fresh()),
+            'job' => $job,
             'conversation' => $this->conversationData($conversation->fresh()),
-        ]);
+        ], 202);
+    }
+
+    public function jobStatus(Request $request, CodexSessionManager $codex): JsonResponse
+    {
+        $site = $request->route('site');
+        $job = (string) $request->route('job');
+        if (is_string($site)) {
+            $site = Site::query()->where('domain', $site)->firstOrFail();
+        }
+        abort_unless($site === null || $site instanceof Site, 404);
+        $site = $this->selectedSite($request, $site);
+        $conversation = $this->conversations($request, $this->connection($request), $site)
+            ->where('codex_job_id', $job)->firstOrFail();
+        try { $status = $codex->jobStatus($job); }
+        catch (Throwable $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
+        if (in_array($status['state'] ?? null, ['done', 'failed'], true)) {
+            DB::transaction(function () use ($conversation, $job, $status): void {
+                $locked = AiConversation::query()->lockForUpdate()->findOrFail($conversation->id);
+                if ($locked->codex_job_id !== $job) return;
+                if (($status['state'] ?? null) === 'done' && filled($status['answer'] ?? null)) {
+                    $locked->messages()->create(['role' => 'assistant', 'content' => $status['answer']]);
+                }
+                $locked->update([
+                    'codex_job_id' => null,
+                    'codex_thread_id' => $status['thread_id'] ?: $locked->codex_thread_id,
+                ]);
+            });
+        }
+        return response()->json(['status' => $status, 'conversation_id' => $conversation->id]);
     }
 
     private function conversations(Request $request, AiConnection $connection, ?Site $site): Builder
@@ -154,6 +182,20 @@ class IkodeAgentController extends Controller
             ->where('ai_connection_id', $connection->id)
             ->where('scope_key', $this->scopeKey($site))
             ->latest('updated_at');
+    }
+
+    private function connection(Request $request): AiConnection
+    {
+        return AiConnection::query()->firstOrCreate(
+            ['user_id' => $request->user()->id, 'provider' => 'codex'],
+            ['name' => 'Codex', 'model' => 'Cuenta ChatGPT', 'api_key' => null, 'status' => 'configured'],
+        );
+    }
+
+    private function safeAuthStatus(CodexSessionManager $codex): array
+    {
+        try { return $codex->authStatus(); }
+        catch (Throwable $exception) { return ['status' => 'error', 'message' => $exception->getMessage()]; }
     }
 
     private function scopeKey(?Site $site): string
@@ -200,6 +242,7 @@ class IkodeAgentController extends Controller
             'id' => $conversation->id,
             'title' => $conversation->title ?: 'Nuevo chat',
             'updated_at' => $conversation->updated_at?->toIso8601String(),
+            'job_id' => $conversation->codex_job_id,
         ];
     }
 }

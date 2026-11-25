@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'ai_connection_id', 'site_id', 'scope_key', 'title'])]
+#[Fillable(['user_id', 'ai_connection_id', 'site_id', 'scope_key', 'title', 'codex_thread_id', 'codex_job_id'])]
 class AiConversation extends Model
 {
     public function connection(): BelongsTo
