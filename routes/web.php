@@ -361,6 +361,8 @@ Route::middleware('setup.complete')->group(function () {
                 Route::delete('/agents/conversations/{conversation}', [IkodeAgentController::class, 'destroyConversation'])->name('agents.conversations.destroy');
                 Route::post('/agents/chat', [IkodeAgentController::class, 'chat'])->middleware('throttle:20,1')->name('agents.chat');
                 Route::post('/agents/codex/login', [IkodeAgentController::class, 'login'])->name('agents.codex.login');
+                Route::post('/agents/codex/install', [IkodeAgentController::class, 'install'])->name('agents.codex.install');
+                Route::get('/agents/codex/install/status', [IkodeAgentController::class, 'installStatus'])->name('agents.codex.install.status');
                 Route::get('/agents/codex/status', [IkodeAgentController::class, 'authStatus'])->name('agents.codex.status');
                 Route::post('/agents/codex/logout', [IkodeAgentController::class, 'logout'])->name('agents.codex.logout');
                 Route::get('/agents/codex/jobs/{job}', [IkodeAgentController::class, 'jobStatus'])->name('agents.codex.jobs.status');
@@ -387,6 +389,8 @@ Route::middleware('setup.complete')->group(function () {
                 Route::delete('/agents/conversations/{conversation}', [IkodeAgentController::class, 'destroyConversation'])->name('agents.conversations.destroy');
                 Route::post('/agents/chat', [IkodeAgentController::class, 'chat'])->middleware('throttle:20,1')->name('agents.chat');
                 Route::post('/agents/codex/login', [IkodeAgentController::class, 'login'])->name('agents.codex.login');
+                Route::post('/agents/codex/install', [IkodeAgentController::class, 'install'])->name('agents.codex.install');
+                Route::get('/agents/codex/install/status', [IkodeAgentController::class, 'installStatus'])->name('agents.codex.install.status');
                 Route::get('/agents/codex/status', [IkodeAgentController::class, 'authStatus'])->name('agents.codex.status');
                 Route::post('/agents/codex/logout', [IkodeAgentController::class, 'logout'])->name('agents.codex.logout');
                 Route::get('/agents/codex/jobs/{job}', [IkodeAgentController::class, 'jobStatus'])->name('agents.codex.jobs.status');

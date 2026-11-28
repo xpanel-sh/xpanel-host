@@ -30,6 +30,7 @@ class IkodeAgentController extends Controller
             'active_site_id' => $site?->id,
             'connections' => [$this->connectionData($selected)],
             'auth' => $this->safeAuthStatus($codex),
+            'installation' => $this->safeInstallStatus($codex),
             'active_connection_id' => $selected?->id,
             'conversations' => $conversations->map(fn (AiConversation $item): array => $this->conversationData($item))->values(),
             'active_conversation_id' => $conversation?->id,
@@ -90,6 +91,19 @@ class IkodeAgentController extends Controller
         $this->selectedSite($request, $site);
         try { return response()->json(['auth' => $codex->startLogin()]); }
         catch (Throwable $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
+    }
+
+    public function install(Request $request, CodexSessionManager $codex, ?Site $site = null): JsonResponse
+    {
+        $this->selectedSite($request, $site);
+        try { return response()->json(['installation' => $codex->startInstall()]); }
+        catch (Throwable $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
+    }
+
+    public function installStatus(Request $request, CodexSessionManager $codex, ?Site $site = null): JsonResponse
+    {
+        $this->selectedSite($request, $site);
+        return response()->json(['installation' => $this->safeInstallStatus($codex)]);
     }
 
     public function authStatus(Request $request, CodexSessionManager $codex, ?Site $site = null): JsonResponse
@@ -196,6 +210,12 @@ class IkodeAgentController extends Controller
     {
         try { return $codex->authStatus(); }
         catch (Throwable $exception) { return ['status' => 'error', 'message' => $exception->getMessage()]; }
+    }
+
+    private function safeInstallStatus(CodexSessionManager $codex): string
+    {
+        try { return $codex->installStatus(); }
+        catch (Throwable) { return 'error'; }
     }
 
     private function scopeKey(?Site $site): string

@@ -1376,6 +1376,8 @@
                             </div>
                             <div class="xpanel-agent-settings">
                                 <p class="text-xs leading-5 text-secondary-foreground">Conecta la cuenta de ChatGPT con el código de dispositivo. La sesión queda en este hosting y Codex trabaja con sus archivos.</p>
+                                <p class="text-xs mt-3" id="xpanel_agent_install_status">Comprobando extensión…</p>
+                                <button type="button" class="kt-btn kt-btn-outline w-full mt-2" id="xpanel_agent_install" hidden>Instalar extensión Codex</button>
                                 <p class="text-xs mt-3" id="xpanel_agent_login_status">Comprobando sesión…</p>
                                 <div id="xpanel_agent_device" class="mt-3 ikode_hidden">
                                     <a id="xpanel_agent_verification_url" class="text-primary underline" target="_blank" rel="noopener noreferrer">Abrir página de inicio de sesión</a>
@@ -1537,6 +1539,7 @@
                 agentsLoaded: false,
                 agentBusy: false,
                 agentAuth: {status: 'disconnected'},
+                agentInstallation: 'missing',
                 agentPollingJob: null,
                 agentProgress: 'Codex está trabajando…',
                 outlineNodes: [],
@@ -1925,6 +1928,7 @@
                 state.activeConversationId = payload.active_conversation_id || null;
                 state.agentMessages = payload.messages || [];
                 state.agentAuth = payload.auth || {status: 'disconnected'};
+                state.agentInstallation = payload.installation || 'missing';
                 state.agentsLoaded = true;
                 renderAgentChat();
                 renderAgentAuth();
@@ -1933,8 +1937,17 @@
             };
             const renderAgentAuth = () => {
                 const auth = state.agentAuth;
+                const installation = state.agentInstallation;
+                $('#xpanel_agent_install_status').textContent = ({
+                    installed: 'Extensión Codex disponible en este servidor.',
+                    installing: 'Instalando Codex en el servidor…',
+                    failed: 'La instalación falló. Puedes reintentarla.',
+                    missing: 'La extensión Codex todavía no está instalada.',
+                    error: 'No se pudo comprobar la instalación de Codex.',
+                })[installation] || 'Estado de instalación desconocido.';
+                $('#xpanel_agent_install').hidden = installation === 'installed' || installation === 'installing';
+                $('#xpanel_agent_connect').hidden = installation !== 'installed' || auth.status === 'connected';
                 $('#xpanel_agent_login_status').textContent = auth.message || agentStatusLabel(auth.status);
-                $('#xpanel_agent_connect').hidden = auth.status === 'connected';
                 $('#xpanel_agent_remove').hidden = auth.status !== 'connected';
                 const device = $('#xpanel_agent_device');
                 device.classList.toggle('ikode_hidden', !auth.user_code || !auth.verification_url || auth.status === 'connected');
@@ -4925,6 +4938,28 @@
                 } finally {
                     button.disabled = false;
                 }
+            });
+            $('#xpanel_agent_install')?.addEventListener('click', async () => {
+                const button = $('#xpanel_agent_install');
+                button.disabled = true;
+                try {
+                    const payload = await api('POST', '/agents/codex/install', { target_site_id: state.agentSiteId });
+                    state.agentInstallation = payload.installation;
+                    renderAgentAuth();
+                    if (payload.installation !== 'installing') return;
+                    const timer = setInterval(async () => {
+                        try {
+                            const status = await api('GET', `/agents/codex/install/status${state.agentSiteId ? `?target_site_id=${state.agentSiteId}` : ''}`);
+                            state.agentInstallation = status.installation;
+                            renderAgentAuth();
+                            if (status.installation !== 'installing') {
+                                clearInterval(timer);
+                                toast(status.installation === 'installed' ? 'Codex instalado. Ya puedes iniciar sesión.' : 'No se pudo instalar Codex.', status.installation === 'installed' ? 'success' : 'error');
+                            }
+                        } catch (error) { clearInterval(timer); toast(error.message, 'error'); }
+                    }, 3000);
+                } catch (error) { toast(error.message, 'error'); }
+                finally { button.disabled = false; }
             });
             $('#xpanel_agent_remove')?.addEventListener('click', async () => {
                 if (!window.confirm('¿Cerrar la sesión de Codex de este hosting?')) return;

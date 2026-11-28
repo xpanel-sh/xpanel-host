@@ -9,6 +9,16 @@ class CodexSessionManager
 {
     public function __construct(private readonly HostBrokerClient $broker) {}
 
+    public function installStatus(): string
+    {
+        return trim($this->call('codex-install-status'));
+    }
+
+    public function startInstall(): string
+    {
+        return trim($this->call('codex-install-start'));
+    }
+
     public function authStatus(): array
     {
         $lines = preg_split('/\R/', trim($this->call('codex-auth-status')));

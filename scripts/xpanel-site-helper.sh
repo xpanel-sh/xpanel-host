@@ -103,6 +103,16 @@ codex_auth_start() {
   echo 'started'
 }
 
+codex_install_start() {
+  [[ $# -eq 1 ]] || fail 'Invalid Codex installation arguments.'
+  bash "$ROOT/scripts/install-codex.sh" start
+}
+
+codex_install_status() {
+  [[ $# -eq 1 ]] || fail 'Invalid Codex installation arguments.'
+  bash "$ROOT/scripts/install-codex.sh" status
+}
+
 codex_auth_status() {
   [[ $# -eq 1 ]] || fail 'Invalid Codex arguments.'
   codex_paths
@@ -3278,6 +3288,8 @@ case "$ACTION" in
   panel-update-status) panel_update_status "$@" ;;
   panel-update-start) panel_update_start "$@" ;;
   panel-update-run) panel_update_run "$@" ;;
+  codex-install-start) codex_install_start "$@" ;;
+  codex-install-status) codex_install_status "$@" ;;
   pagespeed-key-set) pagespeed_key_set ;;
   server-ip-validate) server_ip_validate "$@" ;;
   panel-access-apply) panel_access_apply "$@" ;;

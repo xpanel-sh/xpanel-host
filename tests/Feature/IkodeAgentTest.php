@@ -17,12 +17,14 @@ class IkodeAgentTest extends TestCase
 
     public function test_codex_state_uses_account_login_and_rejects_api_keys(): void
     {
-        $this->mock(CodexSessionManager::class)
-            ->shouldReceive('authStatus')->once()->andReturn(['status' => 'connected']);
+        $codex = $this->mock(CodexSessionManager::class);
+        $codex->shouldReceive('authStatus')->once()->andReturn(['status' => 'connected']);
+        $codex->shouldReceive('installStatus')->once()->andReturn('installed');
         $user = $this->developer();
 
         $this->actingAs($user)->getJson(route('sites.ikode.api.agents.state'))
             ->assertOk()->assertJsonPath('auth.status', 'connected')
+            ->assertJsonPath('installation', 'installed')
             ->assertJsonPath('connections.0.provider', 'codex')
             ->assertJsonMissingPath('connections.0.api_key');
         $this->actingAs($user)->postJson(route('sites.ikode.api.agents.connections.store'), [
@@ -78,6 +80,20 @@ class IkodeAgentTest extends TestCase
 
         $this->actingAs($this->developer())->postJson(route('sites.ikode.api.agents.codex.login'))
             ->assertOk()->assertJsonPath('auth.status', 'disconnected');
+    }
+
+    public function test_managed_codex_install_is_started_only_when_requested(): void
+    {
+        config(['xpanel.apply_system_changes' => true, 'xpanel.management_mode' => 'vps-instance']);
+        $broker = $this->mock(HostBrokerClient::class);
+        $broker->shouldReceive('execute')->once()->with('codex-install-start', [], null)->andReturn('installing');
+        $broker->shouldReceive('execute')->once()->with('codex-install-status', [], null)->andReturn('installed');
+
+        $user = $this->developer();
+        $this->actingAs($user)->postJson(route('sites.ikode.api.agents.codex.install'))
+            ->assertOk()->assertJsonPath('installation', 'installing');
+        $this->actingAs($user)->getJson(route('sites.ikode.api.agents.codex.install.status'))
+            ->assertOk()->assertJsonPath('installation', 'installed');
     }
 
     private function developer(): User

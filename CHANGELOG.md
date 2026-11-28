@@ -4,6 +4,8 @@ Los cambios importantes de XPanel Host se documentarán aquí. El formato sigue 
 
 ## [0.2.0-beta.1] - En preparación
 
+- Codex pasa a ser una extensión opcional de iKode: Host deja de instalar su CLI durante la instalación o actualización y ofrece instalarlo desde Ajustes de Codex cuando se usa.
+
 Versión de pruebas coordinada con VPS. Los hitos `alpha.1` y `alpha.2` inferiores organizan retrospectivamente el trabajo anterior; no representan etiquetas publicadas.
 
 ### Añadido
